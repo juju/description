@@ -85,6 +85,9 @@ type Model interface {
 	StoragePools() []StoragePool
 	AddStoragePool(StoragePoolArgs) StoragePool
 
+	RemoteApplications() []RemoteApplication
+	AddRemoteApplication(RemoteApplicationArgs) RemoteApplication
+
 	Validate() error
 }
 
@@ -126,6 +129,7 @@ func NewModel(args ModelArgs) Model {
 	m.setFilesystems(nil)
 	m.setStorages(nil)
 	m.setStoragePools(nil)
+	m.setRemoteApplications(nil)
 	return m
 }
 
@@ -217,6 +221,8 @@ type model struct {
 	Filesystems_  filesystems  `yaml:"filesystems"`
 	Storages_     storages     `yaml:"storages"`
 	StoragePools_ storagepools `yaml:"storage-pools"`
+
+	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
 }
 
 func (m *model) Tag() names.ModelTag {
@@ -664,6 +670,38 @@ func (m *model) setStoragePools(poolList []*storagepool) {
 	}
 }
 
+// RemoteApplications implements Model.
+func (m *model) RemoteApplications() []RemoteApplication {
+	var result []RemoteApplication
+	for _, app := range m.RemoteApplications_.RemoteApplications {
+		result = append(result, app)
+	}
+	return result
+}
+
+func (m *model) remoteApplication(name string) *remoteApplication {
+	for _, remoteApp := range m.RemoteApplications_.RemoteApplications {
+		if remoteApp.Name() == name {
+			return remoteApp
+		}
+	}
+	return nil
+}
+
+// AddRemoteApplication implements Model.
+func (m *model) AddRemoteApplication(args RemoteApplicationArgs) RemoteApplication {
+	app := newRemoteApplication(args)
+	m.RemoteApplications_.RemoteApplications = append(m.RemoteApplications_.RemoteApplications, app)
+	return app
+}
+
+func (m *model) setRemoteApplications(appList []*remoteApplication) {
+	m.RemoteApplications_ = remoteApplications{
+		Version:            1,
+		RemoteApplications: appList,
+	}
+}
+
 // Validate implements Model.
 func (m *model) Validate() error {
 	// A model needs an owner.
@@ -929,6 +967,12 @@ func (m *model) validateRelations() error {
 			// Check application exists.
 			application := m.application(ep.ApplicationName())
 			if application == nil {
+				remoteApp := m.remoteApplication(ep.ApplicationName())
+				if remoteApp != nil {
+					// There are no units to check for a remote
+					// application (the units live in the other model).
+					continue
+				}
 				return errors.Errorf("unknown application %q for relation id %d", ep.ApplicationName(), relation.Id())
 			}
 			// Check that all units have settings.
@@ -994,6 +1038,7 @@ func importModelV1(source map[string]interface{}) (*model, error) {
 		"storages":             schema.StringMap(schema.Any()),
 		"storage-pools":        schema.StringMap(schema.Any()),
 		"sequences":            schema.StringMap(schema.Int()),
+		"remote-applications":  schema.StringMap(schema.Any()),
 	}
 	// Some values don't have to be there.
 	defaults := schema.Defaults{
@@ -1153,6 +1198,12 @@ func importModelV1(source map[string]interface{}) (*model, error) {
 		return nil, errors.Annotate(err, "storage-pools")
 	}
 	result.setStoragePools(pools)
+
+	remoteApplications, err := importRemoteApplications(valid["remote-applications"].(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Annotate(err, "remote-applications")
+	}
+	result.setRemoteApplications(remoteApplications)
 
 	return result, nil
 }

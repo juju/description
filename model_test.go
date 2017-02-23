@@ -361,9 +361,9 @@ func (s *ModelSerializationSuite) TestModelSerializationWithRelations(c *gc.C) {
 	initial := s.wordpressModelWithSettings()
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)
-	model, err := Deserialize(bytes)
+	result, err := Deserialize(bytes)
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(model, jc.DeepEquals, initial)
+	c.Assert(result, jc.DeepEquals, initial)
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksSubnets(c *gc.C) {
@@ -588,6 +588,135 @@ func (s *ModelSerializationSuite) TestModelValidationLinkLayerDeviceContainer(c 
 	c.Assert(err, jc.ErrorIsNil)
 }
 
+func (s *ModelSerializationSuite) TestNewModelSetsRemoteApplications(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: names.NewUserTag("mogwai")})
+	c.Assert(model.RemoteApplications(), gc.IsNil)
+}
+
+func (s *ModelSerializationSuite) TestModelValidationHandlesRemoteApplications(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: names.NewUserTag("ink-spots")})
+	remoteApp := model.AddRemoteApplication(RemoteApplicationArgs{
+		Tag:         names.NewApplicationTag("mysql"),
+		OfferName:   "mysql",
+		URL:         "other.mysql",
+		SourceModel: names.NewModelTag("some-model"),
+		Registered:  true,
+	})
+	remoteApp.AddEndpoint(RemoteEndpointArgs{
+		Name:      "db",
+		Role:      "provider",
+		Interface: "mysql",
+		Scope:     "global",
+	})
+
+	s.addApplicationToModel(model, "wordpress", 1)
+	rel := model.AddRelation(RelationArgs{
+		Id:  101,
+		Key: "wordpress:db mysql:db",
+	})
+	ep1 := rel.AddEndpoint(EndpointArgs{
+		ApplicationName: "wordpress",
+		Name:            "db",
+	})
+	ep1.SetUnitSettings("wordpress/0", map[string]interface{}{
+		"key": "value",
+	})
+	ep2 := rel.AddEndpoint(EndpointArgs{
+		ApplicationName: "mysql",
+		Name:            "db",
+	})
+	ep2.SetUnitSettings("mysql/0", map[string]interface{}{
+		"key": "value",
+	})
+
+	err := model.Validate()
+	c.Assert(err, jc.ErrorIsNil)
+}
+
+func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	rapp := model.AddRemoteApplication(RemoteApplicationArgs{
+		Tag:         names.NewApplicationTag("bloom"),
+		OfferName:   "toman",
+		URL:         "other.mysql",
+		SourceModel: names.NewModelTag("some-model"),
+		Registered:  true,
+	})
+	rapp.AddEndpoint(RemoteEndpointArgs{
+		Name:      "db",
+		Role:      "provider",
+		Interface: "mysql",
+		Scope:     "global",
+	})
+	bytes, err := Serialize(model)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var data map[string]interface{}
+	err = yaml.Unmarshal(bytes, &data)
+	c.Assert(err, jc.ErrorIsNil)
+
+	remoteSection, ok := data["remote-applications"]
+	c.Assert(ok, jc.IsTrue)
+
+	// Re-serialize just that bit so we can check it.
+	bytes, err = yaml.Marshal(remoteSection)
+	c.Assert(err, jc.ErrorIsNil)
+
+	expected := `
+remote-applications:
+- endpoints:
+    endpoints:
+    - interface: mysql
+      limit: 0
+      name: db
+      role: provider
+      scope: global
+    version: 1
+  name: bloom
+  offer-name: toman
+  registered: true
+  source-model-uuid: some-model
+  url: other.mysql
+version: 1
+`[1:]
+	c.Assert(string(bytes), gc.Equals, expected)
+}
+
+func (s *ModelSerializationSuite) TestImportingWithRemoteApplicationsFails(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	rapp := model.AddRemoteApplication(RemoteApplicationArgs{
+		Tag:         names.NewApplicationTag("bloom"),
+		OfferName:   "toman",
+		URL:         "other.mysql",
+		SourceModel: names.NewModelTag("some-model"),
+		Registered:  true,
+	})
+	rapp.AddEndpoint(RemoteEndpointArgs{
+		Name:      "db",
+		Role:      "provider",
+		Interface: "mysql",
+		Scope:     "global",
+	})
+	bytes, err := Serialize(model)
+	c.Assert(err, jc.ErrorIsNil)
+
+	_, err = Deserialize(bytes)
+	c.Assert(err, gc.ErrorMatches, "remote-applications: importing remote applications is not supported yet")
+}
+
+func (*ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model.AddRemoteApplication(RemoteApplicationArgs{
+		Tag:         names.NewApplicationTag("bloom"),
+		OfferName:   "toman",
+		URL:         "other.mysql",
+		SourceModel: names.NewModelTag("some-model"),
+		Registered:  true,
+	})
+	result := model.RemoteApplications()
+	c.Assert(result, gc.HasLen, 1)
+}
+
 func (s *ModelSerializationSuite) TestSpaces(c *gc.C) {
 	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
 	space := initial.AddSpace(SpaceArgs{Name: "special"})
@@ -615,6 +744,8 @@ func (s *ModelSerializationSuite) TestLinkLayerDevice(c *gc.C) {
 
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)
+
+	c.Logf(string(bytes))
 
 	model, err := Deserialize(bytes)
 	c.Assert(err, jc.ErrorIsNil)
