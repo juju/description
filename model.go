@@ -105,7 +105,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             1,
+		Version:             2,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
 		LatestToolsVersion_: args.LatestToolsVersion,
@@ -1011,9 +1011,10 @@ type modelDeserializationFunc func(map[string]interface{}) (*model, error)
 
 var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	1: importModelV1,
+	2: importModelV2,
 }
 
-func importModelV1(source map[string]interface{}) (*model, error) {
+func modelV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"owner":                schema.String(),
 		"cloud":                schema.String(),
@@ -1038,7 +1039,6 @@ func importModelV1(source map[string]interface{}) (*model, error) {
 		"storages":             schema.StringMap(schema.Any()),
 		"storage-pools":        schema.StringMap(schema.Any()),
 		"sequences":            schema.StringMap(schema.Int()),
-		"remote-applications":  schema.StringMap(schema.Any()),
 	}
 	// Some values don't have to be there.
 	defaults := schema.Defaults{
@@ -1049,18 +1049,14 @@ func importModelV1(source map[string]interface{}) (*model, error) {
 	}
 	addAnnotationSchema(fields, defaults)
 	addConstraintsSchema(fields, defaults)
-	checker := schema.FieldMap(fields, defaults)
+	return fields, defaults
+}
 
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "model v1 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
-
+func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
+	// We're always making a version 2 model, no matter what we got on
+	// the way in.
 	result := &model{
-		Version:      1,
+		Version:      2,
 		Owner_:       valid["owner"].(string),
 		Config_:      valid["config"].(map[string]interface{}),
 		Sequences_:   make(map[string]int),
@@ -1199,11 +1195,44 @@ func importModelV1(source map[string]interface{}) (*model, error) {
 	}
 	result.setStoragePools(pools)
 
-	remoteApplications, err := importRemoteApplications(valid["remote-applications"].(map[string]interface{}))
-	if err != nil {
-		return nil, errors.Annotate(err, "remote-applications")
+	var remoteApplications []*remoteApplication
+	// Remote applications only exist in version 2.
+	if importVersion >= 2 {
+		remoteApplications, err = importRemoteApplications(valid["remote-applications"].(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Annotate(err, "remote-applications")
+		}
 	}
 	result.setRemoteApplications(remoteApplications)
 
 	return result, nil
+}
+
+func importModelV1(source map[string]interface{}) (*model, error) {
+	fields, defaults := modelV1Fields()
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "model v1 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+	return newModelFromValid(valid, 1)
+}
+
+func importModelV2(source map[string]interface{}) (*model, error) {
+	fields, defaults := modelV1Fields()
+	fields["remote-applications"] = schema.StringMap(schema.Any())
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "model v1 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+	return newModelFromValid(valid, 2)
 }

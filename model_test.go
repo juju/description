@@ -633,6 +633,16 @@ func (s *ModelSerializationSuite) TestModelValidationHandlesRemoteApplications(c
 	c.Assert(err, jc.ErrorIsNil)
 }
 
+func asStringMap(c *gc.C, model Model) map[string]interface{} {
+	bytes, err := Serialize(model)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var data map[string]interface{}
+	err = yaml.Unmarshal(bytes, &data)
+	c.Assert(err, jc.ErrorIsNil)
+	return data
+}
+
 func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
 	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	rapp := model.AddRemoteApplication(RemoteApplicationArgs{
@@ -648,18 +658,12 @@ func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
 		Interface: "mysql",
 		Scope:     "global",
 	})
-	bytes, err := Serialize(model)
-	c.Assert(err, jc.ErrorIsNil)
-
-	var data map[string]interface{}
-	err = yaml.Unmarshal(bytes, &data)
-	c.Assert(err, jc.ErrorIsNil)
-
+	data := asStringMap(c, model)
 	remoteSection, ok := data["remote-applications"]
 	c.Assert(ok, jc.IsTrue)
 
 	// Re-serialize just that bit so we can check it.
-	bytes, err = yaml.Marshal(remoteSection)
+	bytes, err := yaml.Marshal(remoteSection)
 	c.Assert(err, jc.ErrorIsNil)
 
 	expected := `
@@ -718,6 +722,51 @@ func (*ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
 	})
 	result := model.RemoteApplications()
 	c.Assert(result, gc.HasLen, 1)
+}
+
+func (*ModelSerializationSuite) TestSerializesToVersion2(c *gc.C) {
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
+	data := asStringMap(c, initial)
+	versionValue, ok := data["version"]
+	c.Assert(ok, jc.IsTrue)
+	version, ok := versionValue.(int)
+	c.Assert(ok, jc.IsTrue)
+	c.Assert(version, gc.Equals, 2)
+}
+
+func (*ModelSerializationSuite) TestVersion1Works(c *gc.C) {
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
+	data := asStringMap(c, initial)
+	data["version"] = 1
+
+	bytes, err := yaml.Marshal(data)
+	c.Assert(err, jc.ErrorIsNil)
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(model.Owner(), gc.Equals, names.NewUserTag("ben-harper"))
+}
+
+func (*ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C) {
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
+	initial.AddRemoteApplication(RemoteApplicationArgs{
+		Tag:         names.NewApplicationTag("bloom"),
+		OfferName:   "toman",
+		URL:         "other.mysql",
+		SourceModel: names.NewModelTag("some-model"),
+		Registered:  true,
+	})
+	data := asStringMap(c, initial)
+	data["version"] = 1
+
+	bytes, err := yaml.Marshal(data)
+	c.Assert(err, jc.ErrorIsNil)
+	result, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+
+	// Doesn't import the remote applications - version 1 models
+	// didn't know about them.
+	c.Assert(result.RemoteApplications(), gc.HasLen, 0)
 }
 
 func (s *ModelSerializationSuite) TestSpaces(c *gc.C) {
