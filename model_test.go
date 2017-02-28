@@ -683,8 +683,8 @@ version: 1
 }
 
 func (s *ModelSerializationSuite) TestImportingWithRemoteApplicationsFails(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
-	rapp := model.AddRemoteApplication(RemoteApplicationArgs{
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	rapp := initial.AddRemoteApplication(RemoteApplicationArgs{
 		Tag:         names.NewApplicationTag("bloom"),
 		OfferName:   "toman",
 		URL:         "other.mysql",
@@ -697,11 +697,14 @@ func (s *ModelSerializationSuite) TestImportingWithRemoteApplicationsFails(c *gc
 		Interface: "mysql",
 		Scope:     "global",
 	})
-	bytes, err := Serialize(model)
+	remoteApplications := initial.RemoteApplications()
+
+	bytes, err := Serialize(initial)
 	c.Assert(err, jc.ErrorIsNil)
 
-	_, err = Deserialize(bytes)
-	c.Assert(err, gc.ErrorMatches, "remote-applications: importing remote applications is not supported yet")
+	result, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(result.RemoteApplications(), gc.DeepEquals, remoteApplications)
 }
 
 func (*ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {

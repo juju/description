@@ -5,6 +5,7 @@ package description
 
 import (
 	"github.com/juju/errors"
+	"github.com/juju/schema"
 	"gopkg.in/juju/names.v2"
 )
 
@@ -111,12 +112,84 @@ func (a *remoteApplication) setEndpoints(endpointList []*remoteEndpoint) {
 	}
 }
 
-func importRemoteApplications(sourceMap map[string]interface{}) ([]*remoteApplication, error) {
-	// TODO(babbageclunk): implement importing remote applications
-	if val, ok := sourceMap["remote-applications"]; ok {
-		if items, ok := val.([]interface{}); ok && len(items) != 0 {
-			return nil, errors.New("importing remote applications is not supported yet")
-		}
+func importRemoteApplications(source interface{}) ([]*remoteApplication, error) {
+	checker := versionedChecker("remote-applications")
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "remote applications version schema check failed")
 	}
-	return nil, nil
+	valid := coerced.(map[string]interface{})
+
+	version := int(valid["version"].(int64))
+	importFunc, ok := remoteApplicationDeserializationFuncs[version]
+	if !ok {
+		return nil, errors.NotValidf("version %d", version)
+	}
+	sourceList := valid["remote-applications"].([]interface{})
+	return importRemoteApplicationList(sourceList, importFunc)
+}
+
+func importRemoteApplicationList(sourceList []interface{}, importFunc remoteApplicationDeserializationFunc) ([]*remoteApplication, error) {
+	result := make([]*remoteApplication, 0, len(sourceList))
+	for i, value := range sourceList {
+		source, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, errors.Errorf("unexpected value for remote application %d, %T", i, value)
+		}
+		device, err := importFunc(source)
+		if err != nil {
+			return nil, errors.Annotatef(err, "remote application %d", i)
+		}
+		result = append(result, device)
+	}
+	return result, nil
+}
+
+type remoteApplicationDeserializationFunc func(map[string]interface{}) (*remoteApplication, error)
+
+var remoteApplicationDeserializationFuncs = map[int]remoteApplicationDeserializationFunc{
+	1: importRemoteApplicationV1,
+}
+
+func importRemoteApplicationV1(source map[string]interface{}) (*remoteApplication, error) {
+	fields := schema.Fields{
+		"name":              schema.String(),
+		"offer-name":        schema.String(),
+		"url":               schema.String(),
+		"source-model-uuid": schema.String(),
+		"endpoints":         schema.StringMap(schema.Any()),
+		"registered":        schema.Bool(),
+	}
+
+	defaults := schema.Defaults{
+		"endpoints":  schema.Omit,
+		"registered": false,
+	}
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "remote application v1 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+	result := &remoteApplication{
+		Name_:            valid["name"].(string),
+		OfferName_:       valid["offer-name"].(string),
+		URL_:             valid["url"].(string),
+		SourceModelUUID_: valid["source-model-uuid"].(string),
+		Registered_:      valid["registered"].(bool),
+	}
+
+	if rawEndpoints, ok := valid["endpoints"]; ok {
+		endpointsMap := rawEndpoints.(map[string]interface{})
+		endpoints, err := importRemoteEndpoints(endpointsMap)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.setEndpoints(endpoints)
+	}
+
+	return result, nil
 }
