@@ -88,18 +88,24 @@ func (s *StorageSerializationSuite) TestStorageValidMissingID(c *gc.C) {
 }
 
 func (s *StorageSerializationSuite) TestStorageMatches(c *gc.C) {
-	bytes, err := yaml.Marshal(testStorage())
+	out, err := yaml.Marshal(testStorage())
 	c.Assert(err, jc.ErrorIsNil)
-
-	var source map[interface{}]interface{}
-	err = yaml.Unmarshal(bytes, &source)
-	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(source, jc.DeepEquals, testStorageMap())
+	c.Assert(string(out), jc.YAMLEquals, testStorage())
 }
 
-func (s *StorageSerializationSuite) exportImport(c *gc.C, storage_ *storage) *storage {
+func (s *StorageSerializationSuite) TestStorageMatchesV2(c *gc.C) {
+	testStorage := testStorage()
+	testStorage.Owner_ = ""
+	testStorage.Attachments_ = nil
+
+	out, err := yaml.Marshal(testStorage)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(string(out), jc.YAMLEquals, testStorage)
+}
+
+func (s *StorageSerializationSuite) exportImport(c *gc.C, storage_ *storage, version int) *storage {
 	initial := storages{
-		Version:   1,
+		Version:   version,
 		Storages_: []*storage{storage_},
 	}
 
@@ -116,8 +122,16 @@ func (s *StorageSerializationSuite) exportImport(c *gc.C, storage_ *storage) *st
 	return storages[0]
 }
 
-func (s *StorageSerializationSuite) TestParsingSerializedData(c *gc.C) {
+func (s *StorageSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
 	original := testStorage()
-	storage := s.exportImport(c, original)
+	storage := s.exportImport(c, original, 1)
+	c.Assert(storage, jc.DeepEquals, original)
+}
+
+func (s *StorageSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
+	original := testStorage()
+	original.Owner_ = ""
+	original.Attachments_ = nil
+	storage := s.exportImport(c, original, 2)
 	c.Assert(storage, jc.DeepEquals, original)
 }

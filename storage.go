@@ -17,10 +17,10 @@ type storages struct {
 type storage struct {
 	ID_    string `yaml:"id"`
 	Kind_  string `yaml:"kind"`
-	Owner_ string `yaml:"owner"`
+	Owner_ string `yaml:"owner,omitempty"`
 	Name_  string `yaml:"name"`
 
-	Attachments_ []string `yaml:"attachments"`
+	Attachments_ []string `yaml:"attachments,omitempty"`
 }
 
 // StorageArgs is an argument struct used to add a storage to the Model.
@@ -88,9 +88,6 @@ func (s *storage) Validate() error {
 	if s.ID_ == "" {
 		return errors.NotValidf("storage missing id")
 	}
-	if s.Owner_ == "" {
-		return errors.NotValidf("storage %q missing owner", s.ID_)
-	}
 	// Also check that the owner and attachments are valid.
 	if _, err := s.Owner(); err != nil {
 		return errors.Wrap(err, errors.NotValidf("storage %q invalid owner", s.ID_))
@@ -135,35 +132,60 @@ type storageDeserializationFunc func(map[string]interface{}) (*storage, error)
 
 var storageDeserializationFuncs = map[int]storageDeserializationFunc{
 	1: importStorageV1,
+	2: importStorageV2,
+}
+
+func importStorageV2(source map[string]interface{}) (*storage, error) {
+	checker := schema.FieldMap(storageV2Fields())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "storage v2 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return newStorageFromValid(valid, 2)
 }
 
 func importStorageV1(source map[string]interface{}) (*storage, error) {
-	fields := schema.Fields{
-		"id":          schema.String(),
-		"kind":        schema.String(),
-		"owner":       schema.String(),
-		"name":        schema.String(),
-		"attachments": schema.List(schema.String()),
-	}
-
-	// Normally a list would have defaults, but in this case storage
-	// should always have at least one attachment.
-	checker := schema.FieldMap(fields, nil) // no defaults
-
+	checker := schema.FieldMap(storageV1Fields())
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "storage v1 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
-	result := &storage{
-		ID_:          valid["id"].(string),
-		Kind_:        valid["kind"].(string),
-		Owner_:       valid["owner"].(string),
-		Name_:        valid["name"].(string),
-		Attachments_: convertToStringSlice(valid["attachments"]),
-	}
+	return newStorageFromValid(valid, 1)
+}
 
+func newStorageFromValid(valid map[string]interface{}, version int) (*storage, error) {
+	result := &storage{
+		ID_:   valid["id"].(string),
+		Kind_: valid["kind"].(string),
+		Name_: valid["name"].(string),
+	}
+	if owner, ok := valid["owner"].(string); ok {
+		result.Owner_ = owner
+	}
+	if attachments, ok := valid["attachments"]; ok {
+		result.Attachments_ = convertToStringSlice(attachments)
+	}
 	return result, nil
+}
+
+func storageV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := storageV1Fields()
+	defaults["owner"] = schema.Omit
+	defaults["attachments"] = schema.Omit
+	return fields, defaults
+}
+
+func storageV1Fields() (schema.Fields, schema.Defaults) {
+	// Normally a list would have defaults, but in this case storage
+	// should always have at least one attachment.
+	defaults := schema.Defaults{}
+	return schema.Fields{
+		"id":          schema.String(),
+		"kind":        schema.String(),
+		"owner":       schema.String(),
+		"name":        schema.String(),
+		"attachments": schema.List(schema.String()),
+	}, defaults
 }
