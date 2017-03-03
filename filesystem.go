@@ -18,7 +18,6 @@ type filesystem struct {
 	ID_        string `yaml:"id"`
 	StorageID_ string `yaml:"storage-id,omitempty"`
 	VolumeID_  string `yaml:"volume-id,omitempty"`
-	Binding_   string `yaml:"binding,omitempty"`
 
 	Provisioned_  bool   `yaml:"provisioned"`
 	Size_         uint64 `yaml:"size"`
@@ -48,7 +47,6 @@ type FilesystemArgs struct {
 	Tag          names.FilesystemTag
 	Storage      names.StorageTag
 	Volume       names.VolumeTag
-	Binding      names.Tag
 	Provisioned  bool
 	Size         uint64
 	Pool         string
@@ -65,9 +63,6 @@ func newFilesystem(args FilesystemArgs) *filesystem {
 		Pool_:          args.Pool,
 		FilesystemID_:  args.FilesystemID,
 		StatusHistory_: newStatusHistory(),
-	}
-	if args.Binding != nil {
-		f.Binding_ = args.Binding.String()
 	}
 	f.setAttachments(nil)
 	return f
@@ -92,18 +87,6 @@ func (f *filesystem) Storage() names.StorageTag {
 		return names.StorageTag{}
 	}
 	return names.NewStorageTag(f.StorageID_)
-}
-
-// Binding implements Filesystem.
-func (f *filesystem) Binding() (names.Tag, error) {
-	if f.Binding_ == "" {
-		return nil, nil
-	}
-	tag, err := names.ParseTag(f.Binding_)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	return tag, nil
 }
 
 // Provisioned implements Filesystem.
@@ -174,9 +157,6 @@ func (f *filesystem) Validate() error {
 	if f.Status_ == nil {
 		return errors.NotValidf("filesystem %q missing status", f.ID_)
 	}
-	if _, err := f.Binding(); err != nil {
-		return errors.Wrap(err, errors.NotValidf("filesystem %q binding", f.ID_))
-	}
 	return nil
 }
 
@@ -224,7 +204,6 @@ func importFilesystemV1(source map[string]interface{}) (*filesystem, error) {
 		"id":            schema.String(),
 		"storage-id":    schema.String(),
 		"volume-id":     schema.String(),
-		"binding":       schema.String(),
 		"provisioned":   schema.Bool(),
 		"size":          schema.ForceUint(),
 		"pool":          schema.String(),
@@ -236,7 +215,6 @@ func importFilesystemV1(source map[string]interface{}) (*filesystem, error) {
 	defaults := schema.Defaults{
 		"storage-id":    "",
 		"volume-id":     "",
-		"binding":       "",
 		"pool":          "",
 		"filesystem-id": "",
 		"attachments":   schema.Omit,
@@ -255,7 +233,6 @@ func importFilesystemV1(source map[string]interface{}) (*filesystem, error) {
 		ID_:            valid["id"].(string),
 		StorageID_:     valid["storage-id"].(string),
 		VolumeID_:      valid["volume-id"].(string),
-		Binding_:       valid["binding"].(string),
 		Provisioned_:   valid["provisioned"].(bool),
 		Size_:          valid["size"].(uint64),
 		Pool_:          valid["pool"].(string),

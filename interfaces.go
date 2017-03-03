@@ -337,8 +337,6 @@ type Volume interface {
 	Tag() names.VolumeTag
 	Storage() names.StorageTag
 
-	Binding() (names.Tag, error)
-
 	Provisioned() bool
 
 	Size() uint64
@@ -370,7 +368,6 @@ type Filesystem interface {
 	Tag() names.FilesystemTag
 	Volume() names.VolumeTag
 	Storage() names.StorageTag
-	Binding() (names.Tag, error)
 
 	Provisioned() bool
 
