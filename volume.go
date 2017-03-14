@@ -16,7 +16,6 @@ type volumes struct {
 
 type volume struct {
 	ID_          string `yaml:"id"`
-	Binding_     string `yaml:"binding,omitempty"`
 	StorageID_   string `yaml:"storage-id,omitempty"`
 	Provisioned_ bool   `yaml:"provisioned"`
 	Size_        uint64 `yaml:"size"`
@@ -49,7 +48,6 @@ type volumeAttachment struct {
 type VolumeArgs struct {
 	Tag         names.VolumeTag
 	Storage     names.StorageTag
-	Binding     names.Tag
 	Provisioned bool
 	Size        uint64
 	Pool        string
@@ -70,9 +68,6 @@ func newVolume(args VolumeArgs) *volume {
 		Persistent_:    args.Persistent,
 		StatusHistory_: newStatusHistory(),
 	}
-	if args.Binding != nil {
-		v.Binding_ = args.Binding.String()
-	}
 	v.setAttachments(nil)
 	return v
 }
@@ -88,18 +83,6 @@ func (v *volume) Storage() names.StorageTag {
 		return names.StorageTag{}
 	}
 	return names.NewStorageTag(v.StorageID_)
-}
-
-// Binding implements Volume.
-func (v *volume) Binding() (names.Tag, error) {
-	if v.Binding_ == "" {
-		return nil, nil
-	}
-	tag, err := names.ParseTag(v.Binding_)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	return tag, nil
 }
 
 // Provisioned implements Volume.
@@ -180,9 +163,6 @@ func (v *volume) Validate() error {
 	if v.Status_ == nil {
 		return errors.NotValidf("volume %q missing status", v.ID_)
 	}
-	if _, err := v.Binding(); err != nil {
-		return errors.Wrap(err, errors.NotValidf("volume %q binding", v.ID_))
-	}
 	return nil
 }
 
@@ -229,7 +209,6 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 	fields := schema.Fields{
 		"id":          schema.String(),
 		"storage-id":  schema.String(),
-		"binding":     schema.String(),
 		"provisioned": schema.Bool(),
 		"size":        schema.ForceUint(),
 		"pool":        schema.String(),
@@ -242,7 +221,6 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 
 	defaults := schema.Defaults{
 		"storage-id":  "",
-		"binding":     "",
 		"pool":        "",
 		"hardware-id": "",
 		"volume-id":   "",
@@ -261,7 +239,6 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 	result := &volume{
 		ID_:            valid["id"].(string),
 		StorageID_:     valid["storage-id"].(string),
-		Binding_:       valid["binding"].(string),
 		Provisioned_:   valid["provisioned"].(bool),
 		Size_:          valid["size"].(uint64),
 		Pool_:          valid["pool"].(string),

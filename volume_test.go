@@ -40,7 +40,6 @@ func testVolumeMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"id":             "1234",
 		"storage-id":     "test/1",
-		"binding":        "machine-42",
 		"provisioned":    true,
 		"size":           int(20 * gig),
 		"pool":           "swimming",
@@ -66,7 +65,6 @@ func testVolumeArgs() VolumeArgs {
 	return VolumeArgs{
 		Tag:         names.NewVolumeTag("1234"),
 		Storage:     names.NewStorageTag("test/1"),
-		Binding:     names.NewMachineTag("42"),
 		Provisioned: true,
 		Size:        20 * gig,
 		Pool:        "swimming",
@@ -81,9 +79,6 @@ func (s *VolumeSerializationSuite) TestNewVolume(c *gc.C) {
 
 	c.Check(volume.Tag(), gc.Equals, names.NewVolumeTag("1234"))
 	c.Check(volume.Storage(), gc.Equals, names.NewStorageTag("test/1"))
-	binding, err := volume.Binding()
-	c.Check(err, jc.ErrorIsNil)
-	c.Check(binding, gc.Equals, names.NewMachineTag("42"))
 	c.Check(volume.Provisioned(), jc.IsTrue)
 	c.Check(volume.Size(), gc.Equals, 20*gig)
 	c.Check(volume.Pool(), gc.Equals, "swimming")

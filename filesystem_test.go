@@ -41,7 +41,6 @@ func testFilesystemMap() map[interface{}]interface{} {
 		"id":             "1234",
 		"storage-id":     "test/1",
 		"volume-id":      "4321",
-		"binding":        "machine-42",
 		"provisioned":    true,
 		"size":           int(20 * gig),
 		"pool":           "swimming",
@@ -66,7 +65,6 @@ func testFilesystemArgs() FilesystemArgs {
 		Tag:          names.NewFilesystemTag("1234"),
 		Storage:      names.NewStorageTag("test/1"),
 		Volume:       names.NewVolumeTag("4321"),
-		Binding:      names.NewMachineTag("42"),
 		Provisioned:  true,
 		Size:         20 * gig,
 		Pool:         "swimming",
@@ -80,9 +78,6 @@ func (s *FilesystemSerializationSuite) TestNewFilesystem(c *gc.C) {
 	c.Check(filesystem.Tag(), gc.Equals, names.NewFilesystemTag("1234"))
 	c.Check(filesystem.Storage(), gc.Equals, names.NewStorageTag("test/1"))
 	c.Check(filesystem.Volume(), gc.Equals, names.NewVolumeTag("4321"))
-	binding, err := filesystem.Binding()
-	c.Check(err, jc.ErrorIsNil)
-	c.Check(binding, gc.Equals, names.NewMachineTag("42"))
 	c.Check(filesystem.Provisioned(), jc.IsTrue)
 	c.Check(filesystem.Size(), gc.Equals, 20*gig)
 	c.Check(filesystem.Pool(), gc.Equals, "swimming")
