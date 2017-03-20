@@ -34,7 +34,7 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 		"offer-name":        "barton-hollow",
 		"url":               "http://a.url",
 		"source-model-uuid": "abcd-1234",
-		"registered":        true,
+		"is-consumer-proxy": true,
 		"endpoints": map[interface{}]interface{}{
 			"version": 1,
 			"endpoints": []interface{}{map[interface{}]interface{}{
@@ -50,11 +50,11 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 
 func minimalRemoteApplication() *remoteApplication {
 	a := newRemoteApplication(RemoteApplicationArgs{
-		Tag:         names.NewApplicationTag("civil-wars"),
-		OfferName:   "barton-hollow",
-		URL:         "http://a.url",
-		SourceModel: names.NewModelTag("abcd-1234"),
-		Registered:  true,
+		Tag:             names.NewApplicationTag("civil-wars"),
+		OfferName:       "barton-hollow",
+		URL:             "http://a.url",
+		SourceModel:     names.NewModelTag("abcd-1234"),
+		IsConsumerProxy: true,
 	})
 	a.AddEndpoint(RemoteEndpointArgs{
 		Name:      "lana",
@@ -73,7 +73,7 @@ func (*RemoteApplicationSerializationSuite) TestNew(c *gc.C) {
 	c.Check(r.OfferName(), gc.Equals, "barton-hollow")
 	c.Check(r.URL(), gc.Equals, "http://a.url")
 	c.Check(r.SourceModelTag(), gc.Equals, names.NewModelTag("abcd-1234"))
-	c.Check(r.Registered(), jc.IsTrue)
+	c.Check(r.IsConsumerProxy(), jc.IsTrue)
 	ep := r.Endpoints()
 	c.Assert(ep, gc.HasLen, 1)
 	c.Check(ep[0].Name(), gc.Equals, "lana")
@@ -90,13 +90,13 @@ func (*RemoteApplicationSerializationSuite) TestBadSchema1(c *gc.C) {
 
 func (*RemoteApplicationSerializationSuite) TestBadSchema2(c *gc.C) {
 	m := minimalRemoteApplicationMap()
-	m["registered"] = "blah"
+	m["is-consumer-proxy"] = "blah"
 	container := map[string]interface{}{
 		"version":             1,
 		"remote-applications": []interface{}{m},
 	}
 	_, err := importRemoteApplications(container)
-	c.Assert(err, gc.ErrorMatches, `remote application 0: remote application v1 schema check failed: registered: expected bool, got string\("blah"\)`)
+	c.Assert(err, gc.ErrorMatches, `remote application 0: remote application v1 schema check failed: is-consumer-proxy: expected bool, got string\("blah"\)`)
 }
 
 func (s *RemoteApplicationSerializationSuite) TestBadEndpoints(c *gc.C) {

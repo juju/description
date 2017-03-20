@@ -17,7 +17,7 @@ type RemoteApplication interface {
 	OfferName() string
 	URL() string
 	SourceModelTag() names.ModelTag
-	Registered() bool
+	IsConsumerProxy() bool
 
 	Endpoints() []RemoteEndpoint
 	AddEndpoint(RemoteEndpointArgs) RemoteEndpoint
@@ -34,17 +34,17 @@ type remoteApplication struct {
 	URL_             string          `yaml:"url"`
 	SourceModelUUID_ string          `yaml:"source-model-uuid"`
 	Endpoints_       remoteEndpoints `yaml:"endpoints,omitempty"`
-	Registered_      bool            `yaml:"registered,omitempty"`
+	IsConsumerProxy_ bool            `yaml:"is-consumer-proxy,omitempty"`
 }
 
 // RemoteApplicationArgs is an argument struct used to add a remote
 // application to the Model.
 type RemoteApplicationArgs struct {
-	Tag         names.ApplicationTag
-	OfferName   string
-	URL         string
-	SourceModel names.ModelTag
-	Registered  bool
+	Tag             names.ApplicationTag
+	OfferName       string
+	URL             string
+	SourceModel     names.ModelTag
+	IsConsumerProxy bool
 }
 
 func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
@@ -53,7 +53,7 @@ func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
 		OfferName_:       args.OfferName,
 		URL_:             args.URL,
 		SourceModelUUID_: args.SourceModel.Id(),
-		Registered_:      args.Registered,
+		IsConsumerProxy_: args.IsConsumerProxy,
 	}
 	a.setEndpoints(nil)
 	return a
@@ -84,9 +84,9 @@ func (a *remoteApplication) SourceModelTag() names.ModelTag {
 	return names.NewModelTag(a.SourceModelUUID_)
 }
 
-// Registered implements RemoteApplication.
-func (a *remoteApplication) Registered() bool {
-	return a.Registered_
+// IsConsumerProxy implements RemoteApplication.
+func (a *remoteApplication) IsConsumerProxy() bool {
+	return a.IsConsumerProxy_
 }
 
 // Endpoints implements RemoteApplication.
@@ -158,12 +158,12 @@ func importRemoteApplicationV1(source map[string]interface{}) (*remoteApplicatio
 		"url":               schema.String(),
 		"source-model-uuid": schema.String(),
 		"endpoints":         schema.StringMap(schema.Any()),
-		"registered":        schema.Bool(),
+		"is-consumer-proxy": schema.Bool(),
 	}
 
 	defaults := schema.Defaults{
-		"endpoints":  schema.Omit,
-		"registered": false,
+		"endpoints":         schema.Omit,
+		"is-consumer-proxy": false,
 	}
 	checker := schema.FieldMap(fields, defaults)
 
@@ -179,7 +179,7 @@ func importRemoteApplicationV1(source map[string]interface{}) (*remoteApplicatio
 		OfferName_:       valid["offer-name"].(string),
 		URL_:             valid["url"].(string),
 		SourceModelUUID_: valid["source-model-uuid"].(string),
-		Registered_:      valid["registered"].(bool),
+		IsConsumerProxy_: valid["is-consumer-proxy"].(bool),
 	}
 
 	if rawEndpoints, ok := valid["endpoints"]; ok {
