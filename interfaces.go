@@ -424,11 +424,3 @@ type StorageConstraint interface {
 	// Count is the required number of storage instances.
 	Count() uint64
 }
-
-// SLA represents the sla for the model.
-type SLA interface {
-	// Level returns the level of the sla.
-	Level() string
-	// Level returns the credentials of the sla.
-	Credentials() []byte
-}

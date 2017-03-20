@@ -90,8 +90,11 @@ type Model interface {
 
 	Validate() error
 
-	SetSLA(level string, credentials []byte)
+	SetSLA(level, credentials string) SLA
 	SLA() SLA
+
+	SetMeterStatus(code, info string) MeterStatus
+	MeterStatus() MeterStatus
 }
 
 // ModelArgs represent the bare minimum information that is needed
@@ -227,7 +230,8 @@ type model struct {
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
 
-	SLA_ sla `yaml:"sla"`
+	SLA_         sla         `yaml:"sla"`
+	MeterStatus_ meterStatus `yaml:"meter-status"`
 }
 
 func (m *model) Tag() names.ModelTag {
@@ -284,11 +288,6 @@ func (m *model) Users() []User {
 	}
 	sort.Sort(ByName(result))
 	return result
-}
-
-// SLA implements Model.
-func (m *model) SLA() SLA {
-	return m.SLA_
 }
 
 // AddUser implements Model.
@@ -588,11 +587,32 @@ func (m *model) SetCloudCredential(args CloudCredentialArgs) {
 	m.CloudCredential_ = newCloudCredential(args)
 }
 
-func (m *model) SetSLA(level string, creds []byte) {
+// SetSLA implements Model.
+func (m *model) SetSLA(level, creds string) SLA {
 	m.SLA_ = sla{
 		Level_:       level,
 		Credentials_: creds,
 	}
+	return m.SLA_
+}
+
+// SetMeterStatus implements Model.
+func (m *model) SetMeterStatus(code, info string) MeterStatus {
+	m.MeterStatus_ = meterStatus{
+		Code_: code,
+		Info_: info,
+	}
+	return m.MeterStatus_
+}
+
+// SLA implements Model.
+func (m *model) SLA() SLA {
+	return m.SLA_
+}
+
+// MeterStatus implements Model.
+func (m *model) MeterStatus() MeterStatus {
+	return m.MeterStatus_
 }
 
 // Volumes implements Model.
@@ -604,7 +624,7 @@ func (m *model) Volumes() []Volume {
 	return result
 }
 
-// AddVolume implemets Model.
+// AddVolume implements Model.
 func (m *model) AddVolume(args VolumeArgs) Volume {
 	volume := newVolume(args)
 	m.Volumes_.Volumes_ = append(m.Volumes_.Volumes_, volume)
@@ -717,6 +737,14 @@ func (m *model) setRemoteApplications(appList []*remoteApplication) {
 		Version:            1,
 		RemoteApplications: appList,
 	}
+}
+
+func (m *model) setSLA(sla sla) {
+	m.SLA_ = sla
+}
+
+func (m *model) setMeterStatus(ms meterStatus) {
+	m.MeterStatus_ = ms
 }
 
 // Validate implements Model.
@@ -1222,7 +1250,29 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 	}
 	result.setRemoteApplications(remoteApplications)
 
+	if importVersion >= 2 {
+		sla := importSLA(valid["sla"].(map[string]interface{}))
+		result.setSLA(sla)
+
+		ms := importMeterStatus(valid["meter-status"].(map[string]interface{}))
+		result.setMeterStatus(ms)
+	}
+
 	return result, nil
+}
+
+func importSLA(source map[string]interface{}) sla {
+	return sla{
+		Level_:       source["level"].(string),
+		Credentials_: source["credentials"].(string),
+	}
+}
+
+func importMeterStatus(source map[string]interface{}) meterStatus {
+	return meterStatus{
+		Code_: source["code"].(string),
+		Info_: source["info"].(string),
+	}
 }
 
 func importModelV1(source map[string]interface{}) (*model, error) {
@@ -1242,6 +1292,16 @@ func importModelV1(source map[string]interface{}) (*model, error) {
 func importModelV2(source map[string]interface{}) (*model, error) {
 	fields, defaults := modelV1Fields()
 	fields["remote-applications"] = schema.StringMap(schema.Any())
+	fields["sla"] = schema.FieldMap(
+		schema.Fields{
+			"level":       schema.String(),
+			"credentials": schema.String(),
+		}, nil)
+	fields["meter-status"] = schema.FieldMap(
+		schema.Fields{
+			"code": schema.String(),
+			"info": schema.String(),
+		}, nil)
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
