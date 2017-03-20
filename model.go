@@ -89,6 +89,9 @@ type Model interface {
 	AddRemoteApplication(RemoteApplicationArgs) RemoteApplication
 
 	Validate() error
+
+	SetSLA(level string, credentials []byte)
+	SLA() SLA
 }
 
 // ModelArgs represent the bare minimum information that is needed
@@ -223,6 +226,8 @@ type model struct {
 	StoragePools_ storagepools `yaml:"storage-pools"`
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
+
+	SLA_ sla `yaml:"sla"`
 }
 
 func (m *model) Tag() names.ModelTag {
@@ -279,6 +284,11 @@ func (m *model) Users() []User {
 	}
 	sort.Sort(ByName(result))
 	return result
+}
+
+// SLA implements Model.
+func (m *model) SLA() SLA {
+	return m.SLA_
 }
 
 // AddUser implements Model.
@@ -576,6 +586,13 @@ func (m *model) CloudCredential() CloudCredential {
 // SetCloudCredential implements Model.
 func (m *model) SetCloudCredential(args CloudCredentialArgs) {
 	m.CloudCredential_ = newCloudCredential(args)
+}
+
+func (m *model) SetSLA(level string, creds []byte) {
+	m.SLA_ = sla{
+		Level_:       level,
+		Credentials_: creds,
+	}
 }
 
 // Volumes implements Model.
