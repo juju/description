@@ -724,6 +724,58 @@ func (*ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
 	c.Assert(result, gc.HasLen, 1)
 }
 
+func (*ModelSerializationSuite) TestSetAndGetSLA(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	sla := model.SetSLA("essential", "creds")
+	c.Assert(sla.Level(), gc.Equals, "essential")
+	c.Assert(sla.Credentials(), gc.Equals, "creds")
+
+	getSla := model.SLA()
+	c.Assert(getSla.Level(), gc.Equals, sla.Level())
+	c.Assert(getSla.Credentials(), jc.DeepEquals, sla.Credentials())
+}
+
+func (s *ModelSerializationSuite) TestSLA(c *gc.C) {
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	sla := initial.SetSLA("essential", "creds")
+	c.Assert(sla.Level(), gc.Equals, "essential")
+	c.Assert(sla.Credentials(), gc.Equals, "creds")
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.SLA().Level(), gc.Equals, "essential")
+	c.Assert(model.SLA().Credentials(), gc.Equals, "creds")
+}
+
+func (*ModelSerializationSuite) TestGetAndSetMeterStatus(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	ms := model.SetMeterStatus("RED", "info message")
+	c.Assert(ms.Code(), gc.Equals, "RED")
+	c.Assert(ms.Info(), gc.Equals, "info message")
+
+	getms := model.MeterStatus()
+	c.Assert(getms.Code(), gc.Equals, ms.Code())
+	c.Assert(getms.Info(), gc.Equals, ms.Info())
+}
+
+func (s *ModelSerializationSuite) TestMeterStatus(c *gc.C) {
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	ms := initial.SetMeterStatus("RED", "info message")
+	c.Assert(ms.Code(), gc.Equals, "RED")
+	c.Assert(ms.Info(), gc.Equals, "info message")
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.MeterStatus().Code(), gc.Equals, "RED")
+	c.Assert(model.MeterStatus().Info(), gc.Equals, "info message")
+}
+
 func (*ModelSerializationSuite) TestSerializesToVersion2(c *gc.C) {
 	initial := NewModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
 	data := asStringMap(c, initial)
