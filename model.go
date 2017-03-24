@@ -444,7 +444,7 @@ func (m *model) AddSubnet(args SubnetArgs) Subnet {
 
 func (m *model) setSubnets(subnetList []*subnet) {
 	m.Subnets_ = subnets{
-		Version:  1,
+		Version:  2,
 		Subnets_: subnetList,
 	}
 }
