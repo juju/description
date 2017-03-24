@@ -8,6 +8,14 @@ import (
 	"github.com/juju/schema"
 )
 
+// Address represents an IP Address of some form.
+type Address interface {
+	Value() string
+	Type() string
+	Scope() string
+	Origin() string
+}
+
 // AddressArgs is an argument struct used to create a new internal address
 // type that supports the Address interface.
 type AddressArgs struct {

@@ -8,6 +8,22 @@ import (
 	"github.com/juju/schema"
 )
 
+// OpenedPorts represents a collection of port ranges that are open on a
+// particular subnet. OpenedPorts are always associated with a Machine.
+type OpenedPorts interface {
+	SubnetID() string
+	OpenPorts() []PortRange
+}
+
+// PortRange represents one or more contiguous ports opened by a particular
+// Unit.
+type PortRange interface {
+	UnitName() string
+	FromPort() int
+	ToPort() int
+	Protocol() string
+}
+
 type versionedOpenedPorts struct {
 	Version      int            `yaml:"version"`
 	OpenedPorts_ []*openedPorts `yaml:"opened-ports"`

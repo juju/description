@@ -10,6 +10,28 @@ import (
 	"github.com/juju/schema"
 )
 
+// HasStatus defines the common methods for setting and getting status
+// entries for the various entities.
+type HasStatus interface {
+	Status() Status
+	SetStatus(StatusArgs)
+}
+
+// HasStatusHistory defines the common methods for setting and
+// getting historical status entries for the various entities.
+type HasStatusHistory interface {
+	StatusHistory() []Status
+	SetStatusHistory([]StatusArgs)
+}
+
+// Status represents an agent, application, or workload status.
+type Status interface {
+	Value() string
+	Message() string
+	Data() map[string]interface{}
+	Updated() time.Time
+}
+
 // StatusArgs is an argument struct used to set the agent, application, or
 // workload status.
 type StatusArgs struct {

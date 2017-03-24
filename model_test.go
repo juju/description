@@ -19,9 +19,20 @@ import (
 
 type ModelSerializationSuite struct {
 	testing.BaseSuite
+	StatusHistoryMixinSuite
 }
 
 var _ = gc.Suite(&ModelSerializationSuite{})
+
+func (s *ModelSerializationSuite) SetUpTest(c *gc.C) {
+	s.BaseSuite.SetUpTest(c)
+	s.StatusHistoryMixinSuite.creator = func() HasStatusHistory {
+		return NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	}
+	s.StatusHistoryMixinSuite.serializer = func(c *gc.C, initial interface{}) HasStatusHistory {
+		return s.exportImport(c, initial.(Model))
+	}
+}
 
 func (*ModelSerializationSuite) TestNil(c *gc.C) {
 	_, err := importModel(nil)
@@ -1071,4 +1082,22 @@ func (s *ModelSerializationSuite) TestStoragePools(c *gc.C) {
 	c.Check(two.Name(), gc.Equals, "two")
 	c.Check(two.Provider(), gc.Equals, "spanner")
 	c.Check(two.Attributes(), jc.DeepEquals, poolTwo)
+}
+
+func (s *ModelSerializationSuite) TestStatusNil(c *gc.C) {
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	c.Check(initial.Status(), gc.IsNil)
+
+	model := s.exportImport(c, initial)
+	c.Check(model.Status(), gc.IsNil)
+}
+
+func (s *ModelSerializationSuite) TestStatus(c *gc.C) {
+	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial.SetStatus(minimalStatusArgs())
+	expected := minimalStatus()
+	c.Check(initial.Status(), jc.DeepEquals, expected)
+
+	model := s.exportImport(c, initial)
+	c.Check(model.Status(), jc.DeepEquals, expected)
 }

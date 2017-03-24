@@ -10,6 +10,51 @@ import (
 	"gopkg.in/juju/names.v2"
 )
 
+// Machine represents an existing live machine or container running in the
+// model.
+type Machine interface {
+	HasAnnotations
+	HasConstraints
+	HasStatus
+	HasStatusHistory
+
+	Id() string
+	Tag() names.MachineTag
+	Nonce() string
+	PasswordHash() string
+	Placement() string
+	Series() string
+	ContainerType() string
+	Jobs() []string
+	SupportedContainers() ([]string, bool)
+
+	Instance() CloudInstance
+	SetInstance(CloudInstanceArgs)
+
+	// Life() string -- only transmit alive things?
+	ProviderAddresses() []Address
+	MachineAddresses() []Address
+	SetAddresses(machine []AddressArgs, provider []AddressArgs)
+
+	PreferredPublicAddress() Address
+	PreferredPrivateAddress() Address
+	SetPreferredAddresses(public AddressArgs, private AddressArgs)
+
+	Tools() AgentTools
+	SetTools(AgentToolsArgs)
+
+	Containers() []Machine
+	AddContainer(MachineArgs) Machine
+
+	BlockDevices() []BlockDevice
+	AddBlockDevice(BlockDeviceArgs) BlockDevice
+
+	OpenedPorts() []OpenedPorts
+	AddOpenedPorts(OpenedPortsArgs) OpenedPorts
+
+	Validate() error
+}
+
 type machines struct {
 	Version   int        `yaml:"version"`
 	Machines_ []*machine `yaml:"machines"`
@@ -545,6 +590,20 @@ func importMachineV1(source map[string]interface{}) (*machine, error) {
 
 	return result, nil
 
+}
+
+// CloudInstance holds information particular to a machine
+// instance in a cloud.
+type CloudInstance interface {
+	InstanceId() string
+	Status() string
+	Architecture() string
+	Memory() uint64
+	RootDisk() uint64
+	CpuCores() uint64
+	CpuPower() uint64
+	Tags() []string
+	AvailabilityZone() string
 }
 
 // CloudInstanceArgs is an argument struct used to add information about the

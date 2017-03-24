@@ -8,6 +8,30 @@ import (
 	"github.com/juju/schema"
 )
 
+// HasConstraints defines the common methods for setting and
+// getting constraints for the various entities.
+type HasConstraints interface {
+	Constraints() Constraints
+	SetConstraints(ConstraintsArgs)
+}
+
+// Constraints holds information about particular deployment
+// constraints for entities.
+type Constraints interface {
+	Architecture() string
+	Container() string
+	CpuCores() uint64
+	CpuPower() uint64
+	InstanceType() string
+	Memory() uint64
+	RootDisk() uint64
+
+	Spaces() []string
+	Tags() []string
+
+	VirtType() string
+}
+
 // ConstraintsArgs is an argument struct to construct Constraints.
 type ConstraintsArgs struct {
 	Architecture string

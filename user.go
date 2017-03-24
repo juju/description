@@ -11,6 +11,17 @@ import (
 	"gopkg.in/juju/names.v2"
 )
 
+// User represents a user of the model. Users are able to connect to, and
+// depending on the read only flag, modify the model.
+type User interface {
+	Name() names.UserTag
+	DisplayName() string
+	CreatedBy() names.UserTag
+	DateCreated() time.Time
+	LastConnection() time.Time
+	Access() string
+}
+
 type users struct {
 	Version int     `yaml:"version"`
 	Users_  []*user `yaml:"users"`

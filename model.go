@@ -20,6 +20,8 @@ import (
 type Model interface {
 	HasAnnotations
 	HasConstraints
+	HasStatus
+	HasStatusHistory
 
 	Cloud() string
 	CloudRegion() string
@@ -119,6 +121,7 @@ func NewModel(args ModelArgs) Model {
 		Blocks_:             args.Blocks,
 		Cloud_:              args.Cloud,
 		CloudRegion_:        args.CloudRegion,
+		StatusHistory_:      newStatusHistory(),
 	}
 	m.setUsers(nil)
 	m.setMachines(nil)
@@ -208,6 +211,9 @@ type model struct {
 	Subnets_          subnets          `yaml:"subnets"`
 
 	CloudImageMetadata_ cloudimagemetadataset `yaml:"cloud-image-metadata"`
+
+	Status_        *status `yaml:"status,omitempty"`
+	StatusHistory_ `yaml:"status-history"`
 
 	Actions_ actions `yaml:"actions"`
 
@@ -300,6 +306,20 @@ func (m *model) setUsers(userList []*user) {
 		Version: 1,
 		Users_:  userList,
 	}
+}
+
+// Status implements Model.
+func (m *model) Status() Status {
+	// To avoid typed nils check nil here.
+	if m.Status_ == nil {
+		return nil
+	}
+	return m.Status_
+}
+
+// SetStatus implements Model.
+func (m *model) SetStatus(args StatusArgs) {
+	m.Status_ = newStatus(args)
 }
 
 // Machines implements Model.
@@ -1097,17 +1117,37 @@ func modelV1Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV1Fields()
+	fields["remote-applications"] = schema.StringMap(schema.Any())
+	fields["sla"] = schema.FieldMap(
+		schema.Fields{
+			"level":       schema.String(),
+			"credentials": schema.String(),
+		}, nil)
+	fields["meter-status"] = schema.FieldMap(
+		schema.Fields{
+			"code": schema.String(),
+			"info": schema.String(),
+		}, nil)
+	fields["status"] = schema.StringMap(schema.Any())
+	defaults["status"] = schema.Omit
+	addStatusHistorySchema(fields)
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
 	// We're always making a version 2 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:      2,
-		Owner_:       valid["owner"].(string),
-		Config_:      valid["config"].(map[string]interface{}),
-		Sequences_:   make(map[string]int),
-		Blocks_:      convertToStringMap(valid["blocks"]),
-		Cloud_:       valid["cloud"].(string),
-		CloudRegion_: valid["cloud-region"].(string),
+		Version:        2,
+		Owner_:         valid["owner"].(string),
+		Config_:        valid["config"].(map[string]interface{}),
+		Sequences_:     make(map[string]int),
+		Blocks_:        convertToStringMap(valid["blocks"]),
+		Cloud_:         valid["cloud"].(string),
+		CloudRegion_:   valid["cloud-region"].(string),
+		StatusHistory_: newStatusHistory(),
 	}
 	if credsMap, found := valid["cloud-credential"]; found {
 		creds, err := importCloudCredential(credsMap.(map[string]interface{}))
@@ -1256,6 +1296,19 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 
 		ms := importMeterStatus(valid["meter-status"].(map[string]interface{}))
 		result.setMeterStatus(ms)
+
+		if statusMap := valid["status"]; statusMap != nil {
+			status, err := importStatus(valid["status"].(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.Status_ = status
+		}
+
+		if err := result.importStatusHistory(valid); err != nil {
+			return nil, errors.Trace(err)
+		}
+
 	}
 
 	return result, nil
@@ -1290,23 +1343,12 @@ func importModelV1(source map[string]interface{}) (*model, error) {
 }
 
 func importModelV2(source map[string]interface{}) (*model, error) {
-	fields, defaults := modelV1Fields()
-	fields["remote-applications"] = schema.StringMap(schema.Any())
-	fields["sla"] = schema.FieldMap(
-		schema.Fields{
-			"level":       schema.String(),
-			"credentials": schema.String(),
-		}, nil)
-	fields["meter-status"] = schema.FieldMap(
-		schema.Fields{
-			"code": schema.String(),
-			"info": schema.String(),
-		}, nil)
+	fields, defaults := modelV2Fields()
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "model v1 schema check failed")
+		return nil, errors.Annotatef(err, "model v2 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
