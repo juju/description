@@ -106,22 +106,27 @@ func importSubnets(source map[string]interface{}) ([]*subnet, error) {
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	importFunc, ok := subnetDeserializationFuncs[version]
+	getFields, ok := subnetFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 	sourceList := valid["subnets"].([]interface{})
-	return importSubnetList(sourceList, importFunc)
+	return importSubnetList(sourceList, schema.FieldMap(getFields()), version)
 }
 
-func importSubnetList(sourceList []interface{}, importFunc subnetDeserializationFunc) ([]*subnet, error) {
+func importSubnetList(sourceList []interface{}, checker schema.Checker, version int) ([]*subnet, error) {
 	result := make([]*subnet, 0, len(sourceList))
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for subnet %d, %T", i, value)
 		}
-		subnet, err := importFunc(source)
+		coerced, err := checker.Coerce(source, nil)
+		if err != nil {
+			return nil, errors.Annotatef(err, "subnet %d v%d schema check failed", i, version)
+		}
+		valid := coerced.(map[string]interface{})
+		subnet, err := newSubnetFromValid(valid, version)
 		if err != nil {
 			return nil, errors.Annotatef(err, "subnet %d", i)
 		}
@@ -130,34 +135,12 @@ func importSubnetList(sourceList []interface{}, importFunc subnetDeserialization
 	return result, nil
 }
 
-type subnetDeserializationFunc func(map[string]interface{}) (*subnet, error)
-
-var subnetDeserializationFuncs = map[int]subnetDeserializationFunc{
-	1: importSubnetV1,
-	2: importSubnetV2,
+var subnetFieldsFuncs = map[int]fieldsFunc{
+	1: subnetV1Fields,
+	2: subnetV2Fields,
 }
 
-func importSubnetV1(source map[string]interface{}) (*subnet, error) {
-	checker := schema.FieldMap(subnetV1Fields())
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "subnet v1 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-	return newSubnetFromValid(valid, 1)
-}
-
-func importSubnetV2(source map[string]interface{}) (*subnet, error) {
-	checker := schema.FieldMap(subnetV2Fields())
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "subnet v2 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-	return newSubnetFromValid(valid, 2)
-}
+type fieldsFunc func() (schema.Fields, schema.Defaults)
 
 func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
 	// From here we know that the map returned from the schema coercion
