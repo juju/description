@@ -14,9 +14,10 @@ type subnets struct {
 }
 
 type subnet struct {
-	ProviderId_ string `yaml:"provider-id,omitempty"`
-	CIDR_       string `yaml:"cidr"`
-	VLANTag_    int    `yaml:"vlan-tag"`
+	ProviderId_        string `yaml:"provider-id,omitempty"`
+	ProviderNetworkId_ string `yaml:"provider-network-id,omitempty"`
+	CIDR_              string `yaml:"cidr"`
+	VLANTag_           int    `yaml:"vlan-tag"`
 
 	AvailabilityZone_ string `yaml:"availability-zone"`
 	SpaceName_        string `yaml:"space-name"`
@@ -30,11 +31,12 @@ type subnet struct {
 // SubnetArgs is an argument struct used to create a
 // new internal subnet type that supports the Subnet interface.
 type SubnetArgs struct {
-	ProviderId       string
-	CIDR             string
-	VLANTag          int
-	AvailabilityZone string
-	SpaceName        string
+	ProviderId        string
+	ProviderNetworkId string
+	CIDR              string
+	VLANTag           int
+	AvailabilityZone  string
+	SpaceName         string
 
 	// These will be deprecated once the address allocation strategy for
 	// EC2 is changed. They are unused already on MAAS.
@@ -44,7 +46,8 @@ type SubnetArgs struct {
 
 func newSubnet(args SubnetArgs) *subnet {
 	return &subnet{
-		ProviderId_:        string(args.ProviderId),
+		ProviderId_:        args.ProviderId,
+		ProviderNetworkId_: args.ProviderNetworkId,
 		SpaceName_:         args.SpaceName,
 		CIDR_:              args.CIDR,
 		VLANTag_:           args.VLANTag,
@@ -57,6 +60,11 @@ func newSubnet(args SubnetArgs) *subnet {
 // ProviderId implements Subnet.
 func (s *subnet) ProviderId() string {
 	return s.ProviderId_
+}
+
+// ProviderNetworkId implements Subnet.
+func (s *subnet) ProviderNetworkId() string {
+	return s.ProviderNetworkId_
 }
 
 // SpaceName implements Subnet.
@@ -126,9 +134,50 @@ type subnetDeserializationFunc func(map[string]interface{}) (*subnet, error)
 
 var subnetDeserializationFuncs = map[int]subnetDeserializationFunc{
 	1: importSubnetV1,
+	2: importSubnetV2,
 }
 
 func importSubnetV1(source map[string]interface{}) (*subnet, error) {
+	checker := schema.FieldMap(subnetV1Fields())
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "subnet v1 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return newSubnetFromValid(valid, 1)
+}
+
+func importSubnetV2(source map[string]interface{}) (*subnet, error) {
+	checker := schema.FieldMap(subnetV2Fields())
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "subnet v2 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return newSubnetFromValid(valid, 2)
+}
+
+func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+	result := subnet{
+		CIDR_:              valid["cidr"].(string),
+		ProviderId_:        valid["provider-id"].(string),
+		VLANTag_:           int(valid["vlan-tag"].(int64)),
+		SpaceName_:         valid["space-name"].(string),
+		AvailabilityZone_:  valid["availability-zone"].(string),
+		AllocatableIPHigh_: valid["allocatable-ip-high"].(string),
+		AllocatableIPLow_:  valid["allocatable-ip-low"].(string),
+	}
+	if version >= 2 {
+		result.ProviderNetworkId_ = valid["provider-network-id"].(string)
+	}
+	return &result, nil
+}
+
+func subnetV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"cidr":                schema.String(),
 		"provider-id":         schema.String(),
@@ -138,29 +187,17 @@ func importSubnetV1(source map[string]interface{}) (*subnet, error) {
 		"allocatable-ip-high": schema.String(),
 		"allocatable-ip-low":  schema.String(),
 	}
-
 	defaults := schema.Defaults{
 		"provider-id":         "",
 		"allocatable-ip-high": "",
 		"allocatable-ip-low":  "",
 	}
-	checker := schema.FieldMap(fields, defaults)
+	return fields, defaults
+}
 
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "subnet v1 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
-	return &subnet{
-		CIDR_:              valid["cidr"].(string),
-		ProviderId_:        valid["provider-id"].(string),
-		VLANTag_:           int(valid["vlan-tag"].(int64)),
-		SpaceName_:         valid["space-name"].(string),
-		AvailabilityZone_:  valid["availability-zone"].(string),
-		AllocatableIPHigh_: valid["allocatable-ip-high"].(string),
-		AllocatableIPLow_:  valid["allocatable-ip-low"].(string),
-	}, nil
+func subnetV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := subnetV1Fields()
+	fields["provider-network-id"] = schema.String()
+	defaults["provider-network-id"] = ""
+	return fields, defaults
 }

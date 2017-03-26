@@ -272,6 +272,7 @@ type LinkLayerDevice interface {
 // Subnet represents a network subnet.
 type Subnet interface {
 	ProviderId() string
+	ProviderNetworkId() string
 	CIDR() string
 	VLANTag() int
 	AvailabilityZone() string
