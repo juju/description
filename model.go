@@ -212,7 +212,7 @@ type model struct {
 
 	CloudImageMetadata_ cloudimagemetadataset `yaml:"cloud-image-metadata"`
 
-	Status_        *status `yaml:"status,omitempty"`
+	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
 
 	Actions_ actions `yaml:"actions"`
@@ -772,6 +772,9 @@ func (m *model) Validate() error {
 	// A model needs an owner.
 	if m.Owner_ == "" {
 		return errors.NotValidf("missing model owner")
+	}
+	if m.Status_ == nil {
+		return errors.NotValidf("missing status")
 	}
 	allMachines := set.NewStrings()
 	unitsWithOpenPorts := set.NewStrings()
