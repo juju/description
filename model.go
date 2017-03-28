@@ -7,6 +7,7 @@ import (
 	"net"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/juju/errors"
 	"github.com/juju/schema"
@@ -1311,7 +1312,12 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 		if err := result.importStatusHistory(valid); err != nil {
 			return nil, errors.Trace(err)
 		}
-
+	} else {
+		// Need to have a valid status for the model to be valid.
+		result.SetStatus(StatusArgs{
+			Value:   "available",
+			Updated: time.Now(),
+		})
 	}
 
 	return result, nil

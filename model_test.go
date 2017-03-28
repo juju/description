@@ -109,6 +109,12 @@ func (s *ModelSerializationSuite) exportImport(c *gc.C, initial Model) Model {
 	return model
 }
 
+func (s *ModelSerializationSuite) TestParsingModelV1(c *gc.C) {
+	model, err := Deserialize([]byte(modelV1example))
+	c.Assert(err, jc.ErrorIsNil)
+	c.Check(model.Validate(), jc.ErrorIsNil)
+}
+
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	args := ModelArgs{
 		Owner: names.NewUserTag("magic"),
@@ -1107,3 +1113,501 @@ func (s *ModelSerializationSuite) TestStatus(c *gc.C) {
 	model := s.exportImport(c, initial)
 	c.Check(model.Status(), jc.DeepEquals, expected)
 }
+
+// modelV1example was taken from a Juju 2.1 model dump, which is version
+// 1, and among other things is missing model status, which version 2 makes
+// manditory.
+const modelV1example = `
+actions:
+  actions: []
+  version: 1
+applications:
+  applications:
+  - charm-mod-version: 0
+    charm-url: cs:ubuntu-10
+    cs-channel: stable
+    leader: ubuntu/1
+    leadership-settings: {}
+    name: ubuntu
+    resources:
+      resources: []
+      version: 1
+    series: xenial
+    settings: {}
+    status:
+      status:
+        message: waiting for machine
+        updated: 2017-02-21T19:47:23.691434191Z
+        value: waiting
+      version: 1
+    status-history:
+      history: []
+      version: 1
+    units:
+      units:
+      - agent-status:
+          status:
+            updated: 2017-03-28T02:53:17.758361087Z
+            value: idle
+          version: 1
+        agent-status-history:
+          history:
+          - updated: 2017-03-28T02:53:17.758361087Z
+            value: idle
+          - message: running update-status hook
+            updated: 2017-03-28T02:53:17.560360624Z
+            value: executing
+          - updated: 2017-03-28T02:48:17.827186321Z
+            value: idle
+          - message: running update-status hook
+            updated: 2017-03-28T02:48:17.559780509Z
+            value: executing
+          - updated: 2017-03-28T02:43:17.78767961Z
+            value: idle
+          - message: running update-status hook
+            updated: 2017-03-28T02:43:17.558255742Z
+            value: executing
+          - updated: 2017-03-28T02:38:17.758809684Z
+            value: idle
+          - message: running update-status hook
+            updated: 2017-03-28T02:38:17.559809345Z
+            value: executing
+          - updated: 2017-03-28T02:33:17.806717092Z
+            value: idle
+          version: 1
+        machine: "1"
+        meter-status-code: NOT SET
+        name: ubuntu/1
+        password-hash: Il/M2+WlhkUA5zASHj+QvE66
+        payloads:
+          payloads: []
+          version: 1
+        resources:
+          resources: []
+          version: 1
+        tools:
+          sha256: ""
+          size: 0
+          tools-version: 2.1-rc1.1-xenial-amd64
+          url: ""
+          version: 1
+        workload-status:
+          status:
+            message: ready
+            updated: 2017-02-21T20:00:50.219219299Z
+            value: active
+          version: 1
+        workload-status-history:
+          history: []
+          version: 1
+        workload-version: "16.04"
+        workload-version-history:
+          history: []
+          version: 1
+      version: 1
+  version: 1
+cloud: dev
+cloud-credential:
+  attributes:
+    client-cert: |+
+      -----BEGIN CERTIFICATE-----
+      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
+      -----END CERTIFICATE-----
+
+    client-key: |+
+      -----BEGIN RSA PRIVATE KEY-----
+      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
+      -----END RSA PRIVATE KEY-----
+
+    server-cert: |+
+      -----BEGIN CERTIFICATE-----
+      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
+      -----END CERTIFICATE-----
+
+  auth-type: certificate
+  cloud: dev
+  name: default
+  owner: admin
+  version: 1
+cloud-image-metadata:
+  cloudimagemetadata:
+  - arch: amd64
+    date-created: 1485305700000000000
+    image-id: 698a8146-d6d9-4352-99fe-6557ebce5661
+    priority: 10
+    region: us-east-3
+    root-storage-type: ""
+    series: xenial
+    source: default ubuntu cloud images
+    stream: released
+    version: "16.04"
+    virt-type: kvm
+  - arch: amd64
+    date-created: 1485305700000000000
+    image-id: 698a8146-d6d9-4352-99fe-6557ebce5661
+    priority: 10
+    region: us-east-2
+    root-storage-type: ""
+    series: xenial
+    source: default ubuntu cloud images
+    stream: released
+    version: "16.04"
+    virt-type: kvm
+  - arch: amd64
+    date-created: 1485305700000000000
+    image-id: 698a8146-d6d9-4352-99fe-6557ebce5661
+    priority: 10
+    region: us-east-1
+    root-storage-type: ""
+    series: xenial
+    source: default ubuntu cloud images
+    stream: released
+    version: "16.04"
+    virt-type: kvm
+  - arch: amd64
+    date-created: 1485305700000000000
+    image-id: 698a8146-d6d9-4352-99fe-6557ebce5661
+    priority: 10
+    region: us-west-1
+    root-storage-type: ""
+    series: xenial
+    source: default ubuntu cloud images
+    stream: released
+    version: "16.04"
+    virt-type: kvm
+  - arch: amd64
+    date-created: 1485305700000000000
+    image-id: 698a8146-d6d9-4352-99fe-6557ebce5661
+    priority: 10
+    region: eu-ams-1
+    root-storage-type: ""
+    series: xenial
+    source: default ubuntu cloud images
+    stream: released
+    version: "16.04"
+    virt-type: kvm
+  - arch: amd64
+    date-created: 1485305700000000000
+    image-id: 698a8146-d6d9-4352-99fe-6557ebce5661
+    priority: 10
+    region: us-sw-1
+    root-storage-type: ""
+    series: xenial
+    source: default ubuntu cloud images
+    stream: released
+    version: "16.04"
+    virt-type: kvm
+  version: 1
+config:
+  agent-metadata-url: ""
+  agent-stream: released
+  agent-version: 2.1-rc1.1
+  apt-ftp-proxy: ""
+  apt-http-proxy: http://10.250.171.1:8000
+  apt-https-proxy: ""
+  apt-mirror: ""
+  authorized-keys: |
+    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDP9HEBWHyZiPWu4JF0YJ7+H2XH/BaXi7u4kj92z6fJl/LbWvDvWAYEFQdkX+IAHoax+CZQKLYKu9Nx9S328bA1/cBRNu0h7roOsoeUs1fTcvSTa6+KXRw1xMEZ3RMBYPhpI9QPRTMdIF0Mt4OzFjvZt1x8EQZNlnpjhY25H8d+24pkQINLS7ixRcsvqAKERr5e55P+GHf68p2+eXAhQFGNNUErXLsaeUhGlLLiGUUoKlGNmTRn9dC9TKlN4v+woyqk9GdfUhKN5qE9E0VkdprEV88YO+SQOLQjHVDCRIsyVjLRTy45WWGIU8EFg8BDCLLfN8+w8pm6LnsR+p5Z7SpH juju-client-key
+    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD055U3fdCpzMpa+B2IhTX0Y8fBsRpo/Z4M6Vv31wDzn0klov3NVVa9uKu3GGS0+Y7DFc0JF5yUVRJ63r8yeSos2ejsV2TAMDnUOPE7fMjqb9JG22izoXurlNeaU61Smwhb/XQB8SB32HiLv7cjG5qey5FFc+VOOsadikwivfnzyKu+uTHOIAFVZMPn1nLcXzdEn4ktj1Gxa01uYchxf00K496pRGDRRE7LrKEj4V/xqhLoWF0XPFQtmSzwIgoJB6YGpF0kj6ZIZTRKFi4qqxIbu1jtF7xAJ8D1ZccdipDdJLOpZy5YJ5ELb4scgOTSBl0LYb9vOW139JkRiFV2ZE77 tim@elwood
+  automatically-retry-hooks: true
+  default-series: xenial
+  development: false
+  disable-network-management: false
+  enable-os-refresh-update: true
+  enable-os-upgrade: false
+  firewall-mode: instance
+  ftp-proxy: ""
+  http-proxy: ""
+  https-proxy: ""
+  ignore-machine-addresses: false
+  image-metadata-url: ""
+  image-stream: released
+  logforward-enabled: false
+  logging-config: <root>=DEBUG;unit=DEBUG
+  name: foo
+  net-bond-reconfigure-delay: 17
+  no-proxy: ""
+  provisioner-harvest-mode: destroyed
+  proxy-ssh: false
+  resource-tags: ""
+  ssl-hostname-verification: true
+  test-mode: false
+  transmit-vendor-metrics: true
+  type: lxd
+  uuid: bd3fae18-5ea1-4bc5-8837-45400cf1f8f6
+filesystems:
+  filesystems: []
+  version: 1
+ip-addresses:
+  ip-addresses:
+  - config-method: loopback
+    device-name: lo
+    dns-search-domains: []
+    dns-servers: []
+    gateway-address: ""
+    machine-id: "1"
+    subnet-cidr: 127.0.0.0/8
+    value: 127.0.0.1
+  - config-method: loopback
+    device-name: lo
+    dns-search-domains: []
+    dns-servers: []
+    gateway-address: ""
+    machine-id: "1"
+    subnet-cidr: ::1/128
+    value: ::1
+  - config-method: static
+    device-name: eth0
+    dns-search-domains: []
+    dns-servers: []
+    gateway-address: ""
+    machine-id: "1"
+    subnet-cidr: 10.250.171.0/24
+    value: 10.250.171.49
+  version: 1
+link-layer-devices:
+  link-layer-devices:
+  - is-autostart: true
+    is-up: true
+    mac-address: ""
+    machine-id: "1"
+    mtu: 65536
+    name: lo
+    parent-name: ""
+    type: loopback
+  - is-autostart: true
+    is-up: true
+    mac-address: 52:c1:28:cb:49:5d
+    machine-id: "1"
+    mtu: 1500
+    name: lxdbr0
+    parent-name: ""
+    type: bridge
+  - is-autostart: true
+    is-up: true
+    mac-address: 00:16:3e:57:78:a9
+    machine-id: "1"
+    mtu: 1500
+    name: eth0
+    parent-name: ""
+    type: ethernet
+  version: 1
+machines:
+  machines:
+  - block-devices:
+      block-devices: []
+      version: 1
+    containers: []
+    id: "1"
+    instance:
+      architecture: amd64
+      instance-id: juju-f1f8f6-1
+      status: ""
+      version: 1
+    jobs:
+    - host-units
+    machine-addresses:
+    - origin: machine
+      scope: local-cloud
+      type: ipv4
+      value: 10.250.171.49
+      version: 1
+    - origin: machine
+      scope: local-machine
+      type: ipv4
+      value: 127.0.0.1
+      version: 1
+    - origin: machine
+      scope: local-machine
+      type: ipv6
+      value: ::1
+      version: 1
+    nonce: machine-0:92103e48-c933-45c3-8ced-c03962b0cf48
+    password-hash: bynwWY8+0lUvTpNwjeKI0JUl
+    preferred-private-address:
+      origin: provider
+      scope: local-cloud
+      type: ipv4
+      value: 10.250.171.49
+      version: 1
+    preferred-public-address:
+      origin: provider
+      scope: local-cloud
+      type: ipv4
+      value: 10.250.171.49
+      version: 1
+    provider-addresses:
+    - origin: provider
+      scope: local-cloud
+      type: ipv4
+      value: 10.250.171.49
+      version: 1
+    series: xenial
+    status:
+      status:
+        updated: 2017-03-06T01:07:47.466407673Z
+        value: started
+      version: 1
+    status-history:
+      history: []
+      version: 1
+    supported-containers:
+    - lxd
+    tools:
+      sha256: ""
+      size: 0
+      tools-version: 2.1-rc1.1-xenial-amd64
+      url: ""
+      version: 1
+  version: 1
+owner: admin
+relations:
+  relations: []
+  version: 1
+sequences:
+  application-ubuntu: 2
+  machine: 2
+spaces:
+  spaces: []
+  version: 1
+ssh-host-keys:
+  ssh-host-keys:
+  - keys:
+    - |
+      ssh-dss AAAAB3NzaC1kc3MAAACBAOqfiPafVrcicla2xFFi4Ar72NMRRgOrfwWJ2/WS815bmLk2kUCLEkCnAXt26PqaPNl9yb4ZQvr9TX3HibcufQMtDOrg6OYvTc7VD4mmwi6+ftXgtuf1lIPmoQEMa3mjbMaczNxURSvM12naqJB71SnsqAb2n/kP2YlOOgnlfSVtAAAAFQCNY0qAxGWO8KyLXa7C33dibdIZHwAAAIBeAOSHwvM2PVzGlvzqcAzkZyaCn32zzzy+QcwByuTGsON287NGnWX/0zp+j6rb2dsmA5LBUvTZlT6swjjSGxOwX1QiqkfxAvpMJ0DbHjr5uBEl6KrhMPxUhiaik4UPtF5CLUdaHq0ULJ9ke2LmhfDlTkSAesDbjb9XBFGvZ6sc5gAAAIBrDwBgY2RN842wg304goL3NecR4EUGpjx7aXabT3UvBsvFuMGkAd8AlMXdMbmSwnfly8PQk0mzjnbttvfGV4MKsnRmCov8Rlr1nMKIysFh+X2IYyanFFYGd654P+MWiqG60iC+ZLLf7g6wy2BZd3qd+a0r8Zv+lCDwsUQPGq/jow== root@juju-f1f8f6-1
+    - |
+      ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHrX4vn/zOY8DB9dpjxev4ea0EVxpuHeEEtf5yAO1ZMLmgYFpmT5nKUU9lqOFfonZC25jwDAQgmPiHj1C6BVTQ0= root@juju-f1f8f6-1
+    - |
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvfmGgBYIX4qNBTYMxSD8XjzwWEGhMgaBSjtQBow7ww root@juju-f1f8f6-1
+    - |
+      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDOKwdPMuAmdRXjiCe/RWOx+UGYio/5o7VbPpCz3Ar3kc5BMEUh45clvEO0iw7gqFEN7ZhtaYyG2VzZdF4N7IO+O/FYuooFn7Ng6Bik/iRnbDiyorNgb7mLETMfuNc6eBqwQUph7K4SPX+O9hyiqLK1HgXUwcI7vxTG3m6GUPkM36pbRbP2xfKP4NPBA+KKS/6AimJFC5mOjq6X/JL0nUnbOjQos9nBJEj7RNAtCzVJLXUIlXiLqNV9jBvz1QyKBEhsAcimXwN/XfrMSBWfP5mEgwtIrZILqAvvsjkTF3KfrXqu7SehtgGQS/7NeFDIfP3YQV/mWqNjJTtTvXH+ub0j root@juju-f1f8f6-1
+    machine-id: "1"
+  version: 1
+storage-pools:
+  pools: []
+  version: 1
+storages:
+  storages: []
+  version: 1
+subnets:
+  subnets: []
+  version: 1
+users:
+  users:
+  - access: admin
+    created-by: admin
+    date-created: 2017-02-07T02:33:07Z
+    display-name: admin
+    last-connection: 2017-02-22T00:43:58Z
+    name: admin
+  version: 1
+version: 1
+volumes:
+  version: 1
+  volumes: []
+`
