@@ -9,6 +9,16 @@ import (
 	"github.com/juju/utils/set"
 )
 
+// Relation represents a relationship between two applications,
+// or a peer relation between different instances of an application.
+type Relation interface {
+	Id() int
+	Key() string
+
+	Endpoints() []Endpoint
+	AddEndpoint(EndpointArgs) Endpoint
+}
+
 type relations struct {
 	Version    int         `yaml:"version"`
 	Relations_ []*relation `yaml:"relations"`
@@ -135,6 +145,29 @@ func importRelationV1(source map[string]interface{}) (*relation, error) {
 	result.setEndpoints(endpoints)
 
 	return result, nil
+}
+
+// Endpoint represents one end of a relation. A named endpoint provided
+// by the charm that is deployed for the application.
+type Endpoint interface {
+	ApplicationName() string
+	Name() string
+	// Role, Interface, Optional, Limit, and Scope should all be available
+	// through the Charm associated with the Application. There is no real need
+	// for this information to be denormalised like this. However, for now,
+	// since the import may well take place before the charms have been loaded
+	// into the model, we'll send this information over.
+	Role() string
+	Interface() string
+	Optional() bool
+	Limit() int
+	Scope() string
+
+	// UnitCount returns the number of units the endpoint has settings for.
+	UnitCount() int
+
+	Settings(unitName string) map[string]interface{}
+	SetUnitSettings(unitName string, settings map[string]interface{})
 }
 
 type endpoints struct {

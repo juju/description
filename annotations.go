@@ -7,6 +7,13 @@ import (
 	"github.com/juju/schema"
 )
 
+// HasAnnotations defines the common methods for setting and
+// getting annotations for the various entities.
+type HasAnnotations interface {
+	Annotations() map[string]string
+	SetAnnotations(map[string]string)
+}
+
 // Instead of copy / pasting the Annotations, SetAnnotations, and the import
 // three lines into every entity that has annotations, the Annotations_ helper
 // type is provided for use in composition. This type is composed without a
