@@ -380,6 +380,9 @@ func (m *machine) Validate() error {
 	if m.Instance_ == nil {
 		return errors.NotValidf("machine %q missing instance", m.Id_)
 	}
+	if err := m.Instance_.Validate(); err != nil {
+		return errors.Annotatef(err, "machine %q instance", m.Id_)
+	}
 	for _, container := range m.Containers_ {
 		if err := container.Validate(); err != nil {
 			return errors.Trace(err)
@@ -595,8 +598,10 @@ func importMachineV1(source map[string]interface{}) (*machine, error) {
 // CloudInstance holds information particular to a machine
 // instance in a cloud.
 type CloudInstance interface {
+	HasStatus
+	HasStatusHistory
+
 	InstanceId() string
-	Status() string
 	Architecture() string
 	Memory() uint64
 	RootDisk() uint64
@@ -604,13 +609,14 @@ type CloudInstance interface {
 	CpuPower() uint64
 	Tags() []string
 	AvailabilityZone() string
+
+	Validate() error
 }
 
 // CloudInstanceArgs is an argument struct used to add information about the
 // cloud instance to a Machine.
 type CloudInstanceArgs struct {
 	InstanceId       string
-	Status           string
 	Architecture     string
 	Memory           uint64
 	RootDisk         uint64
@@ -624,9 +630,8 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 	tags := make([]string, len(args.Tags))
 	copy(tags, args.Tags)
 	return &cloudInstance{
-		Version:           1,
+		Version:           2,
 		InstanceId_:       args.InstanceId,
-		Status_:           args.Status,
 		Architecture_:     args.Architecture,
 		Memory_:           args.Memory,
 		RootDisk_:         args.RootDisk,
@@ -634,6 +639,7 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 		CpuPower_:         args.CpuPower,
 		Tags_:             tags,
 		AvailabilityZone_: args.AvailabilityZone,
+		StatusHistory_:    newStatusHistory(),
 	}
 }
 
@@ -641,7 +647,10 @@ type cloudInstance struct {
 	Version int `yaml:"version"`
 
 	InstanceId_ string `yaml:"instance-id"`
-	Status_     string `yaml:"status"`
+
+	Status_        *status `yaml:"status"`
+	StatusHistory_ `yaml:"status-history"`
+
 	// For all the optional values, empty values make no sense, and
 	// it would be better to have them not set rather than set with
 	// a nonsense value.
@@ -660,8 +669,17 @@ func (c *cloudInstance) InstanceId() string {
 }
 
 // Status implements CloudInstance.
-func (c *cloudInstance) Status() string {
+func (c *cloudInstance) Status() Status {
+	// To avoid typed nils check nil here.
+	if c.Status_ == nil {
+		return nil
+	}
 	return c.Status_
+}
+
+// SetStatus implements CloudInstance.
+func (c *cloudInstance) SetStatus(args StatusArgs) {
+	c.Status_ = newStatus(args)
 }
 
 // Architecture implements CloudInstance.
@@ -701,6 +719,17 @@ func (c *cloudInstance) AvailabilityZone() string {
 	return c.AvailabilityZone_
 }
 
+// Validate implements CloudInstance.
+func (c *cloudInstance) Validate() error {
+	if c.InstanceId_ == "" {
+		return errors.NotValidf("instance missing id")
+	}
+	if c.Status_ == nil {
+		return errors.NotValidf("instance %q missing status", c.InstanceId_)
+	}
+	return nil
+}
+
 func importCloudInstance(source map[string]interface{}) (*cloudInstance, error) {
 	version, err := getVersion(source)
 	if err != nil {
@@ -719,9 +748,10 @@ type cloudInstanceDeserializationFunc func(map[string]interface{}) (*cloudInstan
 
 var cloudInstanceDeserializationFuncs = map[int]cloudInstanceDeserializationFunc{
 	1: importCloudInstanceV1,
+	2: importCloudInstanceV2,
 }
 
-func importCloudInstanceV1(source map[string]interface{}) (*cloudInstance, error) {
+func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"instance-id":       schema.String(),
 		"status":            schema.String(),
@@ -743,20 +773,42 @@ func importCloudInstanceV1(source map[string]interface{}) (*cloudInstance, error
 		"tags":              schema.Omit,
 		"availability-zone": "",
 	}
+	return fields, defaults
+}
+
+func cloudInstanceV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := cloudInstanceV1Fields()
+	fields["status"] = schema.StringMap(schema.Any())
+	addStatusHistorySchema(fields)
+	return fields, defaults
+}
+
+func importCloudInstanceV1(source map[string]interface{}) (*cloudInstance, error) {
+	return importCloudInstanceVx(source, 1, cloudInstanceV1Fields)
+}
+
+func importCloudInstanceV2(source map[string]interface{}) (*cloudInstance, error) {
+	return importCloudInstanceVx(source, 2, cloudInstanceV2Fields)
+}
+
+func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc func() (schema.Fields, schema.Defaults)) (*cloudInstance, error) {
+	fields, defaults := fieldFunc()
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "cloudInstance v1 schema check failed")
+		return nil, errors.Annotatef(err, "cloudInstance v%d schema check failed", version)
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
+	return newCloudInstanceFromValid(valid, version)
+}
 
-	return &cloudInstance{
-		Version:           1,
+func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) (*cloudInstance, error) {
+	instance := &cloudInstance{
+		Version:           2,
 		InstanceId_:       valid["instance-id"].(string),
-		Status_:           valid["status"].(string),
 		Architecture_:     valid["architecture"].(string),
 		Memory_:           valid["memory"].(uint64),
 		RootDisk_:         valid["root-disk"].(uint64),
@@ -764,7 +816,31 @@ func importCloudInstanceV1(source map[string]interface{}) (*cloudInstance, error
 		CpuPower_:         valid["cpu-power"].(uint64),
 		Tags_:             convertToStringSlice(valid["tags"]),
 		AvailabilityZone_: valid["availability-zone"].(string),
-	}, nil
+		StatusHistory_:    newStatusHistory(),
+	}
+
+	switch importVersion {
+	case 1:
+		// Status was exported incorrectly, so we fake one here.
+		instance.SetStatus(StatusArgs{
+			Value: "unknown",
+		})
+
+	case 2:
+		status, err := importStatus(valid["status"].(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		instance.Status_ = status
+		if err := instance.importStatusHistory(valid); err != nil {
+			return nil, errors.Trace(err)
+		}
+
+	default:
+		return nil, errors.NotValidf("unexpected version: %d", importVersion)
+	}
+
+	return instance, nil
 }
 
 // AgentToolsArgs is an argument struct used to add information about the
