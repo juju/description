@@ -4,6 +4,7 @@
 package description
 
 import (
+	"github.com/juju/errors"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
 	gc "gopkg.in/check.v1"
@@ -63,6 +64,7 @@ func minimalMachine(id string, containers ...*machine) *machine {
 	})
 	m.Containers_ = containers
 	m.SetInstance(minimalCloudInstanceArgs())
+	m.Instance().SetStatus(minimalStatusArgs())
 	m.SetTools(minimalAgentToolsArgs())
 	m.SetStatus(minimalStatusArgs())
 	return m
@@ -79,6 +81,7 @@ func addMinimalMachine(model Model, id string) {
 	m.SetInstance(minimalCloudInstanceArgs())
 	m.SetTools(minimalAgentToolsArgs())
 	m.SetStatus(minimalStatusArgs())
+	m.Instance().SetStatus(minimalStatusArgs())
 }
 
 func (s *MachineSerializationSuite) machineArgs(id string) MachineArgs {
@@ -111,6 +114,47 @@ func (s *MachineSerializationSuite) TestNewMachine(c *gc.C) {
 func (s *MachineSerializationSuite) TestMinimalMachineValid(c *gc.C) {
 	m := minimalMachine("1")
 	c.Assert(m.Validate(), jc.ErrorIsNil)
+}
+
+func (s *MachineSerializationSuite) TestValidateMissingID(c *gc.C) {
+	m := newMachine(MachineArgs{})
+	err := m.Validate()
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, gc.ErrorMatches, "machine missing id not valid")
+}
+
+func (s *MachineSerializationSuite) TestValidateMissingStatus(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	err := m.Validate()
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, gc.ErrorMatches, `machine "42" missing status not valid`)
+}
+
+func (s *MachineSerializationSuite) TestValidateMissingTools(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	m.SetStatus(minimalStatusArgs())
+	err := m.Validate()
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, gc.ErrorMatches, `machine "42" missing tools not valid`)
+}
+
+func (s *MachineSerializationSuite) TestValidateMissingInstance(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	m.SetStatus(minimalStatusArgs())
+	m.SetTools(minimalAgentToolsArgs())
+	err := m.Validate()
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, gc.ErrorMatches, `machine "42" missing instance not valid`)
+}
+
+func (s *MachineSerializationSuite) TestValidateChecksInstance(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	m.SetStatus(minimalStatusArgs())
+	m.SetTools(minimalAgentToolsArgs())
+	m.SetInstance(minimalCloudInstanceArgs())
+	err := m.Validate()
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, gc.ErrorMatches, `machine "42" instance: instance "instance id" missing status not valid`)
 }
 
 func (s *MachineSerializationSuite) TestNewMachineWithSupportedContainers(c *gc.C) {
@@ -284,6 +328,7 @@ func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	m.SetTools(minimalAgentToolsArgs())
 	m.SetStatus(minimalStatusArgs())
 	m.SetInstance(minimalCloudInstanceArgs())
+	m.Instance().SetStatus(minimalStatusArgs())
 	m.AddBlockDevice(allBlockDeviceArgs())
 	s.addOpenedPorts(m)
 
@@ -322,20 +367,22 @@ func (s *CloudInstanceSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalCloudInstanceMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":     1,
-		"instance-id": "instance id",
-		"status":      "some status",
+		"version":        2,
+		"instance-id":    "instance id",
+		"status":         minimalStatusMap(),
+		"status-history": emptyStatusHistoryMap(),
 	}
 }
 
 func minimalCloudInstance() *cloudInstance {
-	return newCloudInstance(minimalCloudInstanceArgs())
+	instance := newCloudInstance(minimalCloudInstanceArgs())
+	instance.SetStatus(minimalStatusArgs())
+	return instance
 }
 
 func minimalCloudInstanceArgs() CloudInstanceArgs {
 	return CloudInstanceArgs{
 		InstanceId: "instance id",
-		Status:     "some status",
 	}
 }
 
@@ -343,7 +390,6 @@ func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
 	// NOTE: using gig from package_test.go
 	args := CloudInstanceArgs{
 		InstanceId:       "instance id",
-		Status:           "working",
 		Architecture:     "amd64",
 		Memory:           16 * gig,
 		RootDisk:         200 * gig,
@@ -354,19 +400,19 @@ func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
 	}
 
 	instance := newCloudInstance(args)
+	instance.SetStatus(minimalStatusArgs())
 
-	c.Assert(instance.InstanceId(), gc.Equals, args.InstanceId)
-	c.Assert(instance.Status(), gc.Equals, args.Status)
-	c.Assert(instance.Architecture(), gc.Equals, args.Architecture)
-	c.Assert(instance.Memory(), gc.Equals, args.Memory)
-	c.Assert(instance.RootDisk(), gc.Equals, args.RootDisk)
-	c.Assert(instance.CpuCores(), gc.Equals, args.CpuCores)
-	c.Assert(instance.CpuPower(), gc.Equals, args.CpuPower)
-	c.Assert(instance.AvailabilityZone(), gc.Equals, args.AvailabilityZone)
+	c.Check(instance.Validate(), jc.ErrorIsNil)
+	c.Check(instance.InstanceId(), gc.Equals, args.InstanceId)
+	c.Check(instance.Architecture(), gc.Equals, args.Architecture)
+	c.Check(instance.Memory(), gc.Equals, args.Memory)
+	c.Check(instance.RootDisk(), gc.Equals, args.RootDisk)
+	c.Check(instance.CpuCores(), gc.Equals, args.CpuCores)
+	c.Check(instance.CpuPower(), gc.Equals, args.CpuPower)
+	c.Check(instance.AvailabilityZone(), gc.Equals, args.AvailabilityZone)
 
 	// Before we check tags, modify args to make sure that the instance ones
 	// don't change.
-
 	args.Tags[0] = "weird"
 	tags := instance.Tags()
 	c.Assert(tags, jc.DeepEquals, []string{"much", "strong"})
@@ -390,12 +436,12 @@ func (s *CloudInstanceSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	const MaxUint64 = 1<<64 - 1
 	initial := newCloudInstance(CloudInstanceArgs{
 		InstanceId:   "instance id",
-		Status:       "working",
 		Architecture: "amd64",
 		Memory:       16 * gig,
 		CpuPower:     MaxUint64,
 		Tags:         []string{"much", "strong"},
 	})
+	initial.SetStatus(minimalStatusArgs())
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)
 
@@ -406,6 +452,20 @@ func (s *CloudInstanceSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	instance, err := importCloudInstance(source)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(instance, jc.DeepEquals, initial)
+}
+
+func (s *CloudInstanceSerializationSuite) TestValidateMissingID(c *gc.C) {
+	initial := newCloudInstance(CloudInstanceArgs{})
+	err := initial.Validate()
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, gc.ErrorMatches, "instance missing id not valid")
+}
+
+func (s *CloudInstanceSerializationSuite) TestValidateMissingStatus(c *gc.C) {
+	initial := newCloudInstance(CloudInstanceArgs{InstanceId: "magic"})
+	err := initial.Validate()
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, gc.ErrorMatches, `instance "magic" missing status not valid`)
 }
 
 type AgentToolsSerializationSuite struct {

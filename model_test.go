@@ -113,6 +113,12 @@ func (s *ModelSerializationSuite) TestParsingModelV1(c *gc.C) {
 	model, err := Deserialize([]byte(modelV1example))
 	c.Assert(err, jc.ErrorIsNil)
 	c.Check(model.Validate(), jc.ErrorIsNil)
+	// Version 1 also incorrectly serialized machine cloud instance
+	// status. So when parsing a v1 model, the cloud instance status
+	// is set to unknown.
+	machines := model.Machines()
+	instance := machines[0].Instance()
+	c.Check(instance.Status().Value(), gc.Equals, "unknown")
 }
 
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
@@ -261,6 +267,7 @@ func (s *ModelSerializationSuite) addMachineToModel(model Model, id string) Mach
 	machine.SetInstance(CloudInstanceArgs{InstanceId: "magic"})
 	machine.SetTools(minimalAgentToolsArgs())
 	machine.SetStatus(minimalStatusArgs())
+	machine.Instance().SetStatus(minimalStatusArgs())
 	return machine
 }
 
@@ -597,6 +604,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksParentOnHost(c *gc.C)
 	machine := s.addMachineToModel(model, "41")
 	container := machine.AddContainer(MachineArgs{Id: names.NewMachineTag("41/lxd/0")})
 	container.SetInstance(CloudInstanceArgs{InstanceId: "magic"})
+	container.Instance().SetStatus(minimalStatusArgs())
 	container.SetTools(minimalAgentToolsArgs())
 	container.SetStatus(minimalStatusArgs())
 	s.addMachineToModel(model, "43")
@@ -613,6 +621,7 @@ func (s *ModelSerializationSuite) TestModelValidationLinkLayerDeviceContainer(c 
 	machine := s.addMachineToModel(model, "43")
 	container := machine.AddContainer(MachineArgs{Id: names.NewMachineTag("43/lxd/0")})
 	container.SetInstance(CloudInstanceArgs{InstanceId: "magic"})
+	container.Instance().SetStatus(minimalStatusArgs())
 	container.SetTools(minimalAgentToolsArgs())
 	container.SetStatus(minimalStatusArgs())
 	err := model.Validate()
