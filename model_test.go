@@ -766,8 +766,9 @@ func (s *ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestSetAndGetSLA(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
-	sla := model.SetSLA("essential", "creds")
+	sla := model.SetSLA("essential", "bob", "creds")
 	c.Assert(sla.Level(), gc.Equals, "essential")
+	c.Assert(sla.Owner(), gc.Equals, "bob")
 	c.Assert(sla.Credentials(), gc.Equals, "creds")
 
 	getSla := model.SLA()
@@ -777,8 +778,9 @@ func (s *ModelSerializationSuite) TestSetAndGetSLA(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestSLA(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
-	sla := initial.SetSLA("essential", "creds")
+	sla := initial.SetSLA("essential", "bob", "creds")
 	c.Assert(sla.Level(), gc.Equals, "essential")
+	c.Assert(sla.Owner(), gc.Equals, "bob")
 	c.Assert(sla.Credentials(), gc.Equals, "creds")
 
 	bytes, err := yaml.Marshal(initial)
@@ -787,6 +789,7 @@ func (s *ModelSerializationSuite) TestSLA(c *gc.C) {
 	model, err := Deserialize(bytes)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(model.SLA().Level(), gc.Equals, "essential")
+	c.Assert(model.SLA().Owner(), gc.Equals, "bob")
 	c.Assert(model.SLA().Credentials(), gc.Equals, "creds")
 }
 
