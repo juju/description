@@ -93,7 +93,7 @@ type Model interface {
 
 	Validate() error
 
-	SetSLA(level, credentials string) SLA
+	SetSLA(level, owner, credentials string) SLA
 	SLA() SLA
 
 	SetMeterStatus(code, info string) MeterStatus
@@ -609,9 +609,10 @@ func (m *model) SetCloudCredential(args CloudCredentialArgs) {
 }
 
 // SetSLA implements Model.
-func (m *model) SetSLA(level, creds string) SLA {
+func (m *model) SetSLA(level, owner, creds string) SLA {
 	m.SLA_ = sla{
 		Level_:       level,
+		Owner_:       owner,
 		Credentials_: creds,
 	}
 	return m.SLA_
@@ -1127,6 +1128,7 @@ func modelV2Fields() (schema.Fields, schema.Defaults) {
 	fields["sla"] = schema.FieldMap(
 		schema.Fields{
 			"level":       schema.String(),
+			"owner":       schema.String(),
 			"credentials": schema.String(),
 		}, nil)
 	fields["meter-status"] = schema.FieldMap(
@@ -1325,6 +1327,7 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 func importSLA(source map[string]interface{}) sla {
 	return sla{
 		Level_:       source["level"].(string),
+		Owner_:       source["owner"].(string),
 		Credentials_: source["credentials"].(string),
 	}
 }
