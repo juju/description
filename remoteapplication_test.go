@@ -117,6 +117,10 @@ func (*RemoteApplicationSerializationSuite) TestNew(c *gc.C) {
 	ep := r.Endpoints()
 	c.Assert(ep, gc.HasLen, 1)
 	c.Check(ep[0].Name(), gc.Equals, "lana")
+	sp := r.Spaces()
+	c.Assert(sp, gc.HasLen, 1)
+	c.Check(sp[0].Name(), gc.Equals, "private")
+	c.Check(r.Bindings(), gc.DeepEquals, map[string]string{"lana": "private"})
 }
 
 func (*RemoteApplicationSerializationSuite) TestBadSchema1(c *gc.C) {
