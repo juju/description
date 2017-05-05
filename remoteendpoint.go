@@ -94,7 +94,7 @@ func importRemoteEndpoints(sourceMap map[string]interface{}) ([]*remoteEndpoint,
 }
 
 func importRemoteEndpointList(sourceList []interface{}, importFunc remoteEndpointDeserializationFunc) ([]*remoteEndpoint, error) {
-	result := make([]*remoteEndpoint, 0, len(sourceList))
+	var result []*remoteEndpoint
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {

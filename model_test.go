@@ -720,13 +720,16 @@ remote-applications:
   name: bloom
   offer-name: toman
   source-model-uuid: some-model
+  spaces:
+    spaces: []
+    version: 1
   url: other.mysql
 version: 1
 `[1:]
 	c.Assert(string(bytes), gc.Equals, expected)
 }
 
-func (s *ModelSerializationSuite) TestImportingWithRemoteApplicationsFails(c *gc.C) {
+func (s *ModelSerializationSuite) TestImportingWithRemoteApplications(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	rapp := initial.AddRemoteApplication(RemoteApplicationArgs{
 		Tag:             names.NewApplicationTag("bloom"),
@@ -748,7 +751,9 @@ func (s *ModelSerializationSuite) TestImportingWithRemoteApplicationsFails(c *gc
 
 	result, err := Deserialize(bytes)
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(result.RemoteApplications(), gc.DeepEquals, remoteApplications)
+	ra := result.RemoteApplications()
+	c.Assert(ra, gc.HasLen, 1)
+	c.Assert(ra[0], gc.DeepEquals, remoteApplications[0])
 }
 
 func (s *ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {

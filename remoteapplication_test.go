@@ -45,6 +45,30 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 				"scope":     "global",
 			}},
 		},
+		"spaces": map[interface{}]interface{}{
+			"version": 1,
+			"spaces": []interface{}{map[interface{}]interface{}{
+				"cloud-type":  "gce",
+				"name":        "private",
+				"provider-id": "juju-space-private",
+				"provider-attributes": map[interface{}]interface{}{
+					"project": "gothic",
+				},
+				"subnets": map[interface{}]interface{}{
+					"version": 1,
+					"subnets": []interface{}{map[interface{}]interface{}{
+						"cidr":                "2.3.4.0/24",
+						"provider-id":         "juju-subnet-1",
+						"availability-zones":  []interface{}{"az1", "az2"},
+						"provider-space-id":   "juju-space-private",
+						"provider-network-id": "network-1",
+					}},
+				},
+			}},
+		},
+		"bindings": map[interface{}]interface{}{
+			"lana": "private",
+		},
 	}
 }
 
@@ -55,6 +79,7 @@ func minimalRemoteApplication() *remoteApplication {
 		URL:             "http://a.url",
 		SourceModel:     names.NewModelTag("abcd-1234"),
 		IsConsumerProxy: true,
+		Bindings:        map[string]string{"lana": "private"},
 	})
 	a.AddEndpoint(RemoteEndpointArgs{
 		Name:      "lana",
@@ -62,6 +87,21 @@ func minimalRemoteApplication() *remoteApplication {
 		Interface: "mysql",
 		Limit:     1,
 		Scope:     "global",
+	})
+	space := a.AddSpace(RemoteSpaceArgs{
+		CloudType:  "gce",
+		Name:       "private",
+		ProviderId: "juju-space-private",
+		ProviderAttributes: map[string]interface{}{
+			"project": "gothic",
+		},
+	})
+	space.AddSubnet(RemoteSubnetArgs{
+		CIDR:              "2.3.4.0/24",
+		ProviderId:        "juju-subnet-1",
+		AvailabilityZones: []string{"az1", "az2"},
+		ProviderSpaceId:   "juju-space-private",
+		ProviderNetworkId: "network-1",
 	})
 	return a
 }

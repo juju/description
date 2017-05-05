@@ -140,8 +140,6 @@ var subnetFieldsFuncs = map[int]fieldsFunc{
 	2: subnetV2Fields,
 }
 
-type fieldsFunc func() (schema.Fields, schema.Defaults)
-
 func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
