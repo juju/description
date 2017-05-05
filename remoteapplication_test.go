@@ -96,7 +96,7 @@ func (*RemoteApplicationSerializationSuite) TestBadSchema2(c *gc.C) {
 		"remote-applications": []interface{}{m},
 	}
 	_, err := importRemoteApplications(container)
-	c.Assert(err, gc.ErrorMatches, `remote application 0: remote application v1 schema check failed: is-consumer-proxy: expected bool, got string\("blah"\)`)
+	c.Assert(err, gc.ErrorMatches, `remote application 0 v1 schema check failed: is-consumer-proxy: expected bool, got string\("blah"\)`)
 }
 
 func (s *RemoteApplicationSerializationSuite) TestBadEndpoints(c *gc.C) {

@@ -121,57 +121,40 @@ func importRemoteApplications(source interface{}) ([]*remoteApplication, error) 
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	importFunc, ok := remoteApplicationDeserializationFuncs[version]
+	getFields, ok := remoteApplicationFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 	sourceList := valid["remote-applications"].([]interface{})
-	return importRemoteApplicationList(sourceList, importFunc)
+	return importRemoteApplicationList(sourceList, schema.FieldMap(getFields()), version)
 }
 
-func importRemoteApplicationList(sourceList []interface{}, importFunc remoteApplicationDeserializationFunc) ([]*remoteApplication, error) {
+func importRemoteApplicationList(sourceList []interface{}, checker schema.Checker, version int) ([]*remoteApplication, error) {
 	result := make([]*remoteApplication, 0, len(sourceList))
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for remote application %d, %T", i, value)
 		}
-		device, err := importFunc(source)
+		coerced, err := checker.Coerce(source, nil)
+		if err != nil {
+			return nil, errors.Annotatef(err, "remote application %d v%d schema check failed", i, version)
+		}
+		valid := coerced.(map[string]interface{})
+		remoteApp, err := newRemoteApplicationFromValid(valid, version)
 		if err != nil {
 			return nil, errors.Annotatef(err, "remote application %d", i)
 		}
-		result = append(result, device)
+		result = append(result, remoteApp)
 	}
 	return result, nil
 }
 
-type remoteApplicationDeserializationFunc func(map[string]interface{}) (*remoteApplication, error)
-
-var remoteApplicationDeserializationFuncs = map[int]remoteApplicationDeserializationFunc{
-	1: importRemoteApplicationV1,
+var remoteApplicationFieldsFuncs = map[int]fieldsFunc{
+	1: remoteApplicationV1Fields,
 }
 
-func importRemoteApplicationV1(source map[string]interface{}) (*remoteApplication, error) {
-	fields := schema.Fields{
-		"name":              schema.String(),
-		"offer-name":        schema.String(),
-		"url":               schema.String(),
-		"source-model-uuid": schema.String(),
-		"endpoints":         schema.StringMap(schema.Any()),
-		"is-consumer-proxy": schema.Bool(),
-	}
-
-	defaults := schema.Defaults{
-		"endpoints":         schema.Omit,
-		"is-consumer-proxy": false,
-	}
-	checker := schema.FieldMap(fields, defaults)
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "remote application v1 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
+func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*remoteApplication, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := &remoteApplication{
@@ -190,6 +173,22 @@ func importRemoteApplicationV1(source map[string]interface{}) (*remoteApplicatio
 		}
 		result.setEndpoints(endpoints)
 	}
-
 	return result, nil
+}
+
+func remoteApplicationV1Fields() (schema.Fields, schema.Defaults) {
+	fields := schema.Fields{
+		"name":              schema.String(),
+		"offer-name":        schema.String(),
+		"url":               schema.String(),
+		"source-model-uuid": schema.String(),
+		"endpoints":         schema.StringMap(schema.Any()),
+		"is-consumer-proxy": schema.Bool(),
+	}
+
+	defaults := schema.Defaults{
+		"endpoints":         schema.Omit,
+		"is-consumer-proxy": false,
+	}
+	return fields, defaults
 }
