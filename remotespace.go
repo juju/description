@@ -125,11 +125,11 @@ func importRemoteSpaceList(sourceList []interface{}, checker schema.Checker, ver
 			return nil, errors.Annotatef(err, "remote space %d v%d schema check failed", i, version)
 		}
 		valid := coerced.(map[string]interface{})
-		subnet, err := newRemoteSpaceFromValid(valid, version)
+		space, err := newRemoteSpaceFromValid(valid, version)
 		if err != nil {
 			return nil, errors.Annotatef(err, "remote space %d", i)
 		}
-		result = append(result, subnet)
+		result = append(result, space)
 	}
 	return result, nil
 }
