@@ -85,18 +85,6 @@ type LinkLayerDevice interface {
 	ParentName() string
 }
 
-// Subnet represents a network subnet.
-type Subnet interface {
-	ProviderId() string
-	ProviderNetworkId() string
-	CIDR() string
-	VLANTag() int
-	AvailabilityZone() string
-	SpaceName() string
-	AllocatableIPHigh() string
-	AllocatableIPLow() string
-}
-
 // IPAddress represents an IP address.
 type IPAddress interface {
 	ProviderID() string

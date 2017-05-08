@@ -21,6 +21,11 @@ type RemoteApplication interface {
 
 	Endpoints() []RemoteEndpoint
 	AddEndpoint(RemoteEndpointArgs) RemoteEndpoint
+
+	Spaces() []RemoteSpace
+	AddSpace(RemoteSpaceArgs) RemoteSpace
+
+	Bindings() map[string]string
 }
 
 type remoteApplications struct {
@@ -29,12 +34,14 @@ type remoteApplications struct {
 }
 
 type remoteApplication struct {
-	Name_            string          `yaml:"name"`
-	OfferName_       string          `yaml:"offer-name"`
-	URL_             string          `yaml:"url"`
-	SourceModelUUID_ string          `yaml:"source-model-uuid"`
-	Endpoints_       remoteEndpoints `yaml:"endpoints,omitempty"`
-	IsConsumerProxy_ bool            `yaml:"is-consumer-proxy,omitempty"`
+	Name_            string            `yaml:"name"`
+	OfferName_       string            `yaml:"offer-name"`
+	URL_             string            `yaml:"url"`
+	SourceModelUUID_ string            `yaml:"source-model-uuid"`
+	Endpoints_       remoteEndpoints   `yaml:"endpoints,omitempty"`
+	IsConsumerProxy_ bool              `yaml:"is-consumer-proxy,omitempty"`
+	Spaces_          remoteSpaces      `yaml:"spaces,omitempty"`
+	Bindings_        map[string]string `yaml:"bindings,omitempty"`
 }
 
 // RemoteApplicationArgs is an argument struct used to add a remote
@@ -45,6 +52,7 @@ type RemoteApplicationArgs struct {
 	URL             string
 	SourceModel     names.ModelTag
 	IsConsumerProxy bool
+	Bindings        map[string]string
 }
 
 func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
@@ -54,8 +62,10 @@ func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
 		URL_:             args.URL,
 		SourceModelUUID_: args.SourceModel.Id(),
 		IsConsumerProxy_: args.IsConsumerProxy,
+		Bindings_:        args.Bindings,
 	}
 	a.setEndpoints(nil)
+	a.setSpaces(nil)
 	return a
 }
 
@@ -89,6 +99,11 @@ func (a *remoteApplication) IsConsumerProxy() bool {
 	return a.IsConsumerProxy_
 }
 
+// Bindings implements RemoteApplication.
+func (a *remoteApplication) Bindings() map[string]string {
+	return a.Bindings_
+}
+
 // Endpoints implements RemoteApplication.
 func (a *remoteApplication) Endpoints() []RemoteEndpoint {
 	result := make([]RemoteEndpoint, len(a.Endpoints_.Endpoints))
@@ -112,6 +127,29 @@ func (a *remoteApplication) setEndpoints(endpointList []*remoteEndpoint) {
 	}
 }
 
+// Spaces implements RemoteApplication.
+func (a *remoteApplication) Spaces() []RemoteSpace {
+	result := make([]RemoteSpace, len(a.Spaces_.Spaces))
+	for i, space := range a.Spaces_.Spaces {
+		result[i] = space
+	}
+	return result
+}
+
+// AddSpace implements RemoteApplication.
+func (a *remoteApplication) AddSpace(args RemoteSpaceArgs) RemoteSpace {
+	ep := newRemoteSpace(args)
+	a.Spaces_.Spaces = append(a.Spaces_.Spaces, ep)
+	return ep
+}
+
+func (a *remoteApplication) setSpaces(spaceList []*remoteSpace) {
+	a.Spaces_ = remoteSpaces{
+		Version: 1,
+		Spaces:  spaceList,
+	}
+}
+
 func importRemoteApplications(source interface{}) ([]*remoteApplication, error) {
 	checker := versionedChecker("remote-applications")
 	coerced, err := checker.Coerce(source, nil)
@@ -121,57 +159,40 @@ func importRemoteApplications(source interface{}) ([]*remoteApplication, error) 
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	importFunc, ok := remoteApplicationDeserializationFuncs[version]
+	getFields, ok := remoteApplicationFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 	sourceList := valid["remote-applications"].([]interface{})
-	return importRemoteApplicationList(sourceList, importFunc)
+	return importRemoteApplicationList(sourceList, schema.FieldMap(getFields()), version)
 }
 
-func importRemoteApplicationList(sourceList []interface{}, importFunc remoteApplicationDeserializationFunc) ([]*remoteApplication, error) {
-	result := make([]*remoteApplication, 0, len(sourceList))
+func importRemoteApplicationList(sourceList []interface{}, checker schema.Checker, version int) ([]*remoteApplication, error) {
+	var result []*remoteApplication
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for remote application %d, %T", i, value)
 		}
-		device, err := importFunc(source)
+		coerced, err := checker.Coerce(source, nil)
+		if err != nil {
+			return nil, errors.Annotatef(err, "remote application %d v%d schema check failed", i, version)
+		}
+		valid := coerced.(map[string]interface{})
+		remoteApp, err := newRemoteApplicationFromValid(valid, version)
 		if err != nil {
 			return nil, errors.Annotatef(err, "remote application %d", i)
 		}
-		result = append(result, device)
+		result = append(result, remoteApp)
 	}
 	return result, nil
 }
 
-type remoteApplicationDeserializationFunc func(map[string]interface{}) (*remoteApplication, error)
-
-var remoteApplicationDeserializationFuncs = map[int]remoteApplicationDeserializationFunc{
-	1: importRemoteApplicationV1,
+var remoteApplicationFieldsFuncs = map[int]fieldsFunc{
+	1: remoteApplicationV1Fields,
 }
 
-func importRemoteApplicationV1(source map[string]interface{}) (*remoteApplication, error) {
-	fields := schema.Fields{
-		"name":              schema.String(),
-		"offer-name":        schema.String(),
-		"url":               schema.String(),
-		"source-model-uuid": schema.String(),
-		"endpoints":         schema.StringMap(schema.Any()),
-		"is-consumer-proxy": schema.Bool(),
-	}
-
-	defaults := schema.Defaults{
-		"endpoints":         schema.Omit,
-		"is-consumer-proxy": false,
-	}
-	checker := schema.FieldMap(fields, defaults)
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "remote application v1 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
+func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*remoteApplication, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := &remoteApplication{
@@ -190,6 +211,37 @@ func importRemoteApplicationV1(source map[string]interface{}) (*remoteApplicatio
 		}
 		result.setEndpoints(endpoints)
 	}
-
+	if rawSpaces, ok := valid["spaces"]; ok {
+		spacesMap := rawSpaces.(map[string]interface{})
+		spaces, err := importRemoteSpaces(spacesMap)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.setSpaces(spaces)
+	}
+	if bindings, ok := valid["bindings"]; ok {
+		result.Bindings_ = convertToStringMap(bindings)
+	}
 	return result, nil
+}
+
+func remoteApplicationV1Fields() (schema.Fields, schema.Defaults) {
+	fields := schema.Fields{
+		"name":              schema.String(),
+		"offer-name":        schema.String(),
+		"url":               schema.String(),
+		"source-model-uuid": schema.String(),
+		"endpoints":         schema.StringMap(schema.Any()),
+		"is-consumer-proxy": schema.Bool(),
+		"spaces":            schema.StringMap(schema.Any()),
+		"bindings":          schema.StringMap(schema.String()),
+	}
+
+	defaults := schema.Defaults{
+		"endpoints":         schema.Omit,
+		"spaces":            schema.Omit,
+		"bindings":          schema.Omit,
+		"is-consumer-proxy": false,
+	}
+	return fields, defaults
 }

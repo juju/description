@@ -45,6 +45,32 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 				"scope":     "global",
 			}},
 		},
+		"spaces": map[interface{}]interface{}{
+			"version": 1,
+			"spaces": []interface{}{map[interface{}]interface{}{
+				"cloud-type":  "gce",
+				"name":        "private",
+				"provider-id": "juju-space-private",
+				"provider-attributes": map[interface{}]interface{}{
+					"project": "gothic",
+				},
+				"subnets": map[interface{}]interface{}{
+					"version": 3,
+					"subnets": []interface{}{map[interface{}]interface{}{
+						"cidr":                "2.3.4.0/24",
+						"space-name":          "",
+						"vlan-tag":            0,
+						"provider-id":         "juju-subnet-1",
+						"availability-zones":  []interface{}{"az1", "az2"},
+						"provider-space-id":   "juju-space-private",
+						"provider-network-id": "network-1",
+					}},
+				},
+			}},
+		},
+		"bindings": map[interface{}]interface{}{
+			"lana": "private",
+		},
 	}
 }
 
@@ -55,6 +81,7 @@ func minimalRemoteApplication() *remoteApplication {
 		URL:             "http://a.url",
 		SourceModel:     names.NewModelTag("abcd-1234"),
 		IsConsumerProxy: true,
+		Bindings:        map[string]string{"lana": "private"},
 	})
 	a.AddEndpoint(RemoteEndpointArgs{
 		Name:      "lana",
@@ -62,6 +89,21 @@ func minimalRemoteApplication() *remoteApplication {
 		Interface: "mysql",
 		Limit:     1,
 		Scope:     "global",
+	})
+	space := a.AddSpace(RemoteSpaceArgs{
+		CloudType:  "gce",
+		Name:       "private",
+		ProviderId: "juju-space-private",
+		ProviderAttributes: map[string]interface{}{
+			"project": "gothic",
+		},
+	})
+	space.AddSubnet(SubnetArgs{
+		CIDR:              "2.3.4.0/24",
+		ProviderId:        "juju-subnet-1",
+		AvailabilityZones: []string{"az1", "az2"},
+		ProviderSpaceId:   "juju-space-private",
+		ProviderNetworkId: "network-1",
 	})
 	return a
 }
@@ -77,6 +119,10 @@ func (*RemoteApplicationSerializationSuite) TestNew(c *gc.C) {
 	ep := r.Endpoints()
 	c.Assert(ep, gc.HasLen, 1)
 	c.Check(ep[0].Name(), gc.Equals, "lana")
+	sp := r.Spaces()
+	c.Assert(sp, gc.HasLen, 1)
+	c.Check(sp[0].Name(), gc.Equals, "private")
+	c.Check(r.Bindings(), gc.DeepEquals, map[string]string{"lana": "private"})
 }
 
 func (*RemoteApplicationSerializationSuite) TestBadSchema1(c *gc.C) {
@@ -96,7 +142,7 @@ func (*RemoteApplicationSerializationSuite) TestBadSchema2(c *gc.C) {
 		"remote-applications": []interface{}{m},
 	}
 	_, err := importRemoteApplications(container)
-	c.Assert(err, gc.ErrorMatches, `remote application 0: remote application v1 schema check failed: is-consumer-proxy: expected bool, got string\("blah"\)`)
+	c.Assert(err, gc.ErrorMatches, `remote application 0 v1 schema check failed: is-consumer-proxy: expected bool, got string\("blah"\)`)
 }
 
 func (s *RemoteApplicationSerializationSuite) TestBadEndpoints(c *gc.C) {

@@ -8,6 +8,19 @@ import (
 	"github.com/juju/schema"
 )
 
+// Subnet represents a network subnet.
+type Subnet interface {
+	ProviderId() string
+	ProviderNetworkId() string
+	ProviderSpaceId() string
+	CIDR() string
+	VLANTag() int
+	AvailabilityZones() []string
+	SpaceName() string
+	AllocatableIPHigh() string
+	AllocatableIPLow() string
+}
+
 type subnets struct {
 	Version  int       `yaml:"version"`
 	Subnets_ []*subnet `yaml:"subnets"`
@@ -16,11 +29,12 @@ type subnets struct {
 type subnet struct {
 	ProviderId_        string `yaml:"provider-id,omitempty"`
 	ProviderNetworkId_ string `yaml:"provider-network-id,omitempty"`
+	ProviderSpaceId_   string `yaml:"provider-space-id,omitempty"`
 	CIDR_              string `yaml:"cidr"`
 	VLANTag_           int    `yaml:"vlan-tag"`
 
-	AvailabilityZone_ string `yaml:"availability-zone"`
-	SpaceName_        string `yaml:"space-name"`
+	AvailabilityZones_ []string `yaml:"availability-zones"`
+	SpaceName_         string   `yaml:"space-name"`
 
 	// These will be deprecated once the address allocation strategy for
 	// EC2 is changed. They are unused already on MAAS.
@@ -33,9 +47,10 @@ type subnet struct {
 type SubnetArgs struct {
 	ProviderId        string
 	ProviderNetworkId string
+	ProviderSpaceId   string
 	CIDR              string
 	VLANTag           int
-	AvailabilityZone  string
+	AvailabilityZones []string
 	SpaceName         string
 
 	// These will be deprecated once the address allocation strategy for
@@ -48,10 +63,11 @@ func newSubnet(args SubnetArgs) *subnet {
 	return &subnet{
 		ProviderId_:        args.ProviderId,
 		ProviderNetworkId_: args.ProviderNetworkId,
+		ProviderSpaceId_:   args.ProviderSpaceId,
 		SpaceName_:         args.SpaceName,
 		CIDR_:              args.CIDR,
 		VLANTag_:           args.VLANTag,
-		AvailabilityZone_:  args.AvailabilityZone,
+		AvailabilityZones_: args.AvailabilityZones,
 		AllocatableIPHigh_: args.AllocatableIPHigh,
 		AllocatableIPLow_:  args.AllocatableIPLow,
 	}
@@ -65,6 +81,11 @@ func (s *subnet) ProviderId() string {
 // ProviderNetworkId implements Subnet.
 func (s *subnet) ProviderNetworkId() string {
 	return s.ProviderNetworkId_
+}
+
+// ProviderSpaceId implements Subnet.
+func (s *subnet) ProviderSpaceId() string {
+	return s.ProviderSpaceId_
 }
 
 // SpaceName implements Subnet.
@@ -82,9 +103,9 @@ func (s *subnet) VLANTag() int {
 	return s.VLANTag_
 }
 
-// AvailabilityZone implements Subnet.
-func (s *subnet) AvailabilityZone() string {
-	return s.AvailabilityZone_
+// AvailabilityZones implements Subnet.
+func (s *subnet) AvailabilityZones() []string {
+	return s.AvailabilityZones_
 }
 
 // AllocatableIPHigh implements Subnet.
@@ -138,9 +159,8 @@ func importSubnetList(sourceList []interface{}, checker schema.Checker, version 
 var subnetFieldsFuncs = map[int]fieldsFunc{
 	1: subnetV1Fields,
 	2: subnetV2Fields,
+	3: subnetV3Fields,
 }
-
-type fieldsFunc func() (schema.Fields, schema.Defaults)
 
 func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
 	// From here we know that the map returned from the schema coercion
@@ -150,12 +170,17 @@ func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, err
 		ProviderId_:        valid["provider-id"].(string),
 		VLANTag_:           int(valid["vlan-tag"].(int64)),
 		SpaceName_:         valid["space-name"].(string),
-		AvailabilityZone_:  valid["availability-zone"].(string),
 		AllocatableIPHigh_: valid["allocatable-ip-high"].(string),
 		AllocatableIPLow_:  valid["allocatable-ip-low"].(string),
 	}
 	if version >= 2 {
 		result.ProviderNetworkId_ = valid["provider-network-id"].(string)
+	}
+	if version >= 3 {
+		result.ProviderSpaceId_ = valid["provider-space-id"].(string)
+		result.AvailabilityZones_ = convertToStringSlice(valid["availability-zones"])
+	} else {
+		result.AvailabilityZones_ = []string{valid["availability-zone"].(string)}
 	}
 	return &result, nil
 }
@@ -182,5 +207,14 @@ func subnetV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := subnetV1Fields()
 	fields["provider-network-id"] = schema.String()
 	defaults["provider-network-id"] = ""
+	return fields, defaults
+}
+
+func subnetV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := subnetV2Fields()
+	fields["provider-space-id"] = schema.String()
+	fields["availability-zones"] = schema.List(schema.String())
+	delete(fields, "availability-zone")
+	defaults["provider-space-id"] = ""
 	return fields, defaults
 }
