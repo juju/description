@@ -55,9 +55,11 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 					"project": "gothic",
 				},
 				"subnets": map[interface{}]interface{}{
-					"version": 1,
+					"version": 3,
 					"subnets": []interface{}{map[interface{}]interface{}{
 						"cidr":                "2.3.4.0/24",
+						"space-name":          "",
+						"vlan-tag":            0,
 						"provider-id":         "juju-subnet-1",
 						"availability-zones":  []interface{}{"az1", "az2"},
 						"provider-space-id":   "juju-space-private",
@@ -96,7 +98,7 @@ func minimalRemoteApplication() *remoteApplication {
 			"project": "gothic",
 		},
 	})
-	space.AddSubnet(RemoteSubnetArgs{
+	space.AddSubnet(SubnetArgs{
 		CIDR:              "2.3.4.0/24",
 		ProviderId:        "juju-subnet-1",
 		AvailabilityZones: []string{"az1", "az2"},

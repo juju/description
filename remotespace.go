@@ -16,8 +16,8 @@ type RemoteSpace interface {
 	ProviderId() string
 	ProviderAttributes() map[string]interface{}
 
-	Subnets() []RemoteSubnet
-	AddSubnet(RemoteSubnetArgs) RemoteSubnet
+	Subnets() []Subnet
+	AddSubnet(SubnetArgs) Subnet
 }
 
 type remoteSpaces struct {
@@ -30,7 +30,7 @@ type remoteSpace struct {
 	Name_               string                 `yaml:"name"`
 	ProviderId_         string                 `yaml:"provider-id"`
 	ProviderAttributes_ map[string]interface{} `yaml:"provider-attributes"`
-	Subnets_            remoteSubnets          `yaml:"subnets,omitempty"`
+	Subnets_            subnets                `yaml:"subnets,omitempty"`
 }
 
 // RemoteSpaceArgs is an argument struct used to add a remote space to
@@ -74,25 +74,25 @@ func (s *remoteSpace) ProviderAttributes() map[string]interface{} {
 }
 
 // Subnets implements RemoteSpace.
-func (s *remoteSpace) Subnets() []RemoteSubnet {
-	result := make([]RemoteSubnet, len(s.Subnets_.Subnets))
-	for i, subnet := range s.Subnets_.Subnets {
+func (s *remoteSpace) Subnets() []Subnet {
+	result := make([]Subnet, len(s.Subnets_.Subnets_))
+	for i, subnet := range s.Subnets_.Subnets_ {
 		result[i] = subnet
 	}
 	return result
 }
 
 // AddSubnet implements RemoteSpace.
-func (s *remoteSpace) AddSubnet(args RemoteSubnetArgs) RemoteSubnet {
-	sn := newRemoteSubnet(args)
-	s.Subnets_.Subnets = append(s.Subnets_.Subnets, sn)
+func (s *remoteSpace) AddSubnet(args SubnetArgs) Subnet {
+	sn := newSubnet(args)
+	s.Subnets_.Subnets_ = append(s.Subnets_.Subnets_, sn)
 	return sn
 }
 
-func (s *remoteSpace) setSubnets(subnetList []*remoteSubnet) {
-	s.Subnets_ = remoteSubnets{
-		Version: 1,
-		Subnets: subnetList,
+func (s *remoteSpace) setSubnets(subnetList []*subnet) {
+	s.Subnets_ = subnets{
+		Version:  3,
+		Subnets_: subnetList,
 	}
 }
 
@@ -145,7 +145,7 @@ func newRemoteSpaceFromValid(valid map[string]interface{}, version int) (*remote
 	}
 	if rawSubnets, ok := valid["subnets"]; ok {
 		subnetsMap := rawSubnets.(map[string]interface{})
-		subnets, err := importRemoteSubnets(subnetsMap)
+		subnets, err := importSubnets(subnetsMap)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}

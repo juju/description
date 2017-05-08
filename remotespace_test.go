@@ -36,9 +36,11 @@ func minimalRemoteSpaceMap() map[interface{}]interface{} {
 			"project": "gothic",
 		},
 		"subnets": map[interface{}]interface{}{
-			"version": 1,
+			"version": 3,
 			"subnets": []interface{}{map[interface{}]interface{}{
 				"cidr":                "2.3.4.0/24",
+				"space-name":          "a-space",
+				"vlan-tag":            64,
 				"provider-id":         "juju-subnet-1",
 				"availability-zones":  []interface{}{"az1", "az2"},
 				"provider-space-id":   "juju-space-private",
@@ -57,8 +59,10 @@ func minimalRemoteSpace() *remoteSpace {
 			"project": "gothic",
 		},
 	})
-	space.AddSubnet(RemoteSubnetArgs{
+	space.AddSubnet(SubnetArgs{
 		CIDR:              "2.3.4.0/24",
+		SpaceName:         "a-space",
+		VLANTag:           64,
 		ProviderId:        "juju-subnet-1",
 		AvailabilityZones: []string{"az1", "az2"},
 		ProviderSpaceId:   "juju-space-private",
@@ -75,9 +79,11 @@ func (*RemoteSpaceSerializationSuite) TestNew(c *gc.C) {
 	c.Check(r.ProviderAttributes(), gc.DeepEquals, map[string]interface{}{
 		"project": "gothic",
 	})
-	c.Check(r.Subnets(), gc.DeepEquals, []RemoteSubnet{
-		newRemoteSubnet(RemoteSubnetArgs{
+	c.Check(r.Subnets(), gc.DeepEquals, []Subnet{
+		newSubnet(SubnetArgs{
 			CIDR:              "2.3.4.0/24",
+			SpaceName:         "a-space",
+			VLANTag:           64,
 			ProviderId:        "juju-subnet-1",
 			AvailabilityZones: []string{"az1", "az2"},
 			ProviderSpaceId:   "juju-space-private",
