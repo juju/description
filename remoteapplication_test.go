@@ -4,6 +4,8 @@
 package description
 
 import (
+	"time"
+
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/juju/names.v2"
@@ -35,6 +37,17 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 		"url":               "http://a.url",
 		"source-model-uuid": "abcd-1234",
 		"is-consumer-proxy": true,
+		"status": map[interface{}]interface{}{
+			"version": 1,
+			"status": map[interface{}]interface{}{
+				"value":   "running",
+				"message": "monkey & bear",
+				"data": map[interface{}]interface{}{
+					"after": "the curtain",
+				},
+				"updated": "2016-01-28T11:50:00Z",
+			},
+		},
 		"endpoints": map[interface{}]interface{}{
 			"version": 1,
 			"endpoints": []interface{}{map[interface{}]interface{}{
@@ -82,6 +95,14 @@ func minimalRemoteApplication() *remoteApplication {
 		SourceModel:     names.NewModelTag("abcd-1234"),
 		IsConsumerProxy: true,
 		Bindings:        map[string]string{"lana": "private"},
+	})
+	a.SetStatus(StatusArgs{
+		Value:   "running",
+		Message: "monkey & bear",
+		Data: map[string]interface{}{
+			"after": "the curtain",
+		},
+		Updated: time.Date(2016, 1, 28, 11, 50, 0, 0, time.UTC),
 	})
 	a.AddEndpoint(RemoteEndpointArgs{
 		Name:      "lana",

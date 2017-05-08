@@ -12,6 +12,8 @@ import (
 // RemoteApplication represents an application in another model that
 // can participate in a relation in this model.
 type RemoteApplication interface {
+	HasStatus
+
 	Tag() names.ApplicationTag
 	Name() string
 	OfferName() string
@@ -42,6 +44,7 @@ type remoteApplication struct {
 	IsConsumerProxy_ bool              `yaml:"is-consumer-proxy,omitempty"`
 	Spaces_          remoteSpaces      `yaml:"spaces,omitempty"`
 	Bindings_        map[string]string `yaml:"bindings,omitempty"`
+	Status_          *status           `yaml:"status"`
 }
 
 // RemoteApplicationArgs is an argument struct used to add a remote
@@ -102,6 +105,20 @@ func (a *remoteApplication) IsConsumerProxy() bool {
 // Bindings implements RemoteApplication.
 func (a *remoteApplication) Bindings() map[string]string {
 	return a.Bindings_
+}
+
+// Status implements RemoteApplication.
+func (a *remoteApplication) Status() Status {
+	// Avoid typed nils.
+	if a.Status_ == nil {
+		return nil
+	}
+	return a.Status_
+}
+
+// SetStatus implements RemoteApplication.
+func (a *remoteApplication) SetStatus(args StatusArgs) {
+	a.Status_ = newStatus(args)
 }
 
 // Endpoints implements RemoteApplication.
@@ -203,6 +220,14 @@ func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*
 		IsConsumerProxy_: valid["is-consumer-proxy"].(bool),
 	}
 
+	if rawStatus := valid["status"]; rawStatus != nil {
+		status, err := importStatus(rawStatus.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.Status_ = status
+	}
+
 	if rawEndpoints, ok := valid["endpoints"]; ok {
 		endpointsMap := rawEndpoints.(map[string]interface{})
 		endpoints, err := importRemoteEndpoints(endpointsMap)
@@ -231,6 +256,7 @@ func remoteApplicationV1Fields() (schema.Fields, schema.Defaults) {
 		"offer-name":        schema.String(),
 		"url":               schema.String(),
 		"source-model-uuid": schema.String(),
+		"status":            schema.StringMap(schema.Any()),
 		"endpoints":         schema.StringMap(schema.Any()),
 		"is-consumer-proxy": schema.Bool(),
 		"spaces":            schema.StringMap(schema.Any()),
