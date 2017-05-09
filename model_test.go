@@ -698,6 +698,10 @@ func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
 		Interface: "mysql",
 		Scope:     "global",
 	})
+	rapp.SetStatus(StatusArgs{
+		Value:   "running",
+		Updated: time.Date(2017, 5, 9, 12, 1, 0, 0, time.UTC),
+	})
 	data := asStringMap(c, model)
 	remoteSection, ok := data["remote-applications"]
 	c.Assert(ok, jc.IsTrue)
@@ -723,6 +727,11 @@ remote-applications:
   spaces:
     spaces: []
     version: 1
+  status:
+    status:
+      updated: 2017-05-09T12:01:00Z
+      value: running
+    version: 1
   url: other.mysql
 version: 1
 `[1:]
@@ -743,6 +752,10 @@ func (s *ModelSerializationSuite) TestImportingWithRemoteApplications(c *gc.C) {
 		Role:      "provider",
 		Interface: "mysql",
 		Scope:     "global",
+	})
+	rapp.SetStatus(StatusArgs{
+		Value:   "hey",
+		Updated: time.Now(),
 	})
 	remoteApplications := initial.RemoteApplications()
 
