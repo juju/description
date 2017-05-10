@@ -15,6 +15,7 @@ type BlockDevice interface {
 	Label() string
 	UUID() string
 	HardwareID() string
+	WWN() string
 	BusAddress() string
 	Size() uint64
 	FilesystemType() string
@@ -39,6 +40,7 @@ type blockdevice struct {
 	Label_          string   `yaml:"label,omitempty"`
 	UUID_           string   `yaml:"uuid,omitempty"`
 	HardwareID_     string   `yaml:"hardware-id,omitempty"`
+	WWN_            string   `yaml:"wwn,omitempty"`
 	BusAddress_     string   `yaml:"bus-address,omitempty"`
 	Size_           uint64   `yaml:"size"`
 	FilesystemType_ string   `yaml:"fs-type,omitempty"`
@@ -53,6 +55,7 @@ type BlockDeviceArgs struct {
 	Label          string
 	UUID           string
 	HardwareID     string
+	WWN            string
 	BusAddress     string
 	Size           uint64
 	FilesystemType string
@@ -67,6 +70,7 @@ func newBlockDevice(args BlockDeviceArgs) *blockdevice {
 		Label_:          args.Label,
 		UUID_:           args.UUID,
 		HardwareID_:     args.HardwareID,
+		WWN_:            args.WWN,
 		BusAddress_:     args.BusAddress,
 		Size_:           args.Size,
 		FilesystemType_: args.FilesystemType,
@@ -100,6 +104,11 @@ func (b *blockdevice) UUID() string {
 // HardwareID implements BlockDevice.
 func (b *blockdevice) HardwareID() string {
 	return b.HardwareID_
+}
+
+// WWN implements BlockDevice.
+func (b *blockdevice) WWN() string {
+	return b.WWN_
 }
 
 // BusAddress implements BlockDevice.
@@ -173,6 +182,7 @@ func importBlockDeviceV1(source map[string]interface{}) (*blockdevice, error) {
 		"label":       schema.String(),
 		"uuid":        schema.String(),
 		"hardware-id": schema.String(),
+		"wwn":         schema.String(),
 		"bus-address": schema.String(),
 		"size":        schema.ForceUint(),
 		"fs-type":     schema.String(),
@@ -185,6 +195,7 @@ func importBlockDeviceV1(source map[string]interface{}) (*blockdevice, error) {
 		"label":       "",
 		"uuid":        "",
 		"hardware-id": "",
+		"wwn":         "",
 		"bus-address": "",
 		"fs-type":     "",
 		"mount-point": "",
@@ -204,6 +215,7 @@ func importBlockDeviceV1(source map[string]interface{}) (*blockdevice, error) {
 		Label_:          valid["label"].(string),
 		UUID_:           valid["uuid"].(string),
 		HardwareID_:     valid["hardware-id"].(string),
+		WWN_:            valid["wwn"].(string),
 		BusAddress_:     valid["bus-address"].(string),
 		Size_:           valid["size"].(uint64),
 		FilesystemType_: valid["fs-type"].(string),

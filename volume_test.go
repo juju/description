@@ -44,6 +44,7 @@ func testVolumeMap() map[interface{}]interface{} {
 		"size":           int(20 * gig),
 		"pool":           "swimming",
 		"hardware-id":    "a hardware id",
+		"wwn":            "drbr",
 		"volume-id":      "some volume id",
 		"persistent":     true,
 		"status":         minimalStatusMap(),
@@ -69,6 +70,7 @@ func testVolumeArgs() VolumeArgs {
 		Size:        20 * gig,
 		Pool:        "swimming",
 		HardwareID:  "a hardware id",
+		WWN:         "drbr",
 		VolumeID:    "some volume id",
 		Persistent:  true,
 	}
@@ -83,6 +85,7 @@ func (s *VolumeSerializationSuite) TestNewVolume(c *gc.C) {
 	c.Check(volume.Size(), gc.Equals, 20*gig)
 	c.Check(volume.Pool(), gc.Equals, "swimming")
 	c.Check(volume.HardwareID(), gc.Equals, "a hardware id")
+	c.Check(volume.WWN(), gc.Equals, "drbr")
 	c.Check(volume.VolumeID(), gc.Equals, "some volume id")
 	c.Check(volume.Persistent(), jc.IsTrue)
 

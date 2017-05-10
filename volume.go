@@ -21,6 +21,7 @@ type volume struct {
 	Size_        uint64 `yaml:"size"`
 	Pool_        string `yaml:"pool,omitempty"`
 	HardwareID_  string `yaml:"hardware-id,omitempty"`
+	WWN_         string `yaml:"wwn,omitempty"`
 	VolumeID_    string `yaml:"volume-id,omitempty"`
 	Persistent_  bool   `yaml:"persistent"`
 
@@ -52,6 +53,7 @@ type VolumeArgs struct {
 	Size        uint64
 	Pool        string
 	HardwareID  string
+	WWN         string
 	VolumeID    string
 	Persistent  bool
 }
@@ -64,6 +66,7 @@ func newVolume(args VolumeArgs) *volume {
 		Size_:          args.Size,
 		Pool_:          args.Pool,
 		HardwareID_:    args.HardwareID,
+		WWN_:           args.WWN,
 		VolumeID_:      args.VolumeID,
 		Persistent_:    args.Persistent,
 		StatusHistory_: newStatusHistory(),
@@ -103,6 +106,11 @@ func (v *volume) Pool() string {
 // HardwareID implements Volume.
 func (v *volume) HardwareID() string {
 	return v.HardwareID_
+}
+
+// WWN implements Volume.
+func (v *volume) WWN() string {
+	return v.WWN_
 }
 
 // VolumeID implements Volume.
@@ -213,6 +221,7 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 		"size":        schema.ForceUint(),
 		"pool":        schema.String(),
 		"hardware-id": schema.String(),
+		"wwn":         schema.String(),
 		"volume-id":   schema.String(),
 		"persistent":  schema.Bool(),
 		"status":      schema.StringMap(schema.Any()),
@@ -223,6 +232,7 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 		"storage-id":  "",
 		"pool":        "",
 		"hardware-id": "",
+		"wwn":         "",
 		"volume-id":   "",
 		"attachments": schema.Omit,
 	}
@@ -243,6 +253,7 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 		Size_:          valid["size"].(uint64),
 		Pool_:          valid["pool"].(string),
 		HardwareID_:    valid["hardware-id"].(string),
+		WWN_:           valid["wwn"].(string),
 		VolumeID_:      valid["volume-id"].(string),
 		Persistent_:    valid["persistent"].(bool),
 		StatusHistory_: newStatusHistory(),

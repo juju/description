@@ -148,6 +148,7 @@ type Volume interface {
 	Pool() string
 
 	HardwareID() string
+	WWN() string
 	VolumeID() string
 	Persistent() bool
 
