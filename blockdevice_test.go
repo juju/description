@@ -34,6 +34,7 @@ func allBlockDeviceArgs() BlockDeviceArgs {
 		Label:          "sda",
 		UUID:           "some-uuid",
 		HardwareID:     "magic",
+		WWN:            "drbr",
 		BusAddress:     "bus stop",
 		Size:           16 * 1024 * 1024 * 1024,
 		FilesystemType: "ext4",
@@ -49,6 +50,7 @@ func (s *BlockDeviceSerializationSuite) TestNewBlockDevice(c *gc.C) {
 	c.Check(d.Label(), gc.Equals, "sda")
 	c.Check(d.UUID(), gc.Equals, "some-uuid")
 	c.Check(d.HardwareID(), gc.Equals, "magic")
+	c.Check(d.WWN(), gc.Equals, "drbr")
 	c.Check(d.BusAddress(), gc.Equals, "bus stop")
 	c.Check(d.Size(), gc.Equals, uint64(16*1024*1024*1024))
 	c.Check(d.FilesystemType(), gc.Equals, "ext4")
