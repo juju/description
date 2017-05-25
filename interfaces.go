@@ -206,6 +206,10 @@ type Storage interface {
 
 	Attachments() []names.UnitTag
 
+	// Constraints returns the storage instance constraints, and a boolean
+	// reporting whether there are any.
+	Constraints() (StorageInstanceConstraints, bool)
+
 	Validate() error
 }
 
@@ -216,7 +220,7 @@ type StoragePool interface {
 	Attributes() map[string]interface{}
 }
 
-// StorageConstraint repressents the user-specified constraints for
+// StorageConstraint represents the user-specified constraints for
 // provisioning storage instances for an application unit.
 type StorageConstraint interface {
 	// Pool is the name of the storage pool from which to provision the
@@ -226,4 +230,11 @@ type StorageConstraint interface {
 	Size() uint64
 	// Count is the required number of storage instances.
 	Count() uint64
+}
+
+// StorageInstanceConstraints represents the user-specified constraints
+// for provisioning a single storage instance for an application unit.
+type StorageInstanceConstraints struct {
+	Pool string
+	Size uint64
 }

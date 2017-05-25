@@ -20,7 +20,8 @@ type storage struct {
 	Owner_ string `yaml:"owner,omitempty"`
 	Name_  string `yaml:"name"`
 
-	Attachments_ []string `yaml:"attachments,omitempty"`
+	Attachments_ []string                    `yaml:"attachments,omitempty"`
+	Constraints_ *StorageInstanceConstraints `yaml:"constraints,omitempty"`
 }
 
 // StorageArgs is an argument struct used to add a storage to the Model.
@@ -30,13 +31,15 @@ type StorageArgs struct {
 	Owner       names.Tag
 	Name        string
 	Attachments []names.UnitTag
+	Constraints *StorageInstanceConstraints
 }
 
 func newStorage(args StorageArgs) *storage {
 	s := &storage{
-		ID_:   args.Tag.Id(),
-		Kind_: args.Kind,
-		Name_: args.Name,
+		ID_:          args.Tag.Id(),
+		Kind_:        args.Kind,
+		Name_:        args.Name,
+		Constraints_: args.Constraints,
 	}
 	if args.Owner != nil {
 		s.Owner_ = args.Owner.String()
@@ -83,14 +86,29 @@ func (s *storage) Attachments() []names.UnitTag {
 	return result
 }
 
+// Constraints implements Storage.
+func (s *storage) Constraints() (StorageInstanceConstraints, bool) {
+	if s.Constraints_ != nil {
+		return *s.Constraints_, true
+	}
+	return StorageInstanceConstraints{}, false
+}
+
 // Validate implements Storage.
 func (s *storage) Validate() error {
 	if s.ID_ == "" {
 		return errors.NotValidf("storage missing id")
 	}
-	// Also check that the owner and attachments are valid.
 	if _, err := s.Owner(); err != nil {
 		return errors.Wrap(err, errors.NotValidf("storage %q invalid owner", s.ID_))
+	}
+	if s.Constraints_ != nil {
+		if s.Constraints_.Pool == "" {
+			return errors.NotValidf("storage %q invalid empty pool name", s.ID_)
+		}
+		if s.Constraints_.Size == 0 {
+			return errors.NotValidf("storage %q invalid zero size", s.ID_)
+		}
 	}
 	return nil
 }
@@ -133,6 +151,17 @@ type storageDeserializationFunc func(map[string]interface{}) (*storage, error)
 var storageDeserializationFuncs = map[int]storageDeserializationFunc{
 	1: importStorageV1,
 	2: importStorageV2,
+	3: importStorageV3,
+}
+
+func importStorageV3(source map[string]interface{}) (*storage, error) {
+	checker := schema.FieldMap(storageV3Fields())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "storage v3 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return newStorageFromValid(valid, 3)
 }
 
 func importStorageV2(source map[string]interface{}) (*storage, error) {
@@ -167,7 +196,26 @@ func newStorageFromValid(valid map[string]interface{}, version int) (*storage, e
 	if attachments, ok := valid["attachments"]; ok {
 		result.Attachments_ = convertToStringSlice(attachments)
 	}
+	if cons, ok := valid["constraints"]; ok {
+		consM := cons.(map[string]interface{})
+		result.Constraints_ = &StorageInstanceConstraints{
+			Pool: consM["pool"].(string),
+			Size: consM["size"].(uint64),
+		}
+	}
 	return result, nil
+}
+
+func storageV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := storageV2Fields()
+	fields["constraints"] = schema.FieldMap(
+		schema.Fields{
+			"pool": schema.String(),
+			"size": schema.Uint(),
+		},
+		schema.Defaults{},
+	)
+	return fields, defaults
 }
 
 func storageV2Fields() (schema.Fields, schema.Defaults) {

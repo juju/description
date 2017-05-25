@@ -701,7 +701,7 @@ func (m *model) AddStorage(args StorageArgs) Storage {
 
 func (m *model) setStorages(storageList []*storage) {
 	m.Storages_ = storages{
-		Version:   2,
+		Version:   3,
 		Storages_: storageList,
 	}
 }
