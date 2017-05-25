@@ -39,6 +39,10 @@ func testStorageMap() map[interface{}]interface{} {
 			"postgresql/0",
 			"postgresql/1",
 		},
+		"constraints": map[string]interface{}{
+			"pool": "radiance",
+			"size": 1234,
+		},
 	}
 }
 
@@ -56,6 +60,10 @@ func testStorageArgs() StorageArgs {
 		Attachments: []names.UnitTag{
 			names.NewUnitTag("postgresql/0"),
 			names.NewUnitTag("postgresql/1"),
+		},
+		Constraints: &StorageInstanceConstraints{
+			Pool: "radiance",
+			Size: 1234,
 		},
 	}
 }
@@ -124,6 +132,7 @@ func (s *StorageSerializationSuite) exportImport(c *gc.C, storage_ *storage, ver
 
 func (s *StorageSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
 	original := testStorage()
+	original.Constraints_ = nil
 	storage := s.exportImport(c, original, 1)
 	c.Assert(storage, jc.DeepEquals, original)
 }
@@ -132,6 +141,15 @@ func (s *StorageSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 	original := testStorage()
 	original.Owner_ = ""
 	original.Attachments_ = nil
+	original.Constraints_ = nil
 	storage := s.exportImport(c, original, 2)
+	c.Assert(storage, jc.DeepEquals, original)
+}
+
+func (s *StorageSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
+	original := testStorage()
+	original.Owner_ = ""
+	original.Attachments_ = nil
+	storage := s.exportImport(c, original, 3)
 	c.Assert(storage, jc.DeepEquals, original)
 }
