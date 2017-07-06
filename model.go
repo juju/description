@@ -32,6 +32,7 @@ type Model interface {
 	Owner() names.UserTag
 	Config() map[string]interface{}
 	LatestToolsVersion() version.Number
+	EnvironVersion() int
 
 	// UpdateConfig overwrites existing config values with those specified.
 	UpdateConfig(map[string]interface{})
@@ -106,6 +107,7 @@ type ModelArgs struct {
 	Owner              names.UserTag
 	Config             map[string]interface{}
 	LatestToolsVersion version.Number
+	EnvironVersion     int
 	Blocks             map[string]string
 	Cloud              string
 	CloudRegion        string
@@ -114,10 +116,11 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             2,
+		Version:             3,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
 		LatestToolsVersion_: args.LatestToolsVersion,
+		EnvironVersion_:     args.EnvironVersion,
 		Sequences_:          make(map[string]int),
 		Blocks_:             args.Blocks,
 		Cloud_:              args.Cloud,
@@ -201,6 +204,7 @@ type model struct {
 	Blocks_ map[string]string      `yaml:"blocks,omitempty"`
 
 	LatestToolsVersion_ version.Number `yaml:"latest-tools,omitempty"`
+	EnvironVersion_     int            `yaml:"environ-version"`
 
 	Users_            users            `yaml:"users"`
 	Machines_         machines         `yaml:"machines"`
@@ -273,6 +277,11 @@ func (m *model) UpdateConfig(config map[string]interface{}) {
 // LatestToolsVersion implements Model.
 func (m *model) LatestToolsVersion() version.Number {
 	return m.LatestToolsVersion_
+}
+
+// EnvironVersion implements Model.
+func (m *model) EnvironVersion() int {
+	return m.EnvironVersion_
 }
 
 // Blocks implements Model.
@@ -1080,8 +1089,9 @@ func importModel(source map[string]interface{}) (*model, error) {
 type modelDeserializationFunc func(map[string]interface{}) (*model, error)
 
 var modelDeserializationFuncs = map[int]modelDeserializationFunc{
-	1: importModelV1,
-	2: importModelV2,
+	1: newModelImporter(1, schema.FieldMap(modelV1Fields())),
+	2: newModelImporter(2, schema.FieldMap(modelV2Fields())),
+	3: newModelImporter(3, schema.FieldMap(modelV3Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1141,11 +1151,17 @@ func modelV2Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV2Fields()
+	fields["environ-version"] = schema.Int()
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
-	// We're always making a version 2 model, no matter what we got on
+	// We're always making a version 3 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        2,
+		Version:        3,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
 		Sequences_:     make(map[string]int),
@@ -1295,6 +1311,12 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 	}
 	result.setRemoteApplications(remoteApplications)
 
+	// environ-version was added in version 3. For older schema versions,
+	// the environ-version will be set to the zero value.
+	if importVersion >= 3 {
+		result.EnvironVersion_ = int(valid["environ-version"].(int64))
+	}
+
 	if importVersion >= 2 {
 		sla := importSLA(valid["sla"].(map[string]interface{}))
 		result.setSLA(sla)
@@ -1339,30 +1361,15 @@ func importMeterStatus(source map[string]interface{}) meterStatus {
 	}
 }
 
-func importModelV1(source map[string]interface{}) (*model, error) {
-	fields, defaults := modelV1Fields()
-	checker := schema.FieldMap(fields, defaults)
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "model v1 schema check failed")
+func newModelImporter(v int, checker schema.Checker) func(map[string]interface{}) (*model, error) {
+	return func(source map[string]interface{}) (*model, error) {
+		coerced, err := checker.Coerce(source, nil)
+		if err != nil {
+			return nil, errors.Annotatef(err, "model v%d schema check failed", v)
+		}
+		valid := coerced.(map[string]interface{})
+		// From here we know that the map returned from the schema coercion
+		// contains fields of the right type.
+		return newModelFromValid(valid, v)
 	}
-	valid := coerced.(map[string]interface{})
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
-	return newModelFromValid(valid, 1)
-}
-
-func importModelV2(source map[string]interface{}) (*model, error) {
-	fields, defaults := modelV2Fields()
-	checker := schema.FieldMap(fields, defaults)
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "model v2 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
-	return newModelFromValid(valid, 2)
 }

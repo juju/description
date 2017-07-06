@@ -129,6 +129,7 @@ func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 			"uuid": "some-uuid",
 		},
 		LatestToolsVersion: version.MustParse("2.0.1"),
+		EnvironVersion:     123,
 		Blocks: map[string]string{
 			"all-changes": "locked down",
 		},
@@ -159,6 +160,7 @@ func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	c.Assert(model.CloudRegion(), gc.Equals, "east-west")
 	c.Assert(model.CloudCredential(), jc.DeepEquals, initial.CloudCredential())
 	c.Assert(model.LatestToolsVersion(), gc.Equals, args.LatestToolsVersion)
+	c.Assert(model.EnvironVersion(), gc.Equals, args.EnvironVersion)
 	c.Assert(model.Blocks(), jc.DeepEquals, args.Blocks)
 	users := model.Users()
 	c.Assert(users, gc.HasLen, 1)
@@ -837,14 +839,14 @@ func (s *ModelSerializationSuite) TestMeterStatus(c *gc.C) {
 	c.Assert(model.MeterStatus().Info(), gc.Equals, "info message")
 }
 
-func (s *ModelSerializationSuite) TestSerializesToVersion2(c *gc.C) {
+func (s *ModelSerializationSuite) TestSerializesToVersion3(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
 	data := asStringMap(c, initial)
 	versionValue, ok := data["version"]
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 2)
+	c.Assert(version, gc.Equals, 3)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
