@@ -360,15 +360,9 @@ func (s *ModelSerializationSuite) wordpressModel() (Model, Endpoint, Endpoint) {
 func (s *ModelSerializationSuite) wordpressModelWithSettings() Model {
 	model, wordpressEndpoint, mysqlEndpoint := s.wordpressModel()
 
-	wordpressEndpoint.SetUnitSettings("wordpress/0", map[string]interface{}{
-		"key": "value",
-	})
-	wordpressEndpoint.SetUnitSettings("wordpress/1", map[string]interface{}{
-		"key": "value",
-	})
-	mysqlEndpoint.SetUnitSettings("mysql/0", map[string]interface{}{
-		"key": "value",
-	})
+	s.setEndpointSettings(wordpressEndpoint, "wordpress/0", "wordpress/1")
+	s.setEndpointSettings(mysqlEndpoint, "mysql/0")
+
 	return model
 }
 
@@ -381,18 +375,64 @@ func (s *ModelSerializationSuite) TestModelValidationChecksRelationsMissingSetti
 func (s *ModelSerializationSuite) TestModelValidationChecksRelationsMissingSettings2(c *gc.C) {
 	model, wordpressEndpoint, _ := s.wordpressModel()
 
-	wordpressEndpoint.SetUnitSettings("wordpress/0", map[string]interface{}{
-		"key": "value",
-	})
-	wordpressEndpoint.SetUnitSettings("wordpress/1", map[string]interface{}{
-		"key": "value",
-	})
+	s.setEndpointSettings(wordpressEndpoint, "wordpress/0", "wordpress/1")
+
 	err := model.Validate()
 	c.Assert(err, gc.ErrorMatches, "missing relation settings for units \\[mysql/0\\] in relation 42")
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksRelations(c *gc.C) {
 	model := s.wordpressModelWithSettings()
+	err := model.Validate()
+	c.Assert(err, jc.ErrorIsNil)
+}
+
+func (s *ModelSerializationSuite) addSubordinateEndpoints(c *gc.C, rel Relation, app string) (Endpoint, Endpoint) {
+	appEndpoint := rel.AddEndpoint(EndpointArgs{
+		ApplicationName: app,
+		Name:            "logging",
+		Scope:           "container",
+		// Ignoring other aspects of endpoints.
+	})
+	loggingEndpoint := rel.AddEndpoint(EndpointArgs{
+		ApplicationName: "logging",
+		Name:            "logging",
+		Scope:           "container",
+		// Ignoring other aspects of endpoints.
+	})
+	return appEndpoint, loggingEndpoint
+}
+
+func (s *ModelSerializationSuite) setEndpointSettings(ep Endpoint, units ...string) {
+	for _, unit := range units {
+		ep.SetUnitSettings(unit, map[string]interface{}{
+			"key": "value",
+		})
+	}
+}
+
+func (s *ModelSerializationSuite) TestModelValidationChecksRelationsWithSubordinates(c *gc.C) {
+	model := s.wordpressModelWithSettings()
+
+	s.addApplicationToModel(model, "logging", 3)
+
+	// Add a subordinate relations between logging and both wordpress and mysql.
+	rel := model.AddRelation(RelationArgs{
+		Id:  43,
+		Key: "some key",
+	})
+	wordpressEndpoint, loggingEndpoint := s.addSubordinateEndpoints(c, rel, "wordpress")
+	s.setEndpointSettings(wordpressEndpoint, "wordpress/0", "wordpress/1")
+	s.setEndpointSettings(loggingEndpoint, "logging/0", "logging/1")
+
+	rel = model.AddRelation(RelationArgs{
+		Id:  44,
+		Key: "other key",
+	})
+	mysqlEndpoint, loggingEndpoint := s.addSubordinateEndpoints(c, rel, "mysql")
+	s.setEndpointSettings(mysqlEndpoint, "mysql/0")
+	s.setEndpointSettings(loggingEndpoint, "logging/2")
+
 	err := model.Validate()
 	c.Assert(err, jc.ErrorIsNil)
 }

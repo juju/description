@@ -1057,8 +1057,14 @@ func (m *model) validateRelations() error {
 			// Check that all units have settings.
 			applicationUnits := application.unitNames()
 			epUnits := ep.unitNames()
-			if missingSettings := applicationUnits.Difference(epUnits); len(missingSettings) > 0 {
-				return errors.Errorf("missing relation settings for units %s in relation %d", missingSettings.SortedValues(), relation.Id())
+			if ep.Scope() != "container" {
+				// If the application is a subordinate, and it is related to multiple
+				// principals, there are only settings for the units of the application
+				// that are related to units of each particular principal, so you can't
+				// expect settings for every unit.
+				if missingSettings := applicationUnits.Difference(epUnits); len(missingSettings) > 0 {
+					return errors.Errorf("missing relation settings for units %s in relation %d", missingSettings.SortedValues(), relation.Id())
+				}
 			}
 			if extraSettings := epUnits.Difference(applicationUnits); len(extraSettings) > 0 {
 				return errors.Errorf("settings for unknown units %s in relation %d", extraSettings.SortedValues(), relation.Id())
