@@ -14,8 +14,6 @@ type RemoteEndpoint interface {
 	Name() string
 	Role() string
 	Interface() string
-	Limit() int
-	Scope() string
 }
 
 type remoteEndpoints struct {
@@ -27,8 +25,6 @@ type remoteEndpoint struct {
 	Name_      string `yaml:"name"`
 	Role_      string `yaml:"role"`
 	Interface_ string `yaml:"interface"`
-	Limit_     int    `yaml:"limit"`
-	Scope_     string `yaml:"scope"`
 }
 
 // RemoteEndpointArgs is an argument struct used to add a remote
@@ -37,8 +33,6 @@ type RemoteEndpointArgs struct {
 	Name      string
 	Role      string
 	Interface string
-	Limit     int
-	Scope     string
 }
 
 func newRemoteEndpoint(args RemoteEndpointArgs) *remoteEndpoint {
@@ -46,8 +40,6 @@ func newRemoteEndpoint(args RemoteEndpointArgs) *remoteEndpoint {
 		Name_:      args.Name,
 		Role_:      args.Role,
 		Interface_: args.Interface,
-		Limit_:     args.Limit,
-		Scope_:     args.Scope,
 	}
 }
 
@@ -64,16 +56,6 @@ func (e *remoteEndpoint) Role() string {
 // Interface implements RemoteEndpoint.
 func (e *remoteEndpoint) Interface() string {
 	return e.Interface_
-}
-
-// Limit implements RemoteEndpoint.
-func (e *remoteEndpoint) Limit() int {
-	return e.Limit_
-}
-
-// Scope implements RemoteEndpoint.
-func (e *remoteEndpoint) Scope() string {
-	return e.Scope_
 }
 
 func importRemoteEndpoints(sourceMap map[string]interface{}) ([]*remoteEndpoint, error) {
@@ -120,14 +102,9 @@ func importRemoteEndpointV1(source map[string]interface{}) (*remoteEndpoint, err
 		"name":      schema.String(),
 		"role":      schema.String(),
 		"interface": schema.String(),
-		"limit":     schema.Int(),
-		"scope":     schema.String(),
 	}
 
-	defaults := schema.Defaults{
-		"limit": 0,
-	}
-	checker := schema.FieldMap(fields, defaults)
+	checker := schema.FieldMap(fields, nil)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -140,8 +117,6 @@ func importRemoteEndpointV1(source map[string]interface{}) (*remoteEndpoint, err
 		Name_:      valid["name"].(string),
 		Role_:      valid["role"].(string),
 		Interface_: valid["interface"].(string),
-		Limit_:     int(valid["limit"].(int64)),
-		Scope_:     valid["scope"].(string),
 	}
 
 	return result, nil

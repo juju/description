@@ -679,7 +679,7 @@ func (s *ModelSerializationSuite) TestModelValidationHandlesRemoteApplications(c
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("ink-spots")})
 	remoteApp := model.AddRemoteApplication(RemoteApplicationArgs{
 		Tag:             names.NewApplicationTag("mysql"),
-		OfferName:       "mysql",
+		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
 		SourceModel:     names.NewModelTag("some-model"),
 		IsConsumerProxy: true,
@@ -688,7 +688,6 @@ func (s *ModelSerializationSuite) TestModelValidationHandlesRemoteApplications(c
 		Name:      "db",
 		Role:      "provider",
 		Interface: "mysql",
-		Scope:     "global",
 	})
 
 	s.addApplicationToModel(model, "wordpress", 1)
@@ -729,7 +728,7 @@ func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	rapp := model.AddRemoteApplication(RemoteApplicationArgs{
 		Tag:             names.NewApplicationTag("bloom"),
-		OfferName:       "toman",
+		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
 		SourceModel:     names.NewModelTag("some-model"),
 		IsConsumerProxy: true,
@@ -738,7 +737,6 @@ func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
 		Name:      "db",
 		Role:      "provider",
 		Interface: "mysql",
-		Scope:     "global",
 	})
 	rapp.SetStatus(StatusArgs{
 		Value:   "running",
@@ -757,14 +755,12 @@ remote-applications:
 - endpoints:
     endpoints:
     - interface: mysql
-      limit: 0
       name: db
       role: provider
-      scope: global
     version: 1
   is-consumer-proxy: true
   name: bloom
-  offer-name: toman
+  offer-uuid: offer-uuid
   source-model-uuid: some-model
   spaces:
     spaces: []
@@ -784,7 +780,7 @@ func (s *ModelSerializationSuite) TestImportingWithRemoteApplications(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	rapp := initial.AddRemoteApplication(RemoteApplicationArgs{
 		Tag:             names.NewApplicationTag("bloom"),
-		OfferName:       "toman",
+		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
 		SourceModel:     names.NewModelTag("some-model"),
 		IsConsumerProxy: true,
@@ -793,7 +789,6 @@ func (s *ModelSerializationSuite) TestImportingWithRemoteApplications(c *gc.C) {
 		Name:      "db",
 		Role:      "provider",
 		Interface: "mysql",
-		Scope:     "global",
 	})
 	rapp.SetStatus(StatusArgs{
 		Value:   "hey",
@@ -815,7 +810,7 @@ func (s *ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	model.AddRemoteApplication(RemoteApplicationArgs{
 		Tag:             names.NewApplicationTag("bloom"),
-		OfferName:       "toman",
+		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
 		SourceModel:     names.NewModelTag("some-model"),
 		IsConsumerProxy: true,
@@ -906,7 +901,7 @@ func (s *ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C)
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
 	initial.AddRemoteApplication(RemoteApplicationArgs{
 		Tag:             names.NewApplicationTag("bloom"),
-		OfferName:       "toman",
+		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
 		SourceModel:     names.NewModelTag("some-model"),
 		IsConsumerProxy: true,
