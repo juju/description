@@ -16,7 +16,7 @@ type RemoteApplication interface {
 
 	Tag() names.ApplicationTag
 	Name() string
-	OfferName() string
+	OfferUUID() string
 	URL() string
 	SourceModelTag() names.ModelTag
 	IsConsumerProxy() bool
@@ -37,7 +37,7 @@ type remoteApplications struct {
 
 type remoteApplication struct {
 	Name_            string            `yaml:"name"`
-	OfferName_       string            `yaml:"offer-name"`
+	OfferUUID_       string            `yaml:"offer-uuid"`
 	URL_             string            `yaml:"url"`
 	SourceModelUUID_ string            `yaml:"source-model-uuid"`
 	Endpoints_       remoteEndpoints   `yaml:"endpoints,omitempty"`
@@ -51,7 +51,7 @@ type remoteApplication struct {
 // application to the Model.
 type RemoteApplicationArgs struct {
 	Tag             names.ApplicationTag
-	OfferName       string
+	OfferUUID       string
 	URL             string
 	SourceModel     names.ModelTag
 	IsConsumerProxy bool
@@ -61,7 +61,7 @@ type RemoteApplicationArgs struct {
 func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
 	a := &remoteApplication{
 		Name_:            args.Tag.Id(),
-		OfferName_:       args.OfferName,
+		OfferUUID_:       args.OfferUUID,
 		URL_:             args.URL,
 		SourceModelUUID_: args.SourceModel.Id(),
 		IsConsumerProxy_: args.IsConsumerProxy,
@@ -82,9 +82,9 @@ func (a *remoteApplication) Name() string {
 	return a.Name_
 }
 
-// OfferName implements RemoteApplication.
-func (a *remoteApplication) OfferName() string {
-	return a.OfferName_
+// OfferUUID implements RemoteApplication.
+func (a *remoteApplication) OfferUUID() string {
+	return a.OfferUUID_
 }
 
 // URL implements RemoteApplication.
@@ -214,7 +214,7 @@ func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*
 	// contains fields of the right type.
 	result := &remoteApplication{
 		Name_:            valid["name"].(string),
-		OfferName_:       valid["offer-name"].(string),
+		OfferUUID_:       valid["offer-uuid"].(string),
 		URL_:             valid["url"].(string),
 		SourceModelUUID_: valid["source-model-uuid"].(string),
 		IsConsumerProxy_: valid["is-consumer-proxy"].(bool),
@@ -253,7 +253,7 @@ func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*
 func remoteApplicationV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"name":              schema.String(),
-		"offer-name":        schema.String(),
+		"offer-uuid":        schema.String(),
 		"url":               schema.String(),
 		"source-model-uuid": schema.String(),
 		"status":            schema.StringMap(schema.Any()),

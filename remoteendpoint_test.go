@@ -32,8 +32,6 @@ func minimalRemoteEndpointMap() map[interface{}]interface{} {
 		"name":      "lana",
 		"role":      "provider",
 		"interface": "mysql",
-		"limit":     1,
-		"scope":     "global",
 	}
 }
 
@@ -42,8 +40,6 @@ func minimalRemoteEndpoint() *remoteEndpoint {
 		Name:      "lana",
 		Role:      "provider",
 		Interface: "mysql",
-		Limit:     1,
-		Scope:     "global",
 	})
 }
 
@@ -52,8 +48,6 @@ func (*RemoteEndpointSerializationSuite) TestNew(c *gc.C) {
 	c.Check(r.Name(), gc.Equals, "lana")
 	c.Check(r.Role(), gc.Equals, "provider")
 	c.Check(r.Interface(), gc.Equals, "mysql")
-	c.Check(r.Limit(), gc.Equals, 1)
-	c.Check(r.Scope(), gc.Equals, "global")
 }
 
 func (*RemoteEndpointSerializationSuite) TestBadSchema1(c *gc.C) {
@@ -63,17 +57,6 @@ func (*RemoteEndpointSerializationSuite) TestBadSchema1(c *gc.C) {
 	}
 	_, err := importRemoteEndpoints(container)
 	c.Assert(err, gc.ErrorMatches, `remote endpoints version schema check failed: endpoints\[0\]: expected map, got int\(1234\)`)
-}
-
-func (*RemoteEndpointSerializationSuite) TestBadSchema2(c *gc.C) {
-	m := minimalRemoteEndpointMap()
-	m["limit"] = "blah"
-	container := map[string]interface{}{
-		"version":   1,
-		"endpoints": []interface{}{m},
-	}
-	_, err := importRemoteEndpoints(container)
-	c.Assert(err, gc.ErrorMatches, `remote endpoint 0: remote endpoint v1 schema check failed: limit: expected int, got string\("blah"\)`)
 }
 
 func (*RemoteEndpointSerializationSuite) TestMinimalMatches(c *gc.C) {

@@ -33,7 +33,7 @@ func (s *RemoteApplicationSerializationSuite) SetUpTest(c *gc.C) {
 func minimalRemoteApplicationMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"name":              "civil-wars",
-		"offer-name":        "barton-hollow",
+		"offer-uuid":        "offer-uuid",
 		"url":               "http://a.url",
 		"source-model-uuid": "abcd-1234",
 		"is-consumer-proxy": true,
@@ -54,8 +54,6 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 				"name":      "lana",
 				"role":      "provider",
 				"interface": "mysql",
-				"limit":     1,
-				"scope":     "global",
 			}},
 		},
 		"spaces": map[interface{}]interface{}{
@@ -90,7 +88,7 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 func minimalRemoteApplication() *remoteApplication {
 	a := newRemoteApplication(RemoteApplicationArgs{
 		Tag:             names.NewApplicationTag("civil-wars"),
-		OfferName:       "barton-hollow",
+		OfferUUID:       "offer-uuid",
 		URL:             "http://a.url",
 		SourceModel:     names.NewModelTag("abcd-1234"),
 		IsConsumerProxy: true,
@@ -108,8 +106,6 @@ func minimalRemoteApplication() *remoteApplication {
 		Name:      "lana",
 		Role:      "provider",
 		Interface: "mysql",
-		Limit:     1,
-		Scope:     "global",
 	})
 	space := a.AddSpace(RemoteSpaceArgs{
 		CloudType:  "gce",
@@ -133,7 +129,7 @@ func (*RemoteApplicationSerializationSuite) TestNew(c *gc.C) {
 	r := minimalRemoteApplication()
 	c.Check(r.Tag(), gc.Equals, names.NewApplicationTag("civil-wars"))
 	c.Check(r.Name(), gc.Equals, "civil-wars")
-	c.Check(r.OfferName(), gc.Equals, "barton-hollow")
+	c.Check(r.OfferUUID(), gc.Equals, "offer-uuid")
 	c.Check(r.URL(), gc.Equals, "http://a.url")
 	c.Check(r.SourceModelTag(), gc.Equals, names.NewModelTag("abcd-1234"))
 	c.Check(r.IsConsumerProxy(), jc.IsTrue)
