@@ -77,6 +77,11 @@ func (*ModelSerializationSuite) TestUpdateConfig(c *gc.C) {
 	})
 }
 
+func (*ModelSerializationSuite) TestType(c *gc.C) {
+	model := NewModel(ModelArgs{Type: "faas"})
+	c.Check(model.Type(), gc.Equals, "faas")
+}
+
 func (*ModelSerializationSuite) TestCloudCredentials(c *gc.C) {
 	owner := names.NewUserTag("me")
 	model := NewModel(ModelArgs{
@@ -123,6 +128,7 @@ func (s *ModelSerializationSuite) TestParsingModelV1(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	args := ModelArgs{
+		Type:  "iaas",
 		Owner: names.NewUserTag("magic"),
 		Config: map[string]interface{}{
 			"name": "awesome",
@@ -153,6 +159,7 @@ func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	addMinimalApplication(initial)
 	model := s.exportImport(c, initial)
 
+	c.Assert(model.Type(), gc.Equals, "iaas")
 	c.Assert(model.Owner(), gc.Equals, args.Owner)
 	c.Assert(model.Tag().Id(), gc.Equals, "some-uuid")
 	c.Assert(model.Config(), jc.DeepEquals, args.Config)
@@ -874,14 +881,14 @@ func (s *ModelSerializationSuite) TestMeterStatus(c *gc.C) {
 	c.Assert(model.MeterStatus().Info(), gc.Equals, "info message")
 }
 
-func (s *ModelSerializationSuite) TestSerializesToVersion3(c *gc.C) {
+func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
 	data := asStringMap(c, initial)
 	versionValue, ok := data["version"]
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 3)
+	c.Assert(version, gc.Equals, 4)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
@@ -895,6 +902,7 @@ func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 
 	c.Assert(model.Owner(), gc.Equals, names.NewUserTag("ben-harper"))
+	c.Assert(model.Type(), gc.Equals, "iaas")
 }
 
 func (s *ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C) {
