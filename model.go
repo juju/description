@@ -24,6 +24,7 @@ type Model interface {
 	HasStatus
 	HasStatusHistory
 
+	Type() string
 	Cloud() string
 	CloudRegion() string
 	CloudCredential() CloudCredential
@@ -104,6 +105,7 @@ type Model interface {
 // ModelArgs represent the bare minimum information that is needed
 // to represent a model.
 type ModelArgs struct {
+	Type               string
 	Owner              names.UserTag
 	Config             map[string]interface{}
 	LatestToolsVersion version.Number
@@ -116,7 +118,8 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             3,
+		Version:             4,
+		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
 		LatestToolsVersion_: args.LatestToolsVersion,
@@ -199,6 +202,7 @@ func parentId(machineId string) string {
 type model struct {
 	Version int `yaml:"version"`
 
+	Type_   string                 `yaml:"type"`
 	Owner_  string                 `yaml:"owner"`
 	Config_ map[string]interface{} `yaml:"config"`
 	Blocks_ map[string]string      `yaml:"blocks,omitempty"`
@@ -245,8 +249,12 @@ type model struct {
 	MeterStatus_ meterStatus `yaml:"meter-status"`
 }
 
+func (m *model) Type() string {
+	return m.Type_
+}
+
 func (m *model) Tag() names.ModelTag {
-	// Here we make the assumption that the environment UUID is set
+	// Here we make the assumption that the model UUID is set
 	// correctly in the Config.
 	value := m.Config_["uuid"]
 	// Explicitly ignore the 'ok' aspect of the cast. If we don't have it
@@ -1098,6 +1106,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	1: newModelImporter(1, schema.FieldMap(modelV1Fields())),
 	2: newModelImporter(2, schema.FieldMap(modelV2Fields())),
 	3: newModelImporter(3, schema.FieldMap(modelV3Fields())),
+	4: newModelImporter(4, schema.FieldMap(modelV4Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1163,11 +1172,18 @@ func modelV3Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV4Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV3Fields()
+	fields["type"] = schema.String()
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
-	// We're always making a version 3 model, no matter what we got on
+	// We're always making a version 4 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        3,
+		Version:        4,
+		Type_:          "iaas",
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
 		Sequences_:     make(map[string]int),
@@ -1176,6 +1192,10 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 		CloudRegion_:   valid["cloud-region"].(string),
 		StatusHistory_: newStatusHistory(),
 	}
+	if importVersion >= 4 {
+		result.Type_ = valid["type"].(string)
+	}
+
 	if credsMap, found := valid["cloud-credential"]; found {
 		creds, err := importCloudCredential(credsMap.(map[string]interface{}))
 		if err != nil {
