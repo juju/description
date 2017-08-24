@@ -27,19 +27,22 @@ type relations struct {
 type relation struct {
 	Id_        int        `yaml:"id"`
 	Key_       string     `yaml:"key"`
+	Status_    string     `yaml:"status"`
 	Endpoints_ *endpoints `yaml:"endpoints"`
 }
 
 // RelationArgs is an argument struct used to specify a relation.
 type RelationArgs struct {
-	Id  int
-	Key string
+	Id     int
+	Key    string
+	Status string
 }
 
 func newRelation(args RelationArgs) *relation {
 	relation := &relation{
-		Id_:  args.Id,
-		Key_: args.Key,
+		Id_:     args.Id,
+		Key_:    args.Key,
+		Status_: args.Status,
 	}
 	relation.setEndpoints(nil)
 	return relation
@@ -53,6 +56,11 @@ func (r *relation) Id() int {
 // Key implements Relation.
 func (r *relation) Key() string {
 	return r.Key_
+}
+
+// Status implements Relation.
+func (r *relation) Status() string {
+	return r.Status_
 }
 
 // Endpoints implements Relation.
@@ -114,30 +122,50 @@ func importRelationList(sourceList []interface{}, importFunc relationDeserializa
 type relationDeserializationFunc func(map[string]interface{}) (*relation, error)
 
 var relationDeserializationFuncs = map[int]relationDeserializationFunc{
-	1: importRelationV1,
+	1: newRelationImporter(1, schema.FieldMap(relationV1Fields())),
+	2: newRelationImporter(2, schema.FieldMap(relationV2Fields())),
 }
 
-func importRelationV1(source map[string]interface{}) (*relation, error) {
+func newRelationImporter(v int, checker schema.Checker) func(map[string]interface{}) (*relation, error) {
+	return func(source map[string]interface{}) (*relation, error) {
+		coerced, err := checker.Coerce(source, nil)
+		if err != nil {
+			return nil, errors.Annotatef(err, "relation v%d schema check failed", v)
+		}
+		valid := coerced.(map[string]interface{})
+		// From here we know that the map returned from the schema coercion
+		// contains fields of the right type.
+		return newRelationFromValid(valid, v)
+	}
+}
+
+func relationV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"id":        schema.Int(),
 		"key":       schema.String(),
 		"endpoints": schema.StringMap(schema.Any()),
 	}
+	return fields, nil
+}
 
-	checker := schema.FieldMap(fields, nil) // no defaults
+func relationV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := relationV1Fields()
+	fields["status"] = schema.String()
+	return fields, defaults
+}
 
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "relation v1 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
+func newRelationFromValid(valid map[string]interface{}, importVersion int) (*relation, error) {
+	// We're always making a version 2 relation, no matter what we got on
+	// the way in.
 	result := &relation{
 		Id_:  int(valid["id"].(int64)),
 		Key_: valid["key"].(string),
 	}
-
+	if importVersion >= 2 {
+		result.Status_ = valid["status"].(string)
+	} else {
+		result.Status_ = "joined"
+	}
 	endpoints, err := importEndpoints(valid["endpoints"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)

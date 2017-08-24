@@ -29,8 +29,9 @@ func (s *RelationSerializationSuite) SetUpTest(c *gc.C) {
 
 func (s *RelationSerializationSuite) completeRelation() *relation {
 	relation := newRelation(RelationArgs{
-		Id:  42,
-		Key: "special",
+		Id:     42,
+		Key:    "special",
+		Status: "broken",
 	})
 
 	endpoint := relation.AddEndpoint(minimalEndpointArgs())
@@ -50,12 +51,14 @@ func (s *RelationSerializationSuite) completeRelation() *relation {
 
 func (s *RelationSerializationSuite) TestNewRelation(c *gc.C) {
 	relation := newRelation(RelationArgs{
-		Id:  42,
-		Key: "special",
+		Id:     42,
+		Key:    "special",
+		Status: "broken",
 	})
 
 	c.Assert(relation.Id(), gc.Equals, 42)
 	c.Assert(relation.Key(), gc.Equals, "special")
+	c.Assert(relation.Status(), gc.Equals, "broken")
 	c.Assert(relation.Endpoints(), gc.HasLen, 0)
 }
 
@@ -74,7 +77,7 @@ func (s *RelationSerializationSuite) TestRelationEndpoints(c *gc.C) {
 
 func (s *RelationSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := relations{
-		Version:    1,
+		Version:    2,
 		Relations_: []*relation{s.completeRelation()},
 	}
 
@@ -89,6 +92,25 @@ func (s *RelationSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 
 	c.Assert(relations, jc.DeepEquals, initial.Relations_)
+}
+
+func (s *RelationSerializationSuite) TestVersion1Works(c *gc.C) {
+	initial := relations{
+		Version:    2,
+		Relations_: []*relation{s.completeRelation()},
+	}
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+	var data map[string]interface{}
+	err = yaml.Unmarshal(bytes, &data)
+	c.Assert(err, jc.ErrorIsNil)
+	data["version"] = 1
+
+	relations, err := importRelations(data)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(relations, gc.HasLen, 1)
+	// V1 defaults to joined.
+	c.Assert(relations[0].Status(), gc.Equals, "joined")
 }
 
 type EndpointSerializationSuite struct {

@@ -413,7 +413,7 @@ func (m *model) AddRelation(args RelationArgs) Relation {
 
 func (m *model) setRelations(relationList []*relation) {
 	m.Relations_ = relations{
-		Version:    1,
+		Version:    2,
 		Relations_: relationList,
 	}
 }
