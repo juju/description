@@ -482,7 +482,7 @@ func (m *model) AddSubnet(args SubnetArgs) Subnet {
 
 func (m *model) setSubnets(subnetList []*subnet) {
 	m.Subnets_ = subnets{
-		Version:  3,
+		Version:  4,
 		Subnets_: subnetList,
 	}
 }

@@ -17,6 +17,8 @@ type Subnet interface {
 	VLANTag() int
 	AvailabilityZones() []string
 	SpaceName() string
+	FanLocalUnderlay() string
+	FanOverlay() string
 	AllocatableIPHigh() string
 	AllocatableIPLow() string
 }
@@ -36,6 +38,9 @@ type subnet struct {
 	AvailabilityZones_ []string `yaml:"availability-zones"`
 	SpaceName_         string   `yaml:"space-name"`
 
+	FanLocalUnderlay_ string `yaml:"fan-local-underlay,omitempty"`
+	FanOverlay_       string `yaml:"fan-overlay,omitempty"`
+
 	// These will be deprecated once the address allocation strategy for
 	// EC2 is changed. They are unused already on MAAS.
 	AllocatableIPHigh_ string `yaml:"allocatable-ip-high,omitempty"`
@@ -52,6 +57,8 @@ type SubnetArgs struct {
 	VLANTag           int
 	AvailabilityZones []string
 	SpaceName         string
+	FanLocalUnderlay  string
+	FanOverlay        string
 
 	// These will be deprecated once the address allocation strategy for
 	// EC2 is changed. They are unused already on MAAS.
@@ -68,6 +75,8 @@ func newSubnet(args SubnetArgs) *subnet {
 		CIDR_:              args.CIDR,
 		VLANTag_:           args.VLANTag,
 		AvailabilityZones_: args.AvailabilityZones,
+		FanLocalUnderlay_:  args.FanLocalUnderlay,
+		FanOverlay_:        args.FanOverlay,
 		AllocatableIPHigh_: args.AllocatableIPHigh,
 		AllocatableIPLow_:  args.AllocatableIPLow,
 	}
@@ -106,6 +115,16 @@ func (s *subnet) VLANTag() int {
 // AvailabilityZones implements Subnet.
 func (s *subnet) AvailabilityZones() []string {
 	return s.AvailabilityZones_
+}
+
+// FanLocalUnderlay implements Subnet.
+func (s *subnet) FanLocalUnderlay() string {
+	return s.FanLocalUnderlay_
+}
+
+// FanOverlay implements Subnet.
+func (s *subnet) FanOverlay() string {
+	return s.FanOverlay_
 }
 
 // AllocatableIPHigh implements Subnet.
@@ -160,6 +179,7 @@ var subnetFieldsFuncs = map[int]fieldsFunc{
 	1: subnetV1Fields,
 	2: subnetV2Fields,
 	3: subnetV3Fields,
+	4: subnetV4Fields,
 }
 
 func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
@@ -181,6 +201,10 @@ func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, err
 		result.AvailabilityZones_ = convertToStringSlice(valid["availability-zones"])
 	} else {
 		result.AvailabilityZones_ = []string{valid["availability-zone"].(string)}
+	}
+	if version >= 4 {
+		result.FanLocalUnderlay_ = valid["fan-local-underlay"].(string)
+		result.FanOverlay_ = valid["fan-overlay"].(string)
 	}
 	return &result, nil
 }
@@ -216,5 +240,14 @@ func subnetV3Fields() (schema.Fields, schema.Defaults) {
 	fields["availability-zones"] = schema.List(schema.String())
 	delete(fields, "availability-zone")
 	defaults["provider-space-id"] = ""
+	return fields, defaults
+}
+
+func subnetV4Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := subnetV3Fields()
+	fields["fan-local-underlay"] = schema.String()
+	fields["fan-overlay"] = schema.String()
+	defaults["fan-local-underlay"] = ""
+	defaults["fan-overlay"] = ""
 	return fields, defaults
 }
