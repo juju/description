@@ -36,6 +36,8 @@ func testSubnetMap() map[interface{}]interface{} {
 		"vlan-tag":            64,
 		"space-name":          "foo",
 		"availability-zones":  []interface{}{"bar", "baz"},
+		"fan-local-underlay":  "1.2.3.4/24",
+		"fan-overlay":         "253.0.0.0/8",
 		"allocatable-ip-high": "10.0.0.255",
 		"allocatable-ip-low":  "10.0.0.0",
 	}
@@ -53,6 +55,8 @@ func testSubnetArgs() SubnetArgs {
 		ProviderSpaceId:   "ride",
 		VLANTag:           64,
 		SpaceName:         "foo",
+		FanLocalUnderlay:  "1.2.3.4/24",
+		FanOverlay:        "253.0.0.0/8",
 		AvailabilityZones: []string{"bar", "baz"},
 		AllocatableIPHigh: "10.0.0.255",
 		AllocatableIPLow:  "10.0.0.0",
@@ -127,6 +131,8 @@ func (s *SubnetSerializationSuite) TestParsingV1Full(c *gc.C) {
 	expected.AvailabilityZones_ = []string{"bar"}
 	expected.ProviderSpaceId_ = ""
 	expected.ProviderNetworkId_ = ""
+	expected.FanLocalUnderlay_ = ""
+	expected.FanOverlay_ = ""
 	c.Assert(imported, jc.DeepEquals, expected)
 }
 
@@ -174,6 +180,8 @@ func (s *SubnetSerializationSuite) TestParsingV2Full(c *gc.C) {
 	expected := testSubnet()
 	expected.AvailabilityZones_ = []string{"bar"}
 	expected.ProviderSpaceId_ = ""
+	expected.FanLocalUnderlay_ = ""
+	expected.FanOverlay_ = ""
 	c.Assert(imported, jc.DeepEquals, expected)
 }
 
@@ -198,20 +206,60 @@ func (s *SubnetSerializationSuite) TestParsingV2IgnoresNewFields(c *gc.C) {
 	original := testSubnetV2Map()
 	original["provider-space-id"] = "something"
 	original["availability-zones"] = []string{"not", "loaded"}
+	original["fan-local-underlay"] = "somethingelse"
+	original["fan-overlay"] = "also ignored"
 	subnet := s.importSubnet(c, original, 2)
 	// The new fields are ignored by the import because they don't exist in v2.
 	c.Assert(subnet.ProviderSpaceId_, gc.Equals, "")
 	c.Assert(subnet.AvailabilityZones_, gc.DeepEquals, []string{"bar"})
 }
 
+func testSubnetV3Map() map[string]interface{} {
+	return map[string]interface{}{
+		"cidr":                "10.0.0.0/24",
+		"provider-id":         "magic",
+		"provider-network-id": "carpet",
+		"provider-space-id":   "ride",
+		"vlan-tag":            64,
+		"space-name":          "foo",
+		"availability-zones":  []interface{}{"bar", "baz"},
+		"allocatable-ip-high": "10.0.0.255",
+		"allocatable-ip-low":  "10.0.0.0",
+	}
+}
+
 func (s *SubnetSerializationSuite) TestParsingV3Full(c *gc.C) {
-	original := testSubnet()
-	subnet := s.exportImport(c, original, 3)
-	c.Assert(subnet, jc.DeepEquals, original)
+	original := testSubnetV3Map()
+	imported := s.importSubnet(c, original, 3)
+	expected := testSubnet()
+	expected.FanLocalUnderlay_ = ""
+	expected.FanOverlay_ = ""
+	c.Assert(imported, jc.DeepEquals, expected)
 }
 
 func (s *SubnetSerializationSuite) TestParsingV3Minimal(c *gc.C) {
 	original := newSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
 	subnet := s.exportImport(c, original, 3)
+	c.Assert(subnet, jc.DeepEquals, original)
+}
+func (s *SubnetSerializationSuite) TestParsingV3IgnoresNewFields(c *gc.C) {
+	original := testSubnetV3Map()
+	original["fan-local-underlay"] = "somethingelse"
+	original["fan-overlay"] = "also ignored"
+	subnet := s.importSubnet(c, original, 3)
+	// The new fields are ignored by the import because they don't exist in v3.
+	c.Assert(subnet.FanLocalUnderlay_, gc.Equals, "")
+	c.Assert(subnet.FanOverlay_, gc.Equals, "")
+}
+
+func (s *SubnetSerializationSuite) TestParsingV4Full(c *gc.C) {
+	original := testSubnet()
+	subnet := s.exportImport(c, original, 4)
+	c.Assert(subnet, jc.DeepEquals, original)
+}
+
+func (s *SubnetSerializationSuite) TestParsingV4Minimal(c *gc.C) {
+	original := newSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
+	subnet := s.exportImport(c, original, 4)
 	c.Assert(subnet, jc.DeepEquals, original)
 }
