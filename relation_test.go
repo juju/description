@@ -29,10 +29,10 @@ func (s *RelationSerializationSuite) SetUpTest(c *gc.C) {
 
 func (s *RelationSerializationSuite) completeRelation() *relation {
 	relation := newRelation(RelationArgs{
-		Id:     42,
-		Key:    "special",
-		Status: "broken",
+		Id:  42,
+		Key: "special",
 	})
+	relation.SetStatus(minimalStatusArgs())
 
 	endpoint := relation.AddEndpoint(minimalEndpointArgs())
 	u1Settings := map[string]interface{}{
@@ -51,14 +51,12 @@ func (s *RelationSerializationSuite) completeRelation() *relation {
 
 func (s *RelationSerializationSuite) TestNewRelation(c *gc.C) {
 	relation := newRelation(RelationArgs{
-		Id:     42,
-		Key:    "special",
-		Status: "broken",
+		Id:  42,
+		Key: "special",
 	})
 
 	c.Assert(relation.Id(), gc.Equals, 42)
 	c.Assert(relation.Key(), gc.Equals, "special")
-	c.Assert(relation.Status(), gc.Equals, "broken")
 	c.Assert(relation.Endpoints(), gc.HasLen, 0)
 }
 
@@ -109,8 +107,8 @@ func (s *RelationSerializationSuite) TestVersion1Works(c *gc.C) {
 	relations, err := importRelations(data)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(relations, gc.HasLen, 1)
-	// V1 defaults to joined.
-	c.Assert(relations[0].Status(), gc.Equals, "joined")
+	// V1 doesn't have status.
+	c.Assert(relations[0].Status(), gc.IsNil)
 }
 
 type EndpointSerializationSuite struct {

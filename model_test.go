@@ -348,10 +348,11 @@ func (s *ModelSerializationSuite) wordpressModel() (Model, Endpoint, Endpoint) {
 
 	// Add a relation between wordpress and mysql.
 	rel := model.AddRelation(RelationArgs{
-		Id:     42,
-		Key:    "special key",
-		Status: "broken",
+		Id:  42,
+		Key: "special key",
 	})
+	rel.SetStatus(minimalStatusArgs())
+
 	wordpressEndpoint := rel.AddEndpoint(EndpointArgs{
 		ApplicationName: "wordpress",
 		Name:            "db",
