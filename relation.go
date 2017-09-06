@@ -12,6 +12,8 @@ import (
 // Relation represents a relationship between two applications,
 // or a peer relation between different instances of an application.
 type Relation interface {
+	HasStatus
+
 	Id() int
 	Key() string
 
@@ -27,22 +29,20 @@ type relations struct {
 type relation struct {
 	Id_        int        `yaml:"id"`
 	Key_       string     `yaml:"key"`
-	Status_    string     `yaml:"status"`
 	Endpoints_ *endpoints `yaml:"endpoints"`
+	Status_    *status    `yaml:"status"`
 }
 
 // RelationArgs is an argument struct used to specify a relation.
 type RelationArgs struct {
-	Id     int
-	Key    string
-	Status string
+	Id  int
+	Key string
 }
 
 func newRelation(args RelationArgs) *relation {
 	relation := &relation{
-		Id_:     args.Id,
-		Key_:    args.Key,
-		Status_: args.Status,
+		Id_:  args.Id,
+		Key_: args.Key,
 	}
 	relation.setEndpoints(nil)
 	return relation
@@ -59,8 +59,17 @@ func (r *relation) Key() string {
 }
 
 // Status implements Relation.
-func (r *relation) Status() string {
+func (r *relation) Status() Status {
+	// To avoid typed nils check nil here.
+	if r.Status_ == nil {
+		return nil
+	}
 	return r.Status_
+}
+
+// SetStatus implements Relation.
+func (r *relation) SetStatus(args StatusArgs) {
+	r.Status_ = newStatus(args)
 }
 
 // Endpoints implements Relation.
@@ -150,7 +159,7 @@ func relationV1Fields() (schema.Fields, schema.Defaults) {
 
 func relationV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := relationV1Fields()
-	fields["status"] = schema.String()
+	fields["status"] = schema.StringMap(schema.Any())
 	return fields, defaults
 }
 
@@ -161,10 +170,13 @@ func newRelationFromValid(valid map[string]interface{}, importVersion int) (*rel
 		Id_:  int(valid["id"].(int64)),
 		Key_: valid["key"].(string),
 	}
+	// Version 1 relations don't have status info in the export yaml.
 	if importVersion >= 2 {
-		result.Status_ = valid["status"].(string)
-	} else {
-		result.Status_ = "joined"
+		relStatus, err := importStatus(valid["status"].(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.Status_ = relStatus
 	}
 	endpoints, err := importEndpoints(valid["endpoints"].(map[string]interface{}))
 	if err != nil {
