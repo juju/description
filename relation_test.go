@@ -192,6 +192,16 @@ func (s *EndpointSerializationSuite) TestNewEndpoint(c *gc.C) {
 		"name": "unit two",
 		"foo":  "bar",
 	})
+	c.Assert(endpoint.AllSettings(), jc.DeepEquals, map[string]map[string]interface{}{
+		"ubuntu/0": {
+			"name": "unit one",
+			"key":  42,
+		},
+		"ubuntu/1": {
+			"name": "unit two",
+			"foo":  "bar",
+		},
+	})
 }
 
 func (s *EndpointSerializationSuite) TestMinimalMatches(c *gc.C) {

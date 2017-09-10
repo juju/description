@@ -206,6 +206,7 @@ type Endpoint interface {
 	// UnitCount returns the number of units the endpoint has settings for.
 	UnitCount() int
 
+	AllSettings() map[string]map[string]interface{}
 	Settings(unitName string) map[string]interface{}
 	SetUnitSettings(unitName string, settings map[string]interface{})
 }
@@ -297,6 +298,15 @@ func (e *endpoint) Scope() string {
 // UnitCount implements Endpoint.
 func (e *endpoint) UnitCount() int {
 	return len(e.UnitSettings_)
+}
+
+// AllSettings implements Endpoint.
+func (e *endpoint) AllSettings() map[string]map[string]interface{} {
+	result := make(map[string]map[string]interface{})
+	for name, settings := range e.UnitSettings_ {
+		result[name] = settings
+	}
+	return result
 }
 
 // Settings implements Endpoint.
