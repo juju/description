@@ -92,6 +92,26 @@ func (s *RelationSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	c.Assert(relations, jc.DeepEquals, initial.Relations_)
 }
 
+func (s *RelationSerializationSuite) TestParsingSerializedDataNoStatus(c *gc.C) {
+	initial := relations{
+		Version:    2,
+		Relations_: []*relation{s.completeRelation()},
+	}
+	initial.Relations_[0].Status_ = nil
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	relations, err := importRelations(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(relations, jc.DeepEquals, initial.Relations_)
+}
+
 func (s *RelationSerializationSuite) TestVersion1Works(c *gc.C) {
 	initial := relations{
 		Version:    2,

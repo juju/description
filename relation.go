@@ -30,7 +30,7 @@ type relation struct {
 	Id_        int        `yaml:"id"`
 	Key_       string     `yaml:"key"`
 	Endpoints_ *endpoints `yaml:"endpoints"`
-	Status_    *status    `yaml:"status"`
+	Status_    *status    `yaml:"status,omitempty"`
 }
 
 // RelationArgs is an argument struct used to specify a relation.
@@ -137,6 +137,12 @@ var relationDeserializationFuncs = map[int]relationDeserializationFunc{
 
 func newRelationImporter(v int, checker schema.Checker) func(map[string]interface{}) (*relation, error) {
 	return func(source map[string]interface{}) (*relation, error) {
+		// Some relations don't have status.
+		// Older broken exports included status even when it was nil.
+		// Remove any nil value so schema validation doesn't complain.
+		if source["status"] == nil {
+			delete(source, "status")
+		}
 		coerced, err := checker.Coerce(source, nil)
 		if err != nil {
 			return nil, errors.Annotatef(err, "relation v%d schema check failed", v)
@@ -158,8 +164,10 @@ func relationV1Fields() (schema.Fields, schema.Defaults) {
 }
 
 func relationV2Fields() (schema.Fields, schema.Defaults) {
-	fields, defaults := relationV1Fields()
+	// v1 has no defaults.
+	fields, _ := relationV1Fields()
 	fields["status"] = schema.StringMap(schema.Any())
+	defaults := schema.Defaults{"status": schema.Omit}
 	return fields, defaults
 }
 
@@ -171,7 +179,9 @@ func newRelationFromValid(valid map[string]interface{}, importVersion int) (*rel
 		Key_: valid["key"].(string),
 	}
 	// Version 1 relations don't have status info in the export yaml.
-	if importVersion >= 2 {
+	// Some relations also don't have status.
+	_, ok := valid["status"]
+	if importVersion >= 2 && ok {
 		relStatus, err := importStatus(valid["status"].(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Trace(err)
