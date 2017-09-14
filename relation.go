@@ -16,6 +16,7 @@ type Relation interface {
 
 	Id() int
 	Key() string
+	Suspended() bool
 
 	Endpoints() []Endpoint
 	AddEndpoint(EndpointArgs) Endpoint
@@ -30,19 +31,22 @@ type relation struct {
 	Id_        int        `yaml:"id"`
 	Key_       string     `yaml:"key"`
 	Endpoints_ *endpoints `yaml:"endpoints"`
+	Suspended_ bool       `yaml:"suspended"`
 	Status_    *status    `yaml:"status,omitempty"`
 }
 
 // RelationArgs is an argument struct used to specify a relation.
 type RelationArgs struct {
-	Id  int
-	Key string
+	Id        int
+	Key       string
+	Suspended bool
 }
 
 func newRelation(args RelationArgs) *relation {
 	relation := &relation{
-		Id_:  args.Id,
-		Key_: args.Key,
+		Id_:        args.Id,
+		Key_:       args.Key,
+		Suspended_: args.Suspended,
 	}
 	relation.setEndpoints(nil)
 	return relation
@@ -56,6 +60,11 @@ func (r *relation) Id() int {
 // Key implements Relation.
 func (r *relation) Key() string {
 	return r.Key_
+}
+
+// Suspended implements Relation.
+func (r *relation) Suspended() bool {
+	return r.Suspended_
 }
 
 // Status implements Relation.
@@ -133,6 +142,7 @@ type relationDeserializationFunc func(map[string]interface{}) (*relation, error)
 var relationDeserializationFuncs = map[int]relationDeserializationFunc{
 	1: newRelationImporter(1, schema.FieldMap(relationV1Fields())),
 	2: newRelationImporter(2, schema.FieldMap(relationV2Fields())),
+	3: newRelationImporter(3, schema.FieldMap(relationV3Fields())),
 }
 
 func newRelationImporter(v int, checker schema.Checker) func(map[string]interface{}) (*relation, error) {
@@ -171,12 +181,24 @@ func relationV2Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func relationV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := relationV2Fields()
+	fields["suspended"] = schema.Bool()
+	defaults["suspended"] = false
+	return fields, defaults
+}
+
 func newRelationFromValid(valid map[string]interface{}, importVersion int) (*relation, error) {
-	// We're always making a version 2 relation, no matter what we got on
+	suspended := false
+	if importVersion >= 3 {
+		suspended = valid["suspended"].(bool)
+	}
+	// We're always making a version 3 relation, no matter what we got on
 	// the way in.
 	result := &relation{
-		Id_:  int(valid["id"].(int64)),
-		Key_: valid["key"].(string),
+		Id_:        int(valid["id"].(int64)),
+		Key_:       valid["key"].(string),
+		Suspended_: suspended,
 	}
 	// Version 1 relations don't have status info in the export yaml.
 	// Some relations also don't have status.
