@@ -1140,6 +1140,19 @@ func (s *ModelSerializationSuite) TestStorage(c *gc.C) {
 	c.Assert(model.Storages(), jc.DeepEquals, storages)
 }
 
+func (s *ModelSerializationSuite) TestStorageValidate(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	storageArgs := testStorageArgs()
+	storageArgs.Owner = nil
+	storage := initial.AddStorage(storageArgs)
+	storages := initial.Storages()
+	c.Assert(storages, gc.HasLen, 1)
+	c.Assert(storages[0], jc.DeepEquals, storage)
+
+	err := initial.Validate()
+	c.Assert(err, gc.ErrorMatches, `storage\[0\] attachment referencing unknown unit "unit-postgresql-0" not valid`)
+}
+
 func (s *ModelSerializationSuite) TestStoragePools(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
 	poolOne := map[string]interface{}{
