@@ -876,9 +876,11 @@ func (m *model) validateStorage(allMachineIDs, allApplications, allUnits set.Str
 		if err != nil {
 			return errors.Wrap(err, errors.NotValidf("storage[%d] owner (%s)", i, owner))
 		}
-		ownerID := owner.Id()
-		if !appsAndUnits.Contains(ownerID) {
-			return errors.NotValidf("storage[%d] owner (%s)", i, ownerID)
+		if owner != nil {
+			ownerID := owner.Id()
+			if !appsAndUnits.Contains(ownerID) {
+				return errors.NotValidf("storage[%d] owner (%s)", i, ownerID)
+			}
 		}
 		for _, unit := range storage.Attachments() {
 			if !allUnits.Contains(unit.Id()) {
