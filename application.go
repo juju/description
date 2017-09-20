@@ -22,6 +22,7 @@ type Application interface {
 
 	Tag() names.ApplicationTag
 	Name() string
+	Type() string
 	Series() string
 	Subordinate() bool
 	CharmURL() string
@@ -57,6 +58,7 @@ type applications struct {
 
 type application struct {
 	Name_                 string `yaml:"name"`
+	Type_                 string `yaml:"type"`
 	Series_               string `yaml:"series"`
 	Subordinate_          bool   `yaml:"subordinate,omitempty"`
 	CharmURL_             string `yaml:"charm-url"`
@@ -95,6 +97,7 @@ type application struct {
 // ApplicationArgs is an argument struct used to add an application to the Model.
 type ApplicationArgs struct {
 	Tag                  names.ApplicationTag
+	Type                 string
 	Series               string
 	Subordinate          bool
 	CharmURL             string
@@ -115,6 +118,7 @@ func newApplication(args ApplicationArgs) *application {
 	creds := base64.StdEncoding.EncodeToString(args.MetricsCredentials)
 	app := &application{
 		Name_:                 args.Tag.Id(),
+		Type_:                 args.Type,
 		Series_:               args.Series,
 		Subordinate_:          args.Subordinate,
 		CharmURL_:             args.CharmURL,
@@ -149,6 +153,11 @@ func (a *application) Tag() names.ApplicationTag {
 // Name implements Application.
 func (a *application) Name() string {
 	return a.Name_
+}
+
+// Type implements Application
+func (a *application) Type() string {
+	return a.Type_
 }
 
 // Series implements Application.
@@ -382,9 +391,10 @@ type applicationDeserializationFunc func(map[string]interface{}) (*application, 
 
 var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	1: importApplicationV1,
+	2: importApplicationV2,
 }
 
-func importApplicationV1(source map[string]interface{}) (*application, error) {
+func applicationV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"name":                schema.String(),
 		"series":              schema.String(),
@@ -419,11 +429,26 @@ func importApplicationV1(source map[string]interface{}) (*application, error) {
 	addAnnotationSchema(fields, defaults)
 	addConstraintsSchema(fields, defaults)
 	addStatusHistorySchema(fields)
+	return fields, defaults
+}
+
+func importApplicationV1(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV1Fields()
+	return importApplication(fields, defaults, 1, source)
+}
+
+func importApplicationV2(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV1Fields()
+	fields["type"] = schema.String()
+	return importApplication(fields, defaults, 2, source)
+}
+
+func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "application v1 schema check failed")
+		return nil, errors.Annotatef(err, "application schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
@@ -431,6 +456,7 @@ func importApplicationV1(source map[string]interface{}) (*application, error) {
 	result := &application{
 		Name_:                 valid["name"].(string),
 		Series_:               valid["series"].(string),
+		Type_:                 "iaas",
 		Subordinate_:          valid["subordinate"].(bool),
 		CharmURL_:             valid["charm-url"].(string),
 		Channel_:              valid["cs-channel"].(string),
@@ -444,6 +470,11 @@ func importApplicationV1(source map[string]interface{}) (*application, error) {
 		LeadershipSettings_:   valid["leadership-settings"].(map[string]interface{}),
 		StatusHistory_:        newStatusHistory(),
 	}
+
+	if importVersion >= 2 {
+		result.Type_ = valid["type"].(string)
+	}
+
 	result.importAnnotations(valid)
 
 	if err := result.importStatusHistory(valid); err != nil {

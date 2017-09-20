@@ -31,7 +31,7 @@ func (s *ApplicationSerializationSuite) SetUpTest(c *gc.C) {
 		return minimalApplication()
 	}
 	s.StatusHistoryMixinSuite.serializer = func(c *gc.C, initial interface{}) HasStatusHistory {
-		return s.exportImport(c, initial.(*application))
+		return s.exportImportLatest(c, initial.(*application))
 	}
 }
 
@@ -39,6 +39,7 @@ func minimalApplicationMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"name":              "ubuntu",
 		"series":            "trusty",
+		"type":              "iaas",
 		"charm-url":         "cs:trusty/ubuntu",
 		"cs-channel":        "stable",
 		"charm-mod-version": 1,
@@ -94,6 +95,7 @@ func minimalApplicationArgs() ApplicationArgs {
 	return ApplicationArgs{
 		Tag:                  names.NewApplicationTag("ubuntu"),
 		Series:               "trusty",
+		Type:                 "iaas",
 		CharmURL:             "cs:trusty/ubuntu",
 		Channel:              "stable",
 		CharmModifiedVersion: 1,
@@ -165,9 +167,9 @@ func (s *ApplicationSerializationSuite) TestMinimalMatches(c *gc.C) {
 	c.Assert(source, jc.DeepEquals, minimalApplicationMap())
 }
 
-func (s *ApplicationSerializationSuite) exportImport(c *gc.C, application_ *application) *application {
+func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application_ *application, version int) *application {
 	initial := applications{
-		Version:       1,
+		Version:       version,
 		Applications_: []*application{application_},
 	}
 
@@ -184,9 +186,22 @@ func (s *ApplicationSerializationSuite) exportImport(c *gc.C, application_ *appl
 	return applications[0]
 }
 
+func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
+	return s.exportImportVersion(c, application_, 2)
+}
+
+func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
+	args := minimalApplicationArgs()
+	args.Type = ""
+	appV1 := minimalApplication(args)
+	appLatest := minimalApplication()
+	appResult := s.exportImportVersion(c, appV1, 1)
+	c.Assert(appResult, jc.DeepEquals, appLatest)
+}
+
 func (s *ApplicationSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	svc := minimalApplication()
-	application := s.exportImport(c, svc)
+	application := s.exportImportLatest(c, svc)
 	c.Assert(application, jc.DeepEquals, svc)
 }
 
@@ -197,7 +212,7 @@ func (s *ApplicationSerializationSuite) TestEndpointBindings(c *gc.C) {
 		"other":    "other-space",
 	}
 	initial := minimalApplication(args)
-	application := s.exportImport(c, initial)
+	application := s.exportImportLatest(c, initial)
 	c.Assert(application.EndpointBindings(), jc.DeepEquals, args.EndpointBindings)
 }
 
@@ -209,7 +224,7 @@ func (s *ApplicationSerializationSuite) TestAnnotations(c *gc.C) {
 	}
 	initial.SetAnnotations(annotations)
 
-	application := s.exportImport(c, initial)
+	application := s.exportImportLatest(c, initial)
 	c.Assert(application.Annotations(), jc.DeepEquals, annotations)
 }
 
@@ -222,7 +237,7 @@ func (s *ApplicationSerializationSuite) TestConstraints(c *gc.C) {
 	}
 	initial.SetConstraints(args)
 
-	application := s.exportImport(c, initial)
+	application := s.exportImportLatest(c, initial)
 	c.Assert(application.Constraints(), jc.DeepEquals, newConstraints(args))
 }
 
@@ -234,7 +249,7 @@ func (s *ApplicationSerializationSuite) TestStorageConstraints(c *gc.C) {
 	}
 	initial := minimalApplication(args)
 
-	application := s.exportImport(c, initial)
+	application := s.exportImportLatest(c, initial)
 
 	constraints := application.StorageConstraints()
 	c.Assert(constraints, gc.HasLen, 2)
