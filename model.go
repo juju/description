@@ -1052,6 +1052,13 @@ func (m *model) validateLinkLayerDevices() error {
 // are settings for all units of that application for that endpoint.
 func (m *model) validateRelations() error {
 	for _, relation := range m.Relations_.Relations_ {
+		isRemote := false
+		for _, ep := range relation.Endpoints() {
+			if m.remoteApplication(ep.ApplicationName()) != nil {
+				isRemote = true
+				break
+			}
+		}
 		for _, ep := range relation.Endpoints_.Endpoints_ {
 			// Check application exists.
 			application := m.application(ep.ApplicationName())
@@ -1072,7 +1079,7 @@ func (m *model) validateRelations() error {
 				// principals, there are only settings for the units of the application
 				// that are related to units of each particular principal, so you can't
 				// expect settings for every unit.
-				if missingSettings := applicationUnits.Difference(epUnits); len(missingSettings) > 0 {
+				if missingSettings := applicationUnits.Difference(epUnits); len(missingSettings) > 0 && !isRemote {
 					return errors.Errorf("missing relation settings for units %s in relation %d", missingSettings.SortedValues(), relation.Id())
 				}
 			}
