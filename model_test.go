@@ -704,19 +704,13 @@ func (s *ModelSerializationSuite) TestModelValidationHandlesRemoteApplications(c
 		Id:  101,
 		Key: "wordpress:db mysql:db",
 	})
-	ep1 := rel.AddEndpoint(EndpointArgs{
+	rel.AddEndpoint(EndpointArgs{
 		ApplicationName: "wordpress",
 		Name:            "db",
 	})
-	ep1.SetUnitSettings("wordpress/0", map[string]interface{}{
-		"key": "value",
-	})
-	ep2 := rel.AddEndpoint(EndpointArgs{
+	rel.AddEndpoint(EndpointArgs{
 		ApplicationName: "mysql",
 		Name:            "db",
-	})
-	ep2.SetUnitSettings("mysql/0", map[string]interface{}{
-		"key": "value",
 	})
 
 	err := model.Validate()
