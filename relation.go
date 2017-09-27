@@ -17,6 +17,7 @@ type Relation interface {
 	Id() int
 	Key() string
 	Suspended() bool
+	SuspendedReason() string
 
 	Endpoints() []Endpoint
 	AddEndpoint(EndpointArgs) Endpoint
@@ -28,25 +29,28 @@ type relations struct {
 }
 
 type relation struct {
-	Id_        int        `yaml:"id"`
-	Key_       string     `yaml:"key"`
-	Endpoints_ *endpoints `yaml:"endpoints"`
-	Suspended_ bool       `yaml:"suspended"`
-	Status_    *status    `yaml:"status,omitempty"`
+	Id_              int        `yaml:"id"`
+	Key_             string     `yaml:"key"`
+	Endpoints_       *endpoints `yaml:"endpoints"`
+	Suspended_       bool       `yaml:"suspended"`
+	SuspendedReason_ string     `yaml:"suspended-reason"`
+	Status_          *status    `yaml:"status,omitempty"`
 }
 
 // RelationArgs is an argument struct used to specify a relation.
 type RelationArgs struct {
-	Id        int
-	Key       string
-	Suspended bool
+	Id              int
+	Key             string
+	Suspended       bool
+	SuspendedReason string
 }
 
 func newRelation(args RelationArgs) *relation {
 	relation := &relation{
-		Id_:        args.Id,
-		Key_:       args.Key,
-		Suspended_: args.Suspended,
+		Id_:              args.Id,
+		Key_:             args.Key,
+		Suspended_:       args.Suspended,
+		SuspendedReason_: args.SuspendedReason,
 	}
 	relation.setEndpoints(nil)
 	return relation
@@ -65,6 +69,11 @@ func (r *relation) Key() string {
 // Suspended implements Relation.
 func (r *relation) Suspended() bool {
 	return r.Suspended_
+}
+
+// SuspendedReason implements Relation.
+func (r *relation) SuspendedReason() string {
+	return r.SuspendedReason_
 }
 
 // Status implements Relation.
@@ -184,21 +193,26 @@ func relationV2Fields() (schema.Fields, schema.Defaults) {
 func relationV3Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := relationV2Fields()
 	fields["suspended"] = schema.Bool()
+	fields["suspended-reason"] = schema.String()
 	defaults["suspended"] = false
+	defaults["suspended-reason"] = ""
 	return fields, defaults
 }
 
 func newRelationFromValid(valid map[string]interface{}, importVersion int) (*relation, error) {
 	suspended := false
+	suspendedReason := ""
 	if importVersion >= 3 {
 		suspended = valid["suspended"].(bool)
+		suspendedReason = valid["suspended-reason"].(string)
 	}
 	// We're always making a version 3 relation, no matter what we got on
 	// the way in.
 	result := &relation{
-		Id_:        int(valid["id"].(int64)),
-		Key_:       valid["key"].(string),
-		Suspended_: suspended,
+		Id_:              int(valid["id"].(int64)),
+		Key_:             valid["key"].(string),
+		Suspended_:       suspended,
+		SuspendedReason_: suspendedReason,
 	}
 	// Version 1 relations don't have status info in the export yaml.
 	// Some relations also don't have status.
