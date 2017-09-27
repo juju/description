@@ -29,9 +29,10 @@ func (s *RelationSerializationSuite) SetUpTest(c *gc.C) {
 
 func (s *RelationSerializationSuite) completeRelation() *relation {
 	relation := newRelation(RelationArgs{
-		Id:        42,
-		Key:       "special",
-		Suspended: true,
+		Id:              42,
+		Key:             "special",
+		Suspended:       true,
+		SuspendedReason: "reason",
 	})
 	relation.SetStatus(minimalStatusArgs())
 
@@ -52,14 +53,16 @@ func (s *RelationSerializationSuite) completeRelation() *relation {
 
 func (s *RelationSerializationSuite) TestNewRelation(c *gc.C) {
 	relation := newRelation(RelationArgs{
-		Id:        42,
-		Key:       "special",
-		Suspended: true,
+		Id:              42,
+		Key:             "special",
+		Suspended:       true,
+		SuspendedReason: "reason",
 	})
 
 	c.Assert(relation.Id(), gc.Equals, 42)
 	c.Assert(relation.Key(), gc.Equals, "special")
 	c.Assert(relation.Suspended(), jc.IsTrue)
+	c.Assert(relation.SuspendedReason(), gc.Equals, "reason")
 	c.Assert(relation.Endpoints(), gc.HasLen, 0)
 }
 
@@ -151,6 +154,7 @@ func (s *RelationSerializationSuite) TestVersion2Works(c *gc.C) {
 	c.Assert(relations, gc.HasLen, 1)
 	// V2 suspended is always false.
 	c.Assert(relations[0].Suspended(), jc.IsFalse)
+	c.Assert(relations[0].SuspendedReason(), gc.Equals, "")
 }
 
 type EndpointSerializationSuite struct {
