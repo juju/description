@@ -505,7 +505,7 @@ func (m *model) AddIPAddress(args IPAddressArgs) IPAddress {
 
 func (m *model) setIPAddresses(addressesList []*ipaddress) {
 	m.IPAddresses_ = ipaddresses{
-		Version:      1,
+		Version:      2,
 		IPAddresses_: addressesList,
 	}
 }

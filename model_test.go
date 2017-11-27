@@ -561,11 +561,12 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressGatewayAddress
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressGatewayAddressValid(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
 	args := IPAddressArgs{
-		MachineID:      "42",
-		DeviceName:     "foo",
-		Value:          "192.168.1.2",
-		SubnetCIDR:     "192.168.1.0/24",
-		GatewayAddress: "192.168.1.1",
+		MachineID:        "42",
+		DeviceName:       "foo",
+		Value:            "192.168.1.2",
+		SubnetCIDR:       "192.168.1.0/24",
+		GatewayAddress:   "192.168.1.1",
+		IsDefaultGateway: true,
 	}
 	model.AddIPAddress(args)
 	s.addMachineToModel(model, "42")
