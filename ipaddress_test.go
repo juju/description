@@ -38,6 +38,7 @@ func (s *IPAddressSerializationSuite) TestNewIPAddress(c *gc.C) {
 		DNSServers:       []string{"10.1.0.1", "10.2.0.1"},
 		DNSSearchDomains: []string{"bam", "mam"},
 		GatewayAddress:   "10.0.0.1",
+		IsDefaultGateway: true,
 	}
 	address := newIPAddress(args)
 	c.Assert(address.SubnetCIDR(), gc.Equals, args.SubnetCIDR)
@@ -49,9 +50,10 @@ func (s *IPAddressSerializationSuite) TestNewIPAddress(c *gc.C) {
 	c.Assert(address.DNSServers(), jc.DeepEquals, args.DNSServers)
 	c.Assert(address.DNSSearchDomains(), jc.DeepEquals, args.DNSSearchDomains)
 	c.Assert(address.GatewayAddress(), gc.Equals, args.GatewayAddress)
+	c.Assert(address.IsDefaultGateway(), gc.Equals, args.IsDefaultGateway)
 }
 
-func (s *IPAddressSerializationSuite) TestParsingSerializedData(c *gc.C) {
+func (s *IPAddressSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
 	initial := ipaddresses{
 		Version: 1,
 		IPAddresses_: []*ipaddress{
@@ -65,6 +67,39 @@ func (s *IPAddressSerializationSuite) TestParsingSerializedData(c *gc.C) {
 				DNSServers:       []string{"10.1.0.1", "10.2.0.1"},
 				DNSSearchDomains: []string{"bam", "mam"},
 				GatewayAddress:   "10.0.0.1",
+			}),
+			newIPAddress(IPAddressArgs{Value: "10.0.0.5"}),
+		},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	addresses, err := importIPAddresses(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(addresses, jc.DeepEquals, initial.IPAddresses_)
+}
+
+func (s *IPAddressSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
+	initial := ipaddresses{
+		Version: 2,
+		IPAddresses_: []*ipaddress{
+			newIPAddress(IPAddressArgs{
+				SubnetCIDR:       "10.0.0.0/24",
+				ProviderID:       "magic",
+				DeviceName:       "foo",
+				MachineID:        "bar",
+				ConfigMethod:     "static",
+				Value:            "10.0.0.4",
+				DNSServers:       []string{"10.1.0.1", "10.2.0.1"},
+				DNSSearchDomains: []string{"bam", "mam"},
+				GatewayAddress:   "10.0.0.1",
+				IsDefaultGateway: true,
 			}),
 			newIPAddress(IPAddressArgs{Value: "10.0.0.5"}),
 		},

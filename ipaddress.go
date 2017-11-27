@@ -23,6 +23,7 @@ type ipaddress struct {
 	DNSServers_       []string `yaml:"dns-servers"`
 	DNSSearchDomains_ []string `yaml:"dns-search-domains"`
 	GatewayAddress_   string   `yaml:"gateway-address"`
+	IsDefaultGateway_ bool     `yaml:"is-default-gateway"`
 }
 
 // ProviderID implements IPAddress.
@@ -70,6 +71,11 @@ func (i *ipaddress) GatewayAddress() string {
 	return i.GatewayAddress_
 }
 
+// IsDefaultGateway implements IPAddress.
+func (i *ipaddress) IsDefaultGateway() bool {
+	return i.IsDefaultGateway_
+}
+
 // IPAddressArgs is an argument struct used to create a
 // new internal ipaddress type that supports the IPAddress interface.
 type IPAddressArgs struct {
@@ -82,6 +88,7 @@ type IPAddressArgs struct {
 	DNSServers       []string
 	DNSSearchDomains []string
 	GatewayAddress   string
+	IsDefaultGateway bool
 }
 
 func newIPAddress(args IPAddressArgs) *ipaddress {
@@ -95,6 +102,7 @@ func newIPAddress(args IPAddressArgs) *ipaddress {
 		DNSServers_:       args.DNSServers,
 		DNSSearchDomains_: args.DNSSearchDomains,
 		GatewayAddress_:   args.GatewayAddress,
+		IsDefaultGateway_: args.IsDefaultGateway,
 	}
 }
 
@@ -135,6 +143,21 @@ type ipaddressDeserializationFunc func(map[string]interface{}) (*ipaddress, erro
 
 var ipaddressDeserializationFuncs = map[int]ipaddressDeserializationFunc{
 	1: importIPAddressV1,
+	2: importIPAddressV2,
+}
+
+func parseDnsFields(valid map[string]interface{}) ([]string, []string) {
+	dnsserversInterface := valid["dns-servers"].([]interface{})
+	dnsservers := make([]string, len(dnsserversInterface))
+	for i, d := range dnsserversInterface {
+		dnsservers[i] = d.(string)
+	}
+	dnssearchInterface := valid["dns-search-domains"].([]interface{})
+	dnssearch := make([]string, len(dnssearchInterface))
+	for i, d := range dnssearchInterface {
+		dnssearch[i] = d.(string)
+	}
+	return dnsservers, dnssearch
 }
 
 func importIPAddressV1(source map[string]interface{}) (*ipaddress, error) {
@@ -160,16 +183,7 @@ func importIPAddressV1(source map[string]interface{}) (*ipaddress, error) {
 		return nil, errors.Annotatef(err, "ip address v1 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
-	dnsserversInterface := valid["dns-servers"].([]interface{})
-	dnsservers := make([]string, len(dnsserversInterface))
-	for i, d := range dnsserversInterface {
-		dnsservers[i] = d.(string)
-	}
-	dnssearchInterface := valid["dns-search-domains"].([]interface{})
-	dnssearch := make([]string, len(dnssearchInterface))
-	for i, d := range dnssearchInterface {
-		dnssearch[i] = d.(string)
-	}
+	dnsservers, dnssearch := parseDnsFields(valid)
 	return &ipaddress{
 		ProviderID_:       valid["provider-id"].(string),
 		DeviceName_:       valid["device-name"].(string),
@@ -180,5 +194,45 @@ func importIPAddressV1(source map[string]interface{}) (*ipaddress, error) {
 		DNSServers_:       dnsservers,
 		DNSSearchDomains_: dnssearch,
 		GatewayAddress_:   valid["gateway-address"].(string),
+	}, nil
+}
+
+func importIPAddressV2(source map[string]interface{}) (*ipaddress, error) {
+	fields := schema.Fields{
+		"provider-id":        schema.String(),
+		"device-name":        schema.String(),
+		"machine-id":         schema.String(),
+		"subnet-cidr":        schema.String(),
+		"config-method":      schema.String(),
+		"value":              schema.String(),
+		"dns-servers":        schema.List(schema.String()),
+		"dns-search-domains": schema.List(schema.String()),
+		"gateway-address":    schema.String(),
+		"is-default-gateway": schema.Bool(),
+	}
+	// Some values don't have to be there.
+	defaults := schema.Defaults{
+		"provider-id":        "",
+		"is-default-gateway": false,
+	}
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "ip address v1 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	dnsservers, dnssearch := parseDnsFields(valid)
+	return &ipaddress{
+		ProviderID_:       valid["provider-id"].(string),
+		DeviceName_:       valid["device-name"].(string),
+		MachineID_:        valid["machine-id"].(string),
+		SubnetCIDR_:       valid["subnet-cidr"].(string),
+		ConfigMethod_:     valid["config-method"].(string),
+		Value_:            valid["value"].(string),
+		DNSServers_:       dnsservers,
+		DNSSearchDomains_: dnssearch,
+		GatewayAddress_:   valid["gateway-address"].(string),
+		IsDefaultGateway_: valid["is-default-gateway"].(bool),
 	}, nil
 }
