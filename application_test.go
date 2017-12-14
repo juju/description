@@ -99,7 +99,7 @@ func minimalApplicationArgs() ApplicationArgs {
 		CharmURL:             "cs:trusty/ubuntu",
 		Channel:              "stable",
 		CharmModifiedVersion: 1,
-		Settings: map[string]interface{}{
+		CharmConfig: map[string]interface{}{
 			"key": "value",
 		},
 		Leader: "ubuntu/0",
@@ -124,7 +124,10 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		EndpointBindings: map[string]string{
 			"rel-name": "some-space",
 		},
-		Settings: map[string]interface{}{
+		ApplicationConfig: map[string]interface{}{
+			"config key": "config value",
+		},
+		CharmConfig: map[string]interface{}{
 			"key": "value",
 		},
 		Leader: "magic/1",
@@ -146,7 +149,8 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.Exposed(), jc.IsTrue)
 	c.Assert(application.MinUnits(), gc.Equals, 42)
 	c.Assert(application.EndpointBindings(), jc.DeepEquals, args.EndpointBindings)
-	c.Assert(application.Settings(), jc.DeepEquals, args.Settings)
+	c.Assert(application.ApplicationConfig(), jc.DeepEquals, args.ApplicationConfig)
+	c.Assert(application.CharmConfig(), jc.DeepEquals, args.CharmConfig)
 	c.Assert(application.Leader(), gc.Equals, "magic/1")
 	c.Assert(application.LeadershipSettings(), jc.DeepEquals, args.LeadershipSettings)
 	c.Assert(application.MetricsCredentials(), jc.DeepEquals, []byte("sekrit"))
@@ -187,7 +191,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 2)
+	return s.exportImportVersion(c, application_, 3)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -199,10 +203,18 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
+func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
+	args := minimalApplicationArgs()
+	appV1 := minimalApplication(args)
+	appLatest := minimalApplication()
+	appResult := s.exportImportVersion(c, appV1, 2)
+	c.Assert(appResult, jc.DeepEquals, appLatest)
+}
+
 func (s *ApplicationSerializationSuite) TestParsingSerializedData(c *gc.C) {
-	svc := minimalApplication()
-	application := s.exportImportLatest(c, svc)
-	c.Assert(application, jc.DeepEquals, svc)
+	app := minimalApplication()
+	application := s.exportImportLatest(c, app)
+	c.Assert(application, jc.DeepEquals, app)
 }
 
 func (s *ApplicationSerializationSuite) TestEndpointBindings(c *gc.C) {
@@ -264,6 +276,21 @@ func (s *ApplicationSerializationSuite) TestStorageConstraints(c *gc.C) {
 	c.Check(second.Pool(), gc.Equals, "second")
 	c.Check(second.Size(), gc.Equals, uint64(4321))
 	c.Check(second.Count(), gc.Equals, uint64(7))
+}
+
+func (s *ApplicationSerializationSuite) TestApplicationConfig(c *gc.C) {
+	args := minimalApplicationArgs()
+	args.ApplicationConfig = map[string]interface{}{
+		"first":  "value 1",
+		"second": 42,
+	}
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.ApplicationConfig(), jc.DeepEquals, map[string]interface{}{
+		"first":  "value 1",
+		"second": 42,
+	})
 }
 
 func (s *ApplicationSerializationSuite) TestLeaderValid(c *gc.C) {

@@ -34,7 +34,8 @@ type Application interface {
 
 	EndpointBindings() map[string]string
 
-	Settings() map[string]interface{}
+	CharmConfig() map[string]interface{}
+	ApplicationConfig() map[string]interface{}
 
 	Leader() string
 	LeadershipSettings() map[string]interface{}
@@ -76,7 +77,8 @@ type application struct {
 
 	EndpointBindings_ map[string]string `yaml:"endpoint-bindings,omitempty"`
 
-	Settings_ map[string]interface{} `yaml:"settings"`
+	CharmConfig_       map[string]interface{} `yaml:"settings"`
+	ApplicationConfig_ map[string]interface{} `yaml:"application-config,omitempty"`
 
 	Leader_             string                 `yaml:"leader,omitempty"`
 	LeadershipSettings_ map[string]interface{} `yaml:"leadership-settings"`
@@ -107,7 +109,8 @@ type ApplicationArgs struct {
 	Exposed              bool
 	MinUnits             int
 	EndpointBindings     map[string]string
-	Settings             map[string]interface{}
+	ApplicationConfig    map[string]interface{}
+	CharmConfig          map[string]interface{}
 	Leader               string
 	LeadershipSettings   map[string]interface{}
 	StorageConstraints   map[string]StorageConstraintArgs
@@ -128,7 +131,8 @@ func newApplication(args ApplicationArgs) *application {
 		Exposed_:              args.Exposed,
 		MinUnits_:             args.MinUnits,
 		EndpointBindings_:     args.EndpointBindings,
-		Settings_:             args.Settings,
+		ApplicationConfig_:    args.ApplicationConfig,
+		CharmConfig_:          args.CharmConfig,
 		Leader_:               args.Leader,
 		LeadershipSettings_:   args.LeadershipSettings,
 		MetricsCredentials_:   creds,
@@ -205,9 +209,14 @@ func (a *application) EndpointBindings() map[string]string {
 	return a.EndpointBindings_
 }
 
-// Settings implements Application.
-func (a *application) Settings() map[string]interface{} {
-	return a.Settings_
+// ApplicationConfig implements Application.
+func (a *application) ApplicationConfig() map[string]interface{} {
+	return a.ApplicationConfig_
+}
+
+// CharmConfig implements Application.
+func (a *application) CharmConfig() map[string]interface{} {
+	return a.CharmConfig_
 }
 
 // Leader implements Application.
@@ -392,6 +401,7 @@ type applicationDeserializationFunc func(map[string]interface{}) (*application, 
 var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	1: importApplicationV1,
 	2: importApplicationV2,
+	3: importApplicationV3,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -425,10 +435,23 @@ func applicationV1Fields() (schema.Fields, schema.Defaults) {
 		"metrics-creds":       "",
 		"storage-constraints": schema.Omit,
 		"endpoint-bindings":   schema.Omit,
+		"application-config":  schema.Omit,
 	}
 	addAnnotationSchema(fields, defaults)
 	addConstraintsSchema(fields, defaults)
 	addStatusHistorySchema(fields)
+	return fields, defaults
+}
+
+func applicationV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV1Fields()
+	fields["type"] = schema.String()
+	return fields, defaults
+}
+
+func applicationV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV2Fields()
+	fields["application-config"] = schema.StringMap(schema.Any())
 	return fields, defaults
 }
 
@@ -438,9 +461,13 @@ func importApplicationV1(source map[string]interface{}) (*application, error) {
 }
 
 func importApplicationV2(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV1Fields()
-	fields["type"] = schema.String()
+	fields, defaults := applicationV2Fields()
 	return importApplication(fields, defaults, 2, source)
+}
+
+func importApplicationV3(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV3Fields()
+	return importApplication(fields, defaults, 3, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -465,7 +492,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		Exposed_:              valid["exposed"].(bool),
 		MinUnits_:             int(valid["min-units"].(int64)),
 		EndpointBindings_:     convertToStringMap(valid["endpoint-bindings"]),
-		Settings_:             valid["settings"].(map[string]interface{}),
+		CharmConfig_:          valid["settings"].(map[string]interface{}),
 		Leader_:               valid["leader"].(string),
 		LeadershipSettings_:   valid["leadership-settings"].(map[string]interface{}),
 		StatusHistory_:        newStatusHistory(),
@@ -479,6 +506,14 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 
 	if err := result.importStatusHistory(valid); err != nil {
 		return nil, errors.Trace(err)
+	}
+
+	if configValues, ok := valid["application-config"]; ok {
+		configMap, ok := configValues.(map[string]interface{})
+		if !ok {
+			return nil, errors.Errorf("unexpected value for application-config, %T", configValues)
+		}
+		result.ApplicationConfig_ = configMap
 	}
 
 	if constraintsMap, ok := valid["constraints"]; ok {

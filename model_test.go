@@ -315,7 +315,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksApplications(c *gc.C)
 func (s *ModelSerializationSuite) addApplicationToModel(model Model, name string, numUnits int) Application {
 	application := model.AddApplication(ApplicationArgs{
 		Tag:                names.NewApplicationTag(name),
-		Settings:           map[string]interface{}{},
+		CharmConfig:        map[string]interface{}{},
 		LeadershipSettings: map[string]interface{}{},
 	})
 	application.SetStatus(minimalStatusArgs())
