@@ -31,6 +31,7 @@ type Application interface {
 	ForceCharm() bool
 	Exposed() bool
 	MinUnits() int
+	PasswordHash() string
 
 	EndpointBindings() map[string]string
 
@@ -94,6 +95,7 @@ type application struct {
 
 	Constraints_        *constraints                  `yaml:"constraints,omitempty"`
 	StorageConstraints_ map[string]*storageconstraint `yaml:"storage-constraints,omitempty"`
+	PasswordHash_       string                        `yaml:"password-hash,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -106,6 +108,7 @@ type ApplicationArgs struct {
 	Channel              string
 	CharmModifiedVersion int
 	ForceCharm           bool
+	PasswordHash         string
 	Exposed              bool
 	MinUnits             int
 	EndpointBindings     map[string]string
@@ -129,6 +132,7 @@ func newApplication(args ApplicationArgs) *application {
 		CharmModifiedVersion_: args.CharmModifiedVersion,
 		ForceCharm_:           args.ForceCharm,
 		Exposed_:              args.Exposed,
+		PasswordHash_:         args.PasswordHash,
 		MinUnits_:             args.MinUnits,
 		EndpointBindings_:     args.EndpointBindings,
 		ApplicationConfig_:    args.ApplicationConfig,
@@ -197,6 +201,11 @@ func (a *application) ForceCharm() bool {
 // Exposed implements Application.
 func (a *application) Exposed() bool {
 	return a.Exposed_
+}
+
+// PasswordHash implements Application.
+func (a *application) PasswordHash() string {
+	return a.PasswordHash_
 }
 
 // MinUnits implements Application.
@@ -452,6 +461,8 @@ func applicationV2Fields() (schema.Fields, schema.Defaults) {
 func applicationV3Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV2Fields()
 	fields["application-config"] = schema.StringMap(schema.Any())
+	fields["password-hash"] = schema.String()
+	defaults["password-hash"] = ""
 	return fields, defaults
 }
 
@@ -500,6 +511,9 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 
 	if importVersion >= 2 {
 		result.Type_ = valid["type"].(string)
+	}
+	if importVersion >= 3 {
+		result.PasswordHash_ = valid["password-hash"].(string)
 	}
 
 	result.importAnnotations(valid)
