@@ -135,6 +135,7 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 			"leader": true,
 		},
 		MetricsCredentials: []byte("sekrit"),
+		PasswordHash:       "passwordhash",
 	}
 	application := newApplication(args)
 
@@ -147,6 +148,7 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.CharmModifiedVersion(), gc.Equals, 1)
 	c.Assert(application.ForceCharm(), jc.IsTrue)
 	c.Assert(application.Exposed(), jc.IsTrue)
+	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 	c.Assert(application.MinUnits(), gc.Equals, 42)
 	c.Assert(application.EndpointBindings(), jc.DeepEquals, args.EndpointBindings)
 	c.Assert(application.ApplicationConfig(), jc.DeepEquals, args.ApplicationConfig)
@@ -291,6 +293,15 @@ func (s *ApplicationSerializationSuite) TestApplicationConfig(c *gc.C) {
 		"first":  "value 1",
 		"second": 42,
 	})
+}
+
+func (s *ApplicationSerializationSuite) TestPasswordHash(c *gc.C) {
+	args := minimalApplicationArgs()
+	args.PasswordHash = "passwordhash"
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 }
 
 func (s *ApplicationSerializationSuite) TestLeaderValid(c *gc.C) {
