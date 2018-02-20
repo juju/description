@@ -4,6 +4,8 @@
 package description
 
 import (
+	"time"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 )
@@ -14,18 +16,19 @@ type cloudimagemetadataset struct {
 }
 
 type cloudimagemetadata struct {
-	Stream_          string  `yaml:"stream"`
-	Region_          string  `yaml:"region"`
-	Version_         string  `yaml:"version"`
-	Series_          string  `yaml:"series"`
-	Arch_            string  `yaml:"arch"`
-	VirtType_        string  `yaml:"virt-type"`
-	RootStorageType_ string  `yaml:"root-storage-type"`
-	RootStorageSize_ *uint64 `yaml:"root-storage-size,omitempty"`
-	DateCreated_     int64   `yaml:"date-created"`
-	Source_          string  `yaml:"source"`
-	Priority_        int     `yaml:"priority"`
-	ImageId_         string  `yaml:"image-id"`
+	Stream_          string     `yaml:"stream"`
+	Region_          string     `yaml:"region"`
+	Version_         string     `yaml:"version"`
+	Series_          string     `yaml:"series"`
+	Arch_            string     `yaml:"arch"`
+	VirtType_        string     `yaml:"virt-type"`
+	RootStorageType_ string     `yaml:"root-storage-type"`
+	RootStorageSize_ *uint64    `yaml:"root-storage-size,omitempty"`
+	DateCreated_     int64      `yaml:"date-created"`
+	Source_          string     `yaml:"source"`
+	Priority_        int        `yaml:"priority"`
+	ImageId_         string     `yaml:"image-id"`
+	ExpireAt_        *time.Time `yaml:"expire-at,omitempty"`
 }
 
 // Stream implements CloudImageMetadata.
@@ -91,6 +94,11 @@ func (i *cloudimagemetadata) ImageId() string {
 	return i.ImageId_
 }
 
+// ExpireAt implements CloudImageMetadata.
+func (i *cloudimagemetadata) ExpireAt() *time.Time {
+	return i.ExpireAt_
+}
+
 // CloudImageMetadataArgs is an argument struct used to create a
 // new internal cloudimagemetadata type that supports the CloudImageMetadata interface.
 type CloudImageMetadataArgs struct {
@@ -106,6 +114,7 @@ type CloudImageMetadataArgs struct {
 	Source          string
 	Priority        int
 	ImageId         string
+	ExpireAt        *time.Time
 }
 
 func newCloudImageMetadata(args CloudImageMetadataArgs) *cloudimagemetadata {
@@ -122,6 +131,7 @@ func newCloudImageMetadata(args CloudImageMetadataArgs) *cloudimagemetadata {
 		Source_:          args.Source,
 		Priority_:        args.Priority,
 		ImageId_:         args.ImageId,
+		ExpireAt_:        args.ExpireAt,
 	}
 	return cloudimagemetadata
 }
@@ -179,10 +189,12 @@ func importCloudImageMetadataV1(source map[string]interface{}) (*cloudimagemetad
 		"source":            schema.String(),
 		"priority":          schema.Int(),
 		"image-id":          schema.String(),
+		"expire-at":         schema.Time(),
 	}
 	// Some values don't have to be there.
 	defaults := schema.Defaults{
 		"root-storage-size": schema.Omit,
+		"expire-at":         schema.Omit,
 	}
 	checker := schema.FieldMap(fields, defaults)
 
@@ -196,6 +208,12 @@ func importCloudImageMetadataV1(source map[string]interface{}) (*cloudimagemetad
 	if ok {
 		rootStorageSize := valid["root-storage-size"].(uint64)
 		pointerSize = &rootStorageSize
+	}
+	_, ok = valid["expire-at"]
+	var expireAtPtr *time.Time
+	if ok {
+		expireAt := valid["expire-at"].(time.Time)
+		expireAtPtr = &expireAt
 	}
 
 	cloudimagemetadata := &cloudimagemetadata{
@@ -211,6 +229,7 @@ func importCloudImageMetadataV1(source map[string]interface{}) (*cloudimagemetad
 		Source_:          valid["source"].(string),
 		Priority_:        int(valid["priority"].(int64)),
 		ImageId_:         valid["image-id"].(string),
+		ExpireAt_:        expireAtPtr,
 	}
 
 	return cloudimagemetadata, nil

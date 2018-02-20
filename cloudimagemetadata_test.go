@@ -4,6 +4,8 @@
 package description
 
 import (
+	"time"
+
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -29,6 +31,7 @@ func (s *CloudImageMetadataSerializationSuite) SetUpTest(c *gc.C) {
 
 func (s *CloudImageMetadataSerializationSuite) TestNewCloudImageMetadata(c *gc.C) {
 	storageSize := uint64(3)
+	now := time.Now()
 	args := CloudImageMetadataArgs{
 		Stream:          "stream",
 		Region:          "region-test",
@@ -42,6 +45,7 @@ func (s *CloudImageMetadataSerializationSuite) TestNewCloudImageMetadata(c *gc.C
 		Priority:        0,
 		ImageId:         "foo",
 		DateCreated:     0,
+		ExpireAt:        &now,
 	}
 	metadata := newCloudImageMetadata(args)
 	c.Check(metadata.Stream(), gc.Equals, args.Stream)
@@ -58,10 +62,12 @@ func (s *CloudImageMetadataSerializationSuite) TestNewCloudImageMetadata(c *gc.C
 	c.Check(metadata.Priority(), gc.Equals, args.Priority)
 	c.Check(metadata.ImageId(), gc.Equals, args.ImageId)
 	c.Check(metadata.DateCreated(), gc.Equals, args.DateCreated)
+	c.Check(metadata.ExpireAt(), gc.DeepEquals, args.ExpireAt)
 }
 
 func (s *CloudImageMetadataSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	storageSize := uint64(3)
+	now := time.Now()
 	initial := cloudimagemetadataset{
 		Version: 1,
 		CloudImageMetadata_: []*cloudimagemetadata{
@@ -78,6 +84,7 @@ func (s *CloudImageMetadataSerializationSuite) TestParsingSerializedData(c *gc.C
 				Priority:        0,
 				ImageId:         "foo",
 				DateCreated:     0,
+				ExpireAt:        &now,
 			}),
 			newCloudImageMetadata(CloudImageMetadataArgs{
 				Stream:  "stream",
