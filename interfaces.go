@@ -119,6 +119,7 @@ type CloudImageMetadata interface {
 	Source() string
 	Priority() int
 	ImageId() string
+	ExpireAt() *time.Time
 }
 
 // Action represents an IP action.
