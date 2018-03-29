@@ -44,6 +44,8 @@ type unit struct {
 	Resources_ unitResources `yaml:"resources"`
 
 	Payloads_ payloads `yaml:"payloads"`
+
+	CloudContainer_ *cloudContainer `yaml:"cloud-container,omitempty"`
 }
 
 // UnitArgs is an argument struct used to add a Unit to a Application in the Model.
@@ -58,6 +60,8 @@ type UnitArgs struct {
 	MeterStatusCode string
 	MeterStatusInfo string
 
+	CloudContainer *cloudContainer
+
 	// TODO: storage attachment count
 }
 
@@ -70,6 +74,7 @@ func newUnit(args UnitArgs) *unit {
 		Name_:                   args.Tag.Id(),
 		Machine_:                args.Machine.Id(),
 		PasswordHash_:           args.PasswordHash,
+		CloudContainer_:         args.CloudContainer,
 		Principal_:              args.Principal.Id(),
 		Subordinates_:           subordinates,
 		WorkloadVersion_:        args.WorkloadVersion,
@@ -208,6 +213,19 @@ func (u *unit) SetAgentStatusHistory(args []StatusArgs) {
 	u.AgentStatusHistory_.SetStatusHistory(args)
 }
 
+// CloudContainer implements Unit.
+func (u *unit) CloudContainer() CloudContainer {
+	if u.CloudContainer_ == nil {
+		return nil
+	}
+	return u.CloudContainer_
+}
+
+// SetCloudContainer implements Unit.
+func (u *unit) SetCloudContainer(args CloudContainerArgs) {
+	u.CloudContainer_ = newCloudContainer(args)
+}
+
 // Constraints implements HasConstraints.
 func (u *unit) Constraints() Constraints {
 	if u.Constraints_ == nil {
@@ -321,9 +339,10 @@ type unitDeserializationFunc func(map[string]interface{}) (*unit, error)
 
 var unitDeserializationFuncs = map[int]unitDeserializationFunc{
 	1: importUnitV1,
+	2: importUnitV2,
 }
 
-func importUnitV1(source map[string]interface{}) (*unit, error) {
+func unitV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"name":    schema.String(),
 		"machine": schema.String(),
@@ -356,6 +375,27 @@ func importUnitV1(source map[string]interface{}) (*unit, error) {
 	}
 	addAnnotationSchema(fields, defaults)
 	addConstraintsSchema(fields, defaults)
+	return fields, defaults
+}
+
+func unitV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := unitV1Fields()
+	fields["cloud-container"] = schema.StringMap(schema.Any())
+	defaults["cloud-container"] = schema.Omit
+	return fields, defaults
+}
+
+func importUnitV1(source map[string]interface{}) (*unit, error) {
+	fields, defaults := unitV1Fields()
+	return importUnit(fields, defaults, 1, source)
+}
+
+func importUnitV2(source map[string]interface{}) (*unit, error) {
+	fields, defaults := unitV2Fields()
+	return importUnit(fields, defaults, 2, source)
+}
+
+func importUnit(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*unit, error) {
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
@@ -399,6 +439,14 @@ func importUnitV1(source map[string]interface{}) (*unit, error) {
 			return nil, errors.Trace(err)
 		}
 		result.Constraints_ = constraints
+	}
+
+	if cloudContainerMap, ok := valid["cloud-container"]; ok {
+		cloudContainer, err := importCloudContainer(cloudContainerMap.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.CloudContainer_ = cloudContainer
 	}
 
 	result.Subordinates_ = convertToStringSlice(valid["subordinates"])

@@ -60,10 +60,17 @@ func minimalApplicationMap() map[interface{}]interface{} {
 			},
 		},
 		"units": map[interface{}]interface{}{
-			"version": 1,
+			"version": 2,
 			"units": []interface{}{
 				minimalUnitMap(),
 			},
+		},
+		"password-hash": "some-hash",
+		"pod-spec":      "some-spec",
+		"cloud-service": map[interface{}]interface{}{
+			"version":     1,
+			"provider-id": "some-provider",
+			"addresses":   []interface{}{"10.0.0.1", "10.0.0.2"},
 		},
 	}
 }
@@ -107,6 +114,13 @@ func minimalApplicationArgs() ApplicationArgs {
 			"leader": true,
 		},
 		MetricsCredentials: []byte("sekrit"),
+		PasswordHash:       "some-hash",
+		PodSpec:            "some-spec",
+		CloudService: &cloudService{
+			Version:     1,
+			ProviderId_: "some-provider",
+			Addresses_:  []string{"10.0.0.1", "10.0.0.2"},
+		},
 	}
 }
 
@@ -136,6 +150,8 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		},
 		MetricsCredentials: []byte("sekrit"),
 		PasswordHash:       "passwordhash",
+		PodSpec:            "podspec",
+		CloudService:       &cloudService{},
 	}
 	application := newApplication(args)
 
@@ -149,6 +165,8 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.ForceCharm(), jc.IsTrue)
 	c.Assert(application.Exposed(), jc.IsTrue)
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
+	c.Assert(application.PodSpec(), gc.Equals, "podspec")
+	c.Assert(application.CloudService(), jc.DeepEquals, args.CloudService)
 	c.Assert(application.MinUnits(), gc.Equals, 42)
 	c.Assert(application.EndpointBindings(), jc.DeepEquals, args.EndpointBindings)
 	c.Assert(application.ApplicationConfig(), jc.DeepEquals, args.ApplicationConfig)
@@ -200,7 +218,13 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	args := minimalApplicationArgs()
 	args.Type = ""
 	appV1 := minimalApplication(args)
+
+	// Make an app with fields not in v1 removed.
 	appLatest := minimalApplication()
+	appLatest.PasswordHash_ = ""
+	appLatest.PodSpec_ = ""
+	appLatest.CloudService_ = nil
+
 	appResult := s.exportImportVersion(c, appV1, 1)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
@@ -208,7 +232,13 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	args := minimalApplicationArgs()
 	appV1 := minimalApplication(args)
+
+	// Make an app with fields not in v2 removed.
 	appLatest := minimalApplication()
+	appLatest.PasswordHash_ = ""
+	appLatest.PodSpec_ = ""
+	appLatest.CloudService_ = nil
+
 	appResult := s.exportImportVersion(c, appV1, 2)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
@@ -302,6 +332,28 @@ func (s *ApplicationSerializationSuite) TestPasswordHash(c *gc.C) {
 
 	application := s.exportImportLatest(c, initial)
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
+}
+
+func (s *ApplicationSerializationSuite) TestPodSpec(c *gc.C) {
+	args := minimalApplicationArgs()
+	args.PodSpec = "podspec"
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.PodSpec(), gc.Equals, "podspec")
+}
+
+func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {
+	args := minimalApplicationArgs()
+	initial := minimalApplication(args)
+	serviceArgs := CloudServiceArgs{
+		ProviderId: "some-provider",
+		Addresses:  []string{"10.0.0.1", "10.0.0.2"},
+	}
+	initial.SetCloudService(serviceArgs)
+
+	app := s.exportImportLatest(c, initial)
+	c.Assert(app.CloudService(), jc.DeepEquals, newCloudService(serviceArgs))
 }
 
 func (s *ApplicationSerializationSuite) TestLeaderValid(c *gc.C) {
