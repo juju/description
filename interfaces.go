@@ -19,7 +19,7 @@ type AgentTools interface {
 	Size() int64
 }
 
-// Unit represents an instance of an application in a model.
+// Unit represents an instance of a unit in a model.
 type Unit interface {
 	HasAnnotations
 	HasConstraints
@@ -61,6 +61,9 @@ type Unit interface {
 
 	AddPayload(PayloadArgs) Payload
 	Payloads() []Payload
+
+	CloudContainer() CloudContainer
+	SetCloudContainer(CloudContainerArgs)
 
 	Validate() error
 }
@@ -239,4 +242,17 @@ type StorageConstraint interface {
 type StorageInstanceConstraints struct {
 	Pool string
 	Size uint64
+}
+
+// CloudContainer represents the state of a CAAS container, eg pod.
+type CloudContainer interface {
+	ProviderId() string
+	Address() string
+	Ports() []string
+}
+
+// CloudService represents the state of a CAAS service.
+type CloudService interface {
+	ProviderId() string
+	Addresses() []string
 }

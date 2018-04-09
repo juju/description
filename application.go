@@ -31,7 +31,11 @@ type Application interface {
 	ForceCharm() bool
 	Exposed() bool
 	MinUnits() int
+
 	PasswordHash() string
+	PodSpec() string
+	CloudService() CloudService
+	SetCloudService(CloudServiceArgs)
 
 	EndpointBindings() map[string]string
 
@@ -95,7 +99,10 @@ type application struct {
 
 	Constraints_        *constraints                  `yaml:"constraints,omitempty"`
 	StorageConstraints_ map[string]*storageconstraint `yaml:"storage-constraints,omitempty"`
-	PasswordHash_       string                        `yaml:"password-hash,omitempty"`
+
+	PasswordHash_ string        `yaml:"password-hash,omitempty"`
+	PodSpec_      string        `yaml:"pod-spec,omitempty"`
+	CloudService_ *cloudService `yaml:"cloud-service,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -109,6 +116,8 @@ type ApplicationArgs struct {
 	CharmModifiedVersion int
 	ForceCharm           bool
 	PasswordHash         string
+	PodSpec              string
+	CloudService         *cloudService
 	Exposed              bool
 	MinUnits             int
 	EndpointBindings     map[string]string
@@ -133,6 +142,8 @@ func newApplication(args ApplicationArgs) *application {
 		ForceCharm_:           args.ForceCharm,
 		Exposed_:              args.Exposed,
 		PasswordHash_:         args.PasswordHash,
+		PodSpec_:              args.PodSpec,
+		CloudService_:         args.CloudService,
 		MinUnits_:             args.MinUnits,
 		EndpointBindings_:     args.EndpointBindings,
 		ApplicationConfig_:    args.ApplicationConfig,
@@ -206,6 +217,11 @@ func (a *application) Exposed() bool {
 // PasswordHash implements Application.
 func (a *application) PasswordHash() string {
 	return a.PasswordHash_
+}
+
+// PodSpec implements Application.
+func (a *application) PodSpec() string {
+	return a.PodSpec_
 }
 
 // MinUnits implements Application.
@@ -297,7 +313,7 @@ func (a *application) AddUnit(args UnitArgs) Unit {
 
 func (a *application) setUnits(unitList []*unit) {
 	a.Units_ = units{
-		Version: 1,
+		Version: 2,
 		Units_:  unitList,
 	}
 }
@@ -313,6 +329,19 @@ func (a *application) Constraints() Constraints {
 // SetConstraints implements HasConstraints.
 func (a *application) SetConstraints(args ConstraintsArgs) {
 	a.Constraints_ = newConstraints(args)
+}
+
+// CloudService implements Application.
+func (a *application) CloudService() CloudService {
+	if a.CloudService_ == nil {
+		return nil
+	}
+	return a.CloudService_
+}
+
+// SetCloudService implements Application.
+func (a *application) SetCloudService(args CloudServiceArgs) {
+	a.CloudService_ = newCloudService(args)
 }
 
 // Resources implements Application.
@@ -462,7 +491,11 @@ func applicationV3Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV2Fields()
 	fields["application-config"] = schema.StringMap(schema.Any())
 	fields["password-hash"] = schema.String()
+	fields["pod-spec"] = schema.String()
+	fields["cloud-service"] = schema.StringMap(schema.Any())
 	defaults["password-hash"] = ""
+	defaults["pod-spec"] = ""
+	defaults["cloud-service"] = schema.Omit
 	return fields, defaults
 }
 
@@ -514,6 +547,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	}
 	if importVersion >= 3 {
 		result.PasswordHash_ = valid["password-hash"].(string)
+		result.PodSpec_ = valid["pod-spec"].(string)
 	}
 
 	result.importAnnotations(valid)
@@ -544,6 +578,14 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 			return nil, errors.Trace(err)
 		}
 		result.StorageConstraints_ = constraints
+	}
+
+	if cloudServiceMap, ok := valid["cloud-service"]; ok {
+		cloudService, err := importCloudService(cloudServiceMap.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.CloudService_ = cloudService
 	}
 
 	encodedCreds := valid["metrics-creds"].(string)

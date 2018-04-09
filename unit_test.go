@@ -47,6 +47,12 @@ func minimalUnitMap() map[interface{}]interface{} {
 			"version":  1,
 			"payloads": []interface{}{},
 		},
+		"cloud-container": map[interface{}]interface{}{
+			"version":     1,
+			"provider-id": "some-provider",
+			"address":     "10.0.0.1",
+			"ports":       []interface{}{"80", "443"},
+		},
 	}
 }
 
@@ -55,6 +61,7 @@ func minimalUnit() *unit {
 	u.SetAgentStatus(minimalStatusArgs())
 	u.SetWorkloadStatus(minimalStatusArgs())
 	u.SetTools(minimalAgentToolsArgs())
+	u.SetCloudContainer(minimalCloudContainerArgs())
 	return u
 }
 
@@ -63,6 +70,12 @@ func minimalUnitArgs() UnitArgs {
 		Tag:          names.NewUnitTag("ubuntu/0"),
 		Machine:      names.NewMachineTag("0"),
 		PasswordHash: "secure-hash",
+		CloudContainer: &cloudContainer{
+			Version:     1,
+			ProviderId_: "some-provider",
+			Address_:    "10.0.0.1",
+			Ports_:      []string{"80", "443"},
+		},
 	}
 }
 
@@ -87,6 +100,7 @@ func (s *UnitSerializationSuite) completeUnit() *unit {
 	unit.SetAgentStatus(minimalStatusArgs())
 	unit.SetWorkloadStatus(minimalStatusArgs())
 	unit.SetTools(minimalAgentToolsArgs())
+	unit.SetCloudContainer(minimalCloudContainerArgs())
 	return unit
 }
 
@@ -108,6 +122,7 @@ func (s *UnitSerializationSuite) TestNewUnit(c *gc.C) {
 	c.Assert(unit.Tools(), gc.NotNil)
 	c.Assert(unit.WorkloadStatus(), gc.NotNil)
 	c.Assert(unit.AgentStatus(), gc.NotNil)
+	c.Assert(unit.CloudContainer(), gc.NotNil)
 }
 
 func (s *UnitSerializationSuite) TestMinimalUnitValid(c *gc.C) {
@@ -125,9 +140,9 @@ func (s *UnitSerializationSuite) TestMinimalMatches(c *gc.C) {
 	c.Assert(source, jc.DeepEquals, minimalUnitMap())
 }
 
-func (s *UnitSerializationSuite) exportImport(c *gc.C, unit_ *unit) *unit {
+func (s *UnitSerializationSuite) exportImportVersion(c *gc.C, unit_ *unit, version int) *unit {
 	initial := units{
-		Version: 1,
+		Version: version,
 		Units_:  []*unit{unit_},
 	}
 
@@ -144,10 +159,25 @@ func (s *UnitSerializationSuite) exportImport(c *gc.C, unit_ *unit) *unit {
 	return units[0]
 }
 
+func (s *UnitSerializationSuite) exportImportLatest(c *gc.C, unit *unit) *unit {
+	return s.exportImportVersion(c, unit, 2)
+}
+
 func (s *UnitSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := s.completeUnit()
-	unit := s.exportImport(c, initial)
+	unit := s.exportImportLatest(c, initial)
 	c.Assert(unit, jc.DeepEquals, initial)
+}
+
+func (s *UnitSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
+	unitV1 := minimalUnit()
+
+	// Make a unit with fields not in v1 removed.
+	unitLatest := minimalUnit()
+	unitLatest.CloudContainer_ = nil
+
+	unitResult := s.exportImportVersion(c, unitV1, 1)
+	c.Assert(unitResult, jc.DeepEquals, unitLatest)
 }
 
 func (s *UnitSerializationSuite) TestAnnotations(c *gc.C) {
@@ -158,7 +188,7 @@ func (s *UnitSerializationSuite) TestAnnotations(c *gc.C) {
 	}
 	initial.SetAnnotations(annotations)
 
-	unit := s.exportImport(c, initial)
+	unit := s.exportImportLatest(c, initial)
 	c.Assert(unit.Annotations(), jc.DeepEquals, annotations)
 }
 
@@ -171,8 +201,21 @@ func (s *UnitSerializationSuite) TestConstraints(c *gc.C) {
 	}
 	initial.SetConstraints(args)
 
-	unit := s.exportImport(c, initial)
+	unit := s.exportImportLatest(c, initial)
 	c.Assert(unit.Constraints(), jc.DeepEquals, newConstraints(args))
+}
+
+func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
+	initial := minimalUnit()
+	args := CloudContainerArgs{
+		ProviderId: "some-provider",
+		Address:    "10.0.0.1",
+		Ports:      []string{"80", "443"},
+	}
+	initial.SetCloudContainer(args)
+
+	unit := s.exportImportLatest(c, initial)
+	c.Assert(unit.CloudContainer(), jc.DeepEquals, newCloudContainer(args))
 }
 
 func (s *UnitSerializationSuite) TestAgentStatusHistory(c *gc.C) {
@@ -180,7 +223,7 @@ func (s *UnitSerializationSuite) TestAgentStatusHistory(c *gc.C) {
 	args := testStatusHistoryArgs()
 	initial.SetAgentStatusHistory(args)
 
-	unit := s.exportImport(c, initial)
+	unit := s.exportImportLatest(c, initial)
 	for i, point := range unit.AgentStatusHistory() {
 		c.Check(point.Value(), gc.Equals, args[i].Value)
 		c.Check(point.Message(), gc.Equals, args[i].Message)
@@ -194,7 +237,7 @@ func (s *UnitSerializationSuite) TestWorkloadStatusHistory(c *gc.C) {
 	args := testStatusHistoryArgs()
 	initial.SetWorkloadStatusHistory(args)
 
-	unit := s.exportImport(c, initial)
+	unit := s.exportImportLatest(c, initial)
 	for i, point := range unit.WorkloadStatusHistory() {
 		c.Check(point.Value(), gc.Equals, args[i].Value)
 		c.Check(point.Message(), gc.Equals, args[i].Message)
@@ -218,7 +261,7 @@ func (s *UnitSerializationSuite) TestResources(c *gc.C) {
 		},
 	})
 
-	unit := s.exportImport(c, initial)
+	unit := s.exportImportLatest(c, initial)
 	c.Assert(unit.Resources(), jc.DeepEquals, []UnitResource{rFoo, rBar})
 }
 
@@ -231,7 +274,7 @@ func (s *UnitSerializationSuite) TestPayloads(c *gc.C) {
 	c.Check(expected.State(), gc.Equals, "running")
 	c.Check(expected.Labels(), jc.DeepEquals, []string{"auto", "foo"})
 
-	unit := s.exportImport(c, initial)
+	unit := s.exportImportLatest(c, initial)
 
 	payloads := unit.Payloads()
 	c.Assert(payloads, gc.HasLen, 1)
