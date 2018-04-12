@@ -60,7 +60,7 @@ type UnitArgs struct {
 	MeterStatusCode string
 	MeterStatusInfo string
 
-	CloudContainer *cloudContainer
+	CloudContainer *CloudContainerArgs
 
 	// TODO: storage attachment count
 }
@@ -74,7 +74,7 @@ func newUnit(args UnitArgs) *unit {
 		Name_:                   args.Tag.Id(),
 		Machine_:                args.Machine.Id(),
 		PasswordHash_:           args.PasswordHash,
-		CloudContainer_:         args.CloudContainer,
+		CloudContainer_:         newCloudContainer(args.CloudContainer),
 		Principal_:              args.Principal.Id(),
 		Subordinates_:           subordinates,
 		WorkloadVersion_:        args.WorkloadVersion,
@@ -223,7 +223,7 @@ func (u *unit) CloudContainer() CloudContainer {
 
 // SetCloudContainer implements Unit.
 func (u *unit) SetCloudContainer(args CloudContainerArgs) {
-	u.CloudContainer_ = newCloudContainer(args)
+	u.CloudContainer_ = newCloudContainer(&args)
 }
 
 // Constraints implements HasConstraints.

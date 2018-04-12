@@ -23,7 +23,7 @@ func (s *CloudContainerSerializationSuite) SetUpTest(c *gc.C) {
 	}
 	s.testFields = func(m map[string]interface{}) {
 		m["provider-id"] = ""
-		m["address"] = ""
+		m["address"] = map[string]interface{}{}
 		m["ports"] = ""
 	}
 }
@@ -31,23 +31,24 @@ func (s *CloudContainerSerializationSuite) SetUpTest(c *gc.C) {
 func (*CloudContainerSerializationSuite) allArgs() CloudContainerArgs {
 	return CloudContainerArgs{
 		ProviderId: "some-provider",
-		Address:    "10.0.0.1",
+		Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
 		Ports:      []string{"80", "443"},
 	}
 }
 
 func (s *CloudContainerSerializationSuite) TestAllArgs(c *gc.C) {
 	args := s.allArgs()
-	container := newCloudContainer(args)
+	container := newCloudContainer(&args)
 
 	c.Check(container.ProviderId(), gc.Equals, args.ProviderId)
-	c.Check(container.Address(), gc.Equals, args.Address)
+	c.Check(container.Address(), jc.DeepEquals, &address{Version: 1, Value_: "10.0.0.1", Type_: "special"})
+
 	c.Check(container.Ports(), jc.DeepEquals, args.Ports)
 }
 
 func (s *CloudContainerSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	args := s.allArgs()
-	initial := newCloudContainer(args)
+	initial := newCloudContainer(&args)
 
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)

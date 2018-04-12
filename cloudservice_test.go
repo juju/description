@@ -23,14 +23,17 @@ func (s *CloudServiceSerializationSuite) SetUpTest(c *gc.C) {
 	}
 	s.testFields = func(m map[string]interface{}) {
 		m["provider-id"] = ""
-		m["addresses"] = ""
+		m["addresses"] = []interface{}{}
 	}
 }
 
-func (*CloudServiceSerializationSuite) allArgs() CloudServiceArgs {
-	return CloudServiceArgs{
+func (*CloudServiceSerializationSuite) allArgs() *CloudServiceArgs {
+	return &CloudServiceArgs{
 		ProviderId: "provider-id",
-		Addresses:  []string{"10.0.0.1", "10.0.0.2"},
+		Addresses: []AddressArgs{
+			{Value: "10.0.0.1", Type: "special"},
+			{Value: "10.0.0.2", Type: "other"},
+		},
 	}
 }
 
@@ -39,7 +42,10 @@ func (s *CloudServiceSerializationSuite) TestAllArgs(c *gc.C) {
 	container := newCloudService(args)
 
 	c.Check(container.ProviderId(), gc.Equals, args.ProviderId)
-	c.Check(container.Addresses(), jc.DeepEquals, args.Addresses)
+	c.Check(container.Addresses(), jc.DeepEquals, []Address{
+		&address{Version: 1, Value_: "10.0.0.1", Type_: "special"},
+		&address{Version: 1, Value_: "10.0.0.2", Type_: "other"},
+	})
 }
 
 func (s *CloudServiceSerializationSuite) TestParsingSerializedData(c *gc.C) {
