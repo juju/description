@@ -8,11 +8,18 @@ import (
 	"github.com/juju/schema"
 )
 
+// CloudService represents the state of a CAAS service.
+type CloudService interface {
+	ProviderId() string
+	Addresses() []Address
+	SetAddresses(addresses []AddressArgs)
+}
+
 type cloudService struct {
 	Version int `yaml:"version"`
 
-	ProviderId_ string   `yaml:"provider-id,omitempty"`
-	Addresses_  []string `yaml:"addresses,omitempty"`
+	ProviderId_ string     `yaml:"provider-id,omitempty"`
+	Addresses_  []*address `yaml:"addresses,omitempty"`
 }
 
 // ProviderId implements cloudService.
@@ -21,30 +28,40 @@ func (c *cloudService) ProviderId() string {
 }
 
 // Addresses implements cloudService.
-func (c *cloudService) Addresses() []string {
-	return c.Addresses_
+func (c *cloudService) Addresses() []Address {
+	var result []Address
+	for _, addr := range c.Addresses_ {
+		result = append(result, addr)
+	}
+	return result
+}
+
+// SetAddresses implements cloudService.
+func (m *cloudService) SetAddresses(args []AddressArgs) {
+	m.Addresses_ = nil
+	for _, args := range args {
+		if args.Value != "" {
+			m.Addresses_ = append(m.Addresses_, newAddress(args))
+		}
+	}
 }
 
 // CloudServiceArgs is an argument struct used to create a
 // new internal cloudService type that supports the cloudService interface.
 type CloudServiceArgs struct {
 	ProviderId string
-	Addresses  []string
+	Addresses  []AddressArgs
 }
 
-func minimalCloudServiceArgs() CloudServiceArgs {
-	return CloudServiceArgs{
-		ProviderId: "provider-id",
-		Addresses:  []string{"80", "443"},
+func newCloudService(args *CloudServiceArgs) *cloudService {
+	if args == nil {
+		return nil
 	}
-}
-
-func newCloudService(args CloudServiceArgs) *cloudService {
 	cloudService := &cloudService{
 		Version:     1,
 		ProviderId_: args.ProviderId,
-		Addresses_:  args.Addresses,
 	}
+	cloudService.SetAddresses(args.Addresses)
 	return cloudService
 }
 
@@ -70,7 +87,7 @@ var cloudServiceDeserializationFuncs = map[int]cloudServiceDeserializationFunc{
 func importCloudServiceV1(source map[string]interface{}) (*cloudService, error) {
 	fields := schema.Fields{
 		"provider-id": schema.String(),
-		"addresses":   schema.List(schema.String()),
+		"addresses":   schema.List(schema.StringMap(schema.Any())),
 	}
 	// Some values don't have to be there.
 	defaults := schema.Defaults{
@@ -88,7 +105,13 @@ func importCloudServiceV1(source map[string]interface{}) (*cloudService, error) 
 	cloudService := &cloudService{
 		Version:     1,
 		ProviderId_: valid["provider-id"].(string),
-		Addresses_:  convertToStringSlice(valid["addresses"]),
+	}
+	if addresses, ok := valid["addresses"]; ok {
+		serviceAddresses, err := importAddresses(addresses.([]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		cloudService.Addresses_ = serviceAddresses
 	}
 
 	return cloudService, nil

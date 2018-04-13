@@ -70,7 +70,10 @@ func minimalApplicationMap() map[interface{}]interface{} {
 		"cloud-service": map[interface{}]interface{}{
 			"version":     1,
 			"provider-id": "some-provider",
-			"addresses":   []interface{}{"10.0.0.1", "10.0.0.2"},
+			"addresses": []interface{}{
+				map[interface{}]interface{}{"version": 1, "value": "10.0.0.1", "type": "special"},
+				map[interface{}]interface{}{"version": 1, "value": "10.0.0.2", "type": "other"},
+			},
 		},
 	}
 }
@@ -116,10 +119,12 @@ func minimalApplicationArgs() ApplicationArgs {
 		MetricsCredentials: []byte("sekrit"),
 		PasswordHash:       "some-hash",
 		PodSpec:            "some-spec",
-		CloudService: &cloudService{
-			Version:     1,
-			ProviderId_: "some-provider",
-			Addresses_:  []string{"10.0.0.1", "10.0.0.2"},
+		CloudService: &CloudServiceArgs{
+			ProviderId: "some-provider",
+			Addresses: []AddressArgs{
+				{Value: "10.0.0.1", Type: "special"},
+				{Value: "10.0.0.2", Type: "other"},
+			},
 		},
 	}
 }
@@ -151,7 +156,6 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		MetricsCredentials: []byte("sekrit"),
 		PasswordHash:       "passwordhash",
 		PodSpec:            "podspec",
-		CloudService:       &cloudService{},
 	}
 	application := newApplication(args)
 
@@ -166,7 +170,8 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.Exposed(), jc.IsTrue)
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 	c.Assert(application.PodSpec(), gc.Equals, "podspec")
-	c.Assert(application.CloudService(), jc.DeepEquals, args.CloudService)
+	c.Assert(application.CloudService(), gc.IsNil)
+	c.Assert(application.StorageConstraints(), gc.HasLen, 0)
 	c.Assert(application.MinUnits(), gc.Equals, 42)
 	c.Assert(application.EndpointBindings(), jc.DeepEquals, args.EndpointBindings)
 	c.Assert(application.ApplicationConfig(), jc.DeepEquals, args.ApplicationConfig)
@@ -348,12 +353,15 @@ func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {
 	initial := minimalApplication(args)
 	serviceArgs := CloudServiceArgs{
 		ProviderId: "some-provider",
-		Addresses:  []string{"10.0.0.1", "10.0.0.2"},
+		Addresses: []AddressArgs{
+			{Value: "10.0.0.1", Type: "special"},
+			{Value: "10.0.0.2", Type: "other"},
+		},
 	}
 	initial.SetCloudService(serviceArgs)
 
 	app := s.exportImportLatest(c, initial)
-	c.Assert(app.CloudService(), jc.DeepEquals, newCloudService(serviceArgs))
+	c.Assert(app.CloudService(), jc.DeepEquals, newCloudService(&serviceArgs))
 }
 
 func (s *ApplicationSerializationSuite) TestLeaderValid(c *gc.C) {

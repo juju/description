@@ -243,16 +243,3 @@ type StorageInstanceConstraints struct {
 	Pool string
 	Size uint64
 }
-
-// CloudContainer represents the state of a CAAS container, eg pod.
-type CloudContainer interface {
-	ProviderId() string
-	Address() string
-	Ports() []string
-}
-
-// CloudService represents the state of a CAAS service.
-type CloudService interface {
-	ProviderId() string
-	Addresses() []string
-}

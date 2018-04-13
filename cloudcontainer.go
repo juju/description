@@ -8,11 +8,18 @@ import (
 	"github.com/juju/schema"
 )
 
+// CloudContainer represents the state of a CAAS container, eg pod.
+type CloudContainer interface {
+	ProviderId() string
+	Address() Address
+	Ports() []string
+}
+
 type cloudContainer struct {
 	Version int `yaml:"version"`
 
 	ProviderId_ string   `yaml:"provider-id,omitempty"`
-	Address_    string   `yaml:"address,omitempty"`
+	Address_    *address `yaml:"address,omitempty"`
 	Ports_      []string `yaml:"ports,omitempty"`
 }
 
@@ -22,7 +29,7 @@ func (c *cloudContainer) ProviderId() string {
 }
 
 // Address implements CloudContainer.
-func (c *cloudContainer) Address() string {
+func (c *cloudContainer) Address() Address {
 	return c.Address_
 }
 
@@ -35,23 +42,18 @@ func (c *cloudContainer) Ports() []string {
 // new internal cloudContainer type that supports the CloudContainer interface.
 type CloudContainerArgs struct {
 	ProviderId string
-	Address    string
+	Address    AddressArgs
 	Ports      []string
 }
 
-func minimalCloudContainerArgs() CloudContainerArgs {
-	return CloudContainerArgs{
-		ProviderId: "some-provider",
-		Address:    "10.0.0.1",
-		Ports:      []string{"80", "443"},
+func newCloudContainer(args *CloudContainerArgs) *cloudContainer {
+	if args == nil {
+		return nil
 	}
-}
-
-func newCloudContainer(args CloudContainerArgs) *cloudContainer {
 	cloudcontainer := &cloudContainer{
 		Version:     1,
 		ProviderId_: args.ProviderId,
-		Address_:    args.Address,
+		Address_:    newAddress(args.Address),
 		Ports_:      args.Ports,
 	}
 	return cloudcontainer
@@ -79,7 +81,7 @@ var cloudContainerDeserializationFuncs = map[int]cloudContainerDeserializationFu
 func importCloudContainerV1(source map[string]interface{}) (*cloudContainer, error) {
 	fields := schema.Fields{
 		"provider-id": schema.String(),
-		"address":     schema.String(),
+		"address":     schema.StringMap(schema.Any()),
 		"ports":       schema.List(schema.String()),
 	}
 	// Some values don't have to be there.
@@ -99,8 +101,15 @@ func importCloudContainerV1(source map[string]interface{}) (*cloudContainer, err
 	cloudContainer := &cloudContainer{
 		Version:     1,
 		ProviderId_: valid["provider-id"].(string),
-		Address_:    valid["address"].(string),
 		Ports_:      convertToStringSlice(valid["ports"]),
+	}
+
+	if address, ok := valid["address"]; ok {
+		containerAddresses, err := importAddress(address.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		cloudContainer.Address_ = containerAddresses
 	}
 
 	return cloudContainer, nil

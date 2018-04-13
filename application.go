@@ -117,7 +117,7 @@ type ApplicationArgs struct {
 	ForceCharm           bool
 	PasswordHash         string
 	PodSpec              string
-	CloudService         *cloudService
+	CloudService         *CloudServiceArgs
 	Exposed              bool
 	MinUnits             int
 	EndpointBindings     map[string]string
@@ -143,7 +143,7 @@ func newApplication(args ApplicationArgs) *application {
 		Exposed_:              args.Exposed,
 		PasswordHash_:         args.PasswordHash,
 		PodSpec_:              args.PodSpec,
-		CloudService_:         args.CloudService,
+		CloudService_:         newCloudService(args.CloudService),
 		MinUnits_:             args.MinUnits,
 		EndpointBindings_:     args.EndpointBindings,
 		ApplicationConfig_:    args.ApplicationConfig,
@@ -341,7 +341,7 @@ func (a *application) CloudService() CloudService {
 
 // SetCloudService implements Application.
 func (a *application) SetCloudService(args CloudServiceArgs) {
-	a.CloudService_ = newCloudService(args)
+	a.CloudService_ = newCloudService(&args)
 }
 
 // Resources implements Application.

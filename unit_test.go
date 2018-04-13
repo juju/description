@@ -50,9 +50,17 @@ func minimalUnitMap() map[interface{}]interface{} {
 		"cloud-container": map[interface{}]interface{}{
 			"version":     1,
 			"provider-id": "some-provider",
-			"address":     "10.0.0.1",
+			"address":     map[interface{}]interface{}{"version": 1, "value": "10.0.0.1", "type": "special"},
 			"ports":       []interface{}{"80", "443"},
 		},
+	}
+}
+
+func minimalCloudContainerArgs() CloudContainerArgs {
+	return CloudContainerArgs{
+		ProviderId: "some-provider",
+		Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
+		Ports:      []string{"80", "443"},
 	}
 }
 
@@ -61,7 +69,6 @@ func minimalUnit() *unit {
 	u.SetAgentStatus(minimalStatusArgs())
 	u.SetWorkloadStatus(minimalStatusArgs())
 	u.SetTools(minimalAgentToolsArgs())
-	u.SetCloudContainer(minimalCloudContainerArgs())
 	return u
 }
 
@@ -70,11 +77,10 @@ func minimalUnitArgs() UnitArgs {
 		Tag:          names.NewUnitTag("ubuntu/0"),
 		Machine:      names.NewMachineTag("0"),
 		PasswordHash: "secure-hash",
-		CloudContainer: &cloudContainer{
-			Version:     1,
-			ProviderId_: "some-provider",
-			Address_:    "10.0.0.1",
-			Ports_:      []string{"80", "443"},
+		CloudContainer: &CloudContainerArgs{
+			ProviderId: "some-provider",
+			Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
+			Ports:      []string{"80", "443"},
 		},
 	}
 }
@@ -209,13 +215,13 @@ func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
 	initial := minimalUnit()
 	args := CloudContainerArgs{
 		ProviderId: "some-provider",
-		Address:    "10.0.0.1",
+		Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
 		Ports:      []string{"80", "443"},
 	}
 	initial.SetCloudContainer(args)
 
 	unit := s.exportImportLatest(c, initial)
-	c.Assert(unit.CloudContainer(), jc.DeepEquals, newCloudContainer(args))
+	c.Assert(unit.CloudContainer(), jc.DeepEquals, newCloudContainer(&args))
 }
 
 func (s *UnitSerializationSuite) TestAgentStatusHistory(c *gc.C) {
