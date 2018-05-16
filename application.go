@@ -6,8 +6,7 @@ package description
 import (
 	"encoding/base64"
 
-	"github.com/juju/utils/set"
-
+	"github.com/juju/collections/set"
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"gopkg.in/juju/names.v2"
