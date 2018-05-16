@@ -4,13 +4,12 @@
 package description
 
 import (
+	"github.com/juju/testing"
 	gc "gopkg.in/check.v1"
-
-	"github.com/juju/juju/testing"
 )
 
 type SerializationSuite struct {
-	testing.BaseSuite
+	testing.IsolationSuite
 	importName string
 	importFunc func(map[string]interface{}) (interface{}, error)
 	testFields func(map[string]interface{})

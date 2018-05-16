@@ -6,15 +6,14 @@ package description
 import (
 	"time"
 
+	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
-
-	"github.com/juju/juju/testing"
 )
 
 type UserSerializationSuite struct {
-	testing.BaseSuite
+	testing.IsolationSuite
 }
 
 var _ = gc.Suite(&UserSerializationSuite{})
