@@ -53,6 +53,9 @@ type Application interface {
 	Units() []Unit
 	AddUnit(UnitArgs) Unit
 
+	Tools() AgentTools
+	SetTools(AgentToolsArgs)
+
 	Validate() error
 }
 
@@ -99,9 +102,11 @@ type application struct {
 	Constraints_        *constraints                  `yaml:"constraints,omitempty"`
 	StorageConstraints_ map[string]*storageconstraint `yaml:"storage-constraints,omitempty"`
 
+	// CAAS application fields.
 	PasswordHash_ string        `yaml:"password-hash,omitempty"`
 	PodSpec_      string        `yaml:"pod-spec,omitempty"`
 	CloudService_ *cloudService `yaml:"cloud-service,omitempty"`
+	Tools_        *agentTools   `yaml:"tools,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -367,6 +372,20 @@ func (a *application) setResources(resourceList []*resource) {
 	}
 }
 
+// Tools implements Application.
+func (a *application) Tools() AgentTools {
+	// To avoid a typed nil, check before returning.
+	if a.Tools_ == nil {
+		return nil
+	}
+	return a.Tools_
+}
+
+// SetTools implements Application.
+func (a *application) SetTools(args AgentToolsArgs) {
+	a.Tools_ = newAgentTools(args)
+}
+
 // Validate implements Application.
 func (a *application) Validate() error {
 	if a.Name_ == "" {
@@ -492,9 +511,11 @@ func applicationV3Fields() (schema.Fields, schema.Defaults) {
 	fields["password-hash"] = schema.String()
 	fields["pod-spec"] = schema.String()
 	fields["cloud-service"] = schema.StringMap(schema.Any())
+	fields["tools"] = schema.StringMap(schema.Any())
 	defaults["password-hash"] = ""
 	defaults["pod-spec"] = ""
 	defaults["cloud-service"] = schema.Omit
+	defaults["tools"] = schema.Omit
 	return fields, defaults
 }
 
@@ -585,6 +606,19 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 			return nil, errors.Trace(err)
 		}
 		result.CloudService_ = cloudService
+	}
+
+	toolsMap, ok := valid["tools"].(map[string]interface{})
+	// CAAS models require tools.
+	if importVersion >= 3 && !ok && result.Type_ == "caas" {
+		return nil, errors.NotFoundf("tools metadata in CAAS model")
+	}
+	if ok {
+		tools, err := importAgentTools(toolsMap)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.Tools_ = tools
 	}
 
 	encodedCreds := valid["metrics-creds"].(string)
