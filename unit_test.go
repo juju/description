@@ -47,13 +47,19 @@ func minimalUnitMap() map[interface{}]interface{} {
 			"version":  1,
 			"payloads": []interface{}{},
 		},
-		"cloud-container": map[interface{}]interface{}{
-			"version":     1,
-			"provider-id": "some-provider",
-			"address":     map[interface{}]interface{}{"version": 1, "value": "10.0.0.1", "type": "special"},
-			"ports":       []interface{}{"80", "443"},
-		},
 	}
+}
+
+func minimalUnitMapCAAS() map[interface{}]interface{} {
+	result := minimalUnitMap()
+	delete(result, "tools")
+	result["cloud-container"] = map[interface{}]interface{}{
+		"version":     1,
+		"provider-id": "some-provider",
+		"address":     map[interface{}]interface{}{"version": 1, "value": "10.0.0.1", "type": "special"},
+		"ports":       []interface{}{"80", "443"},
+	}
+	return result
 }
 
 func minimalCloudContainerArgs() CloudContainerArgs {
@@ -64,25 +70,34 @@ func minimalCloudContainerArgs() CloudContainerArgs {
 	}
 }
 
-func minimalUnit() *unit {
-	u := newUnit(minimalUnitArgs())
+func minimalUnit(args ...UnitArgs) *unit {
+	if len(args) == 0 {
+		args = []UnitArgs{minimalUnitArgs("iaas")}
+	}
+	u := newUnit(args[0])
 	u.SetAgentStatus(minimalStatusArgs())
 	u.SetWorkloadStatus(minimalStatusArgs())
-	u.SetTools(minimalAgentToolsArgs())
+	if u.Type_ != "caas" {
+		u.SetTools(minimalAgentToolsArgs())
+	}
 	return u
 }
 
-func minimalUnitArgs() UnitArgs {
-	return UnitArgs{
+func minimalUnitArgs(modelType string) UnitArgs {
+	result := UnitArgs{
 		Tag:          names.NewUnitTag("ubuntu/0"),
+		Type:         modelType,
 		Machine:      names.NewMachineTag("0"),
 		PasswordHash: "secure-hash",
-		CloudContainer: &CloudContainerArgs{
+	}
+	if modelType == "caas" {
+		result.CloudContainer = &CloudContainerArgs{
 			ProviderId: "some-provider",
 			Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
 			Ports:      []string{"80", "443"},
-		},
+		}
 	}
+	return result
 }
 
 func (s *UnitSerializationSuite) completeUnit() *unit {
@@ -136,6 +151,11 @@ func (s *UnitSerializationSuite) TestMinimalUnitValid(c *gc.C) {
 	c.Assert(unit.Validate(), jc.ErrorIsNil)
 }
 
+func (s *UnitSerializationSuite) TestMinimalCAASUnitValid(c *gc.C) {
+	unit := minimalUnit(minimalUnitArgs("caas"))
+	c.Assert(unit.Validate(), jc.ErrorIsNil)
+}
+
 func (s *UnitSerializationSuite) TestMinimalMatches(c *gc.C) {
 	bytes, err := yaml.Marshal(minimalUnit())
 	c.Assert(err, jc.ErrorIsNil)
@@ -181,6 +201,7 @@ func (s *UnitSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	// Make a unit with fields not in v1 removed.
 	unitLatest := minimalUnit()
 	unitLatest.CloudContainer_ = nil
+	unitLatest.Type_ = ""
 
 	unitResult := s.exportImportVersion(c, unitV1, 1)
 	c.Assert(unitResult, jc.DeepEquals, unitLatest)
@@ -212,7 +233,7 @@ func (s *UnitSerializationSuite) TestConstraints(c *gc.C) {
 }
 
 func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
-	initial := minimalUnit()
+	initial := minimalUnit(minimalUnitArgs("caas"))
 	args := CloudContainerArgs{
 		ProviderId: "some-provider",
 		Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
@@ -222,6 +243,12 @@ func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
 
 	unit := s.exportImportLatest(c, initial)
 	c.Assert(unit.CloudContainer(), jc.DeepEquals, newCloudContainer(&args))
+}
+
+func (s *UnitSerializationSuite) TestCAASUnitNoTools(c *gc.C) {
+	initial := minimalUnit(minimalUnitArgs("caas"))
+	unit := s.exportImportLatest(c, initial)
+	c.Assert(unit.Tools_, gc.IsNil)
 }
 
 func (s *UnitSerializationSuite) TestAgentStatusHistory(c *gc.C) {
@@ -285,4 +312,11 @@ func (s *UnitSerializationSuite) TestPayloads(c *gc.C) {
 	payloads := unit.Payloads()
 	c.Assert(payloads, gc.HasLen, 1)
 	c.Assert(payloads[0], jc.DeepEquals, expected)
+}
+
+func (s *UnitSerializationSuite) TestIAASMissingToolsValidated(c *gc.C) {
+	u := minimalUnit()
+	u.Tools_ = nil
+	err := u.Validate()
+	c.Assert(err, gc.ErrorMatches, `unit "ubuntu/0" missing tools not valid`)
 }

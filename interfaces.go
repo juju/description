@@ -19,55 +19,6 @@ type AgentTools interface {
 	Size() int64
 }
 
-// Unit represents an instance of a unit in a model.
-type Unit interface {
-	HasAnnotations
-	HasConstraints
-
-	Tag() names.UnitTag
-	Name() string
-	Machine() names.MachineTag
-
-	PasswordHash() string
-
-	Principal() names.UnitTag
-	Subordinates() []names.UnitTag
-
-	MeterStatusCode() string
-	MeterStatusInfo() string
-
-	Tools() AgentTools
-	SetTools(AgentToolsArgs)
-
-	WorkloadStatus() Status
-	SetWorkloadStatus(StatusArgs)
-
-	WorkloadStatusHistory() []Status
-	SetWorkloadStatusHistory([]StatusArgs)
-
-	WorkloadVersion() string
-
-	WorkloadVersionHistory() []Status
-	SetWorkloadVersionHistory([]StatusArgs)
-
-	AgentStatus() Status
-	SetAgentStatus(StatusArgs)
-
-	AgentStatusHistory() []Status
-	SetAgentStatusHistory([]StatusArgs)
-
-	AddResource(UnitResourceArgs) UnitResource
-	Resources() []UnitResource
-
-	AddPayload(PayloadArgs) Payload
-	Payloads() []Payload
-
-	CloudContainer() CloudContainer
-	SetCloudContainer(CloudContainerArgs)
-
-	Validate() error
-}
-
 // Space represents a network space, which is a named collection of subnets.
 type Space interface {
 	Name() string

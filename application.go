@@ -395,6 +395,10 @@ func (a *application) Validate() error {
 		return errors.NotValidf("application %q missing status", a.Name_)
 	}
 
+	if a.Tools_ == nil && a.Type_ == "caas" {
+		return errors.NotValidf("application %q missing tools", a.Name_)
+	}
+
 	for _, resource := range a.Resources_.Resources_ {
 		if err := resource.Validate(); err != nil {
 			return errors.Annotatef(err, "resource %s", resource.Name_)
@@ -644,6 +648,16 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	units, err := importUnits(valid["units"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)
+	}
+	// Units inherit model type from their application.
+	for _, u := range units {
+		u.Type_ = result.Type_
+
+		// Validate to ensure expected type specific
+		// attributes like tools are set.
+		if err := u.Validate(); err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
 	result.setUnits(units)
 

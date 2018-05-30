@@ -81,6 +81,12 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 			map[interface{}]interface{}{"version": 1, "value": "10.0.0.2", "type": "other"},
 		},
 	}
+	result["units"] = map[interface{}]interface{}{
+		"version": 2,
+		"units": []interface{}{
+			minimalUnitMapCAAS(),
+		},
+	}
 	result["tools"] = minimalAgentToolsMap()
 	return result
 }
@@ -91,13 +97,14 @@ func minimalApplication(args ...ApplicationArgs) *application {
 	}
 	a := newApplication(args[0])
 	a.SetStatus(minimalStatusArgs())
-	u := a.AddUnit(minimalUnitArgs())
+	u := a.AddUnit(minimalUnitArgs(a.Type_))
 	u.SetAgentStatus(minimalStatusArgs())
 	u.SetWorkloadStatus(minimalStatusArgs())
-	u.SetTools(minimalAgentToolsArgs())
 	a.setResources([]*resource{minimalResource()})
 	if a.Type_ == "caas" {
 		a.SetTools(minimalAgentToolsArgs())
+	} else {
+		u.SetTools(minimalAgentToolsArgs())
 	}
 	return a
 }
@@ -105,7 +112,7 @@ func minimalApplication(args ...ApplicationArgs) *application {
 func addMinimalApplication(model Model) {
 	a := model.AddApplication(minimalApplicationArgs("iaas"))
 	a.SetStatus(minimalStatusArgs())
-	u := a.AddUnit(minimalUnitArgs())
+	u := a.AddUnit(minimalUnitArgs(a.Type()))
 	u.SetAgentStatus(minimalStatusArgs())
 	u.SetWorkloadStatus(minimalStatusArgs())
 	u.SetTools(minimalAgentToolsArgs())
@@ -196,6 +203,11 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 
 func (s *ApplicationSerializationSuite) TestMinimalApplicationValid(c *gc.C) {
 	application := minimalApplication()
+	c.Assert(application.Validate(), jc.ErrorIsNil)
+}
+
+func (s *ApplicationSerializationSuite) TestMinimalCAASApplicationValid(c *gc.C) {
+	application := minimalApplication(minimalApplicationArgs("caas"))
 	c.Assert(application.Validate(), jc.ErrorIsNil)
 }
 
@@ -407,9 +419,15 @@ func (s *ApplicationSerializationSuite) TestResourcesAreValidated(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, `resource foo: no application revision set`)
 }
 
+func (s *ApplicationSerializationSuite) TestCAASMissingToolsValidated(c *gc.C) {
+	app := minimalApplication(minimalApplicationArgs("caas"))
+	app.Tools_ = nil
+	err := app.Validate()
+	c.Assert(err, gc.ErrorMatches, `application "ubuntu" missing tools not valid`)
+}
+
 func (s *ApplicationSerializationSuite) TestCAASApplicationMissingTools(c *gc.C) {
-	args := minimalApplicationArgs("caas")
-	app := minimalApplication(args)
+	app := minimalApplication(minimalApplicationArgs("caas"))
 	app.Tools_ = nil
 	initial := applications{
 		Version:       3,
@@ -425,4 +443,23 @@ func (s *ApplicationSerializationSuite) TestCAASApplicationMissingTools(c *gc.C)
 
 	_, err = importApplications(source)
 	c.Assert(err, gc.ErrorMatches, "application 0: tools metadata in CAAS model not found")
+}
+
+func (s *ApplicationSerializationSuite) TestIAASUnitMissingTools(c *gc.C) {
+	app := minimalApplication()
+	app.Units_.Units_[0].Tools_ = nil
+	initial := applications{
+		Version:       3,
+		Applications_: []*application{app},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	_, err = importApplications(source)
+	c.Assert(err, gc.ErrorMatches, `application 0: unit "ubuntu/0" missing tools not valid`)
 }
