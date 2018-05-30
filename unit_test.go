@@ -72,12 +72,12 @@ func minimalCloudContainerArgs() CloudContainerArgs {
 
 func minimalUnit(args ...UnitArgs) *unit {
 	if len(args) == 0 {
-		args = []UnitArgs{minimalUnitArgs("iaas")}
+		args = []UnitArgs{minimalUnitArgs(IAAS)}
 	}
 	u := newUnit(args[0])
 	u.SetAgentStatus(minimalStatusArgs())
 	u.SetWorkloadStatus(minimalStatusArgs())
-	if u.Type_ != "caas" {
+	if u.Type_ != CAAS {
 		u.SetTools(minimalAgentToolsArgs())
 	}
 	return u
@@ -90,7 +90,7 @@ func minimalUnitArgs(modelType string) UnitArgs {
 		Machine:      names.NewMachineTag("0"),
 		PasswordHash: "secure-hash",
 	}
-	if modelType == "caas" {
+	if modelType == CAAS {
 		result.CloudContainer = &CloudContainerArgs{
 			ProviderId: "some-provider",
 			Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
@@ -152,7 +152,7 @@ func (s *UnitSerializationSuite) TestMinimalUnitValid(c *gc.C) {
 }
 
 func (s *UnitSerializationSuite) TestMinimalCAASUnitValid(c *gc.C) {
-	unit := minimalUnit(minimalUnitArgs("caas"))
+	unit := minimalUnit(minimalUnitArgs(CAAS))
 	c.Assert(unit.Validate(), jc.ErrorIsNil)
 }
 
@@ -233,7 +233,7 @@ func (s *UnitSerializationSuite) TestConstraints(c *gc.C) {
 }
 
 func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
-	initial := minimalUnit(minimalUnitArgs("caas"))
+	initial := minimalUnit(minimalUnitArgs(CAAS))
 	args := CloudContainerArgs{
 		ProviderId: "some-provider",
 		Address:    AddressArgs{Value: "10.0.0.1", Type: "special"},
@@ -246,7 +246,7 @@ func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
 }
 
 func (s *UnitSerializationSuite) TestCAASUnitNoTools(c *gc.C) {
-	initial := minimalUnit(minimalUnitArgs("caas"))
+	initial := minimalUnit(minimalUnitArgs(CAAS))
 	unit := s.exportImportLatest(c, initial)
 	c.Assert(unit.Tools_, gc.IsNil)
 }

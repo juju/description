@@ -39,7 +39,7 @@ func minimalApplicationMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"name":              "ubuntu",
 		"series":            "trusty",
-		"type":              "iaas",
+		"type":              IAAS,
 		"charm-url":         "cs:trusty/ubuntu",
 		"cs-channel":        "stable",
 		"charm-mod-version": 1,
@@ -70,7 +70,7 @@ func minimalApplicationMap() map[interface{}]interface{} {
 
 func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	result := minimalApplicationMap()
-	result["type"] = "caas"
+	result["type"] = CAAS
 	result["password-hash"] = "some-hash"
 	result["pod-spec"] = "some-spec"
 	result["cloud-service"] = map[interface{}]interface{}{
@@ -93,7 +93,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 
 func minimalApplication(args ...ApplicationArgs) *application {
 	if len(args) == 0 {
-		args = []ApplicationArgs{minimalApplicationArgs("iaas")}
+		args = []ApplicationArgs{minimalApplicationArgs(IAAS)}
 	}
 	a := newApplication(args[0])
 	a.SetStatus(minimalStatusArgs())
@@ -101,7 +101,7 @@ func minimalApplication(args ...ApplicationArgs) *application {
 	u.SetAgentStatus(minimalStatusArgs())
 	u.SetWorkloadStatus(minimalStatusArgs())
 	a.setResources([]*resource{minimalResource()})
-	if a.Type_ == "caas" {
+	if a.Type_ == CAAS {
 		a.SetTools(minimalAgentToolsArgs())
 	} else {
 		u.SetTools(minimalAgentToolsArgs())
@@ -110,7 +110,7 @@ func minimalApplication(args ...ApplicationArgs) *application {
 }
 
 func addMinimalApplication(model Model) {
-	a := model.AddApplication(minimalApplicationArgs("iaas"))
+	a := model.AddApplication(minimalApplicationArgs(IAAS))
 	a.SetStatus(minimalStatusArgs())
 	u := a.AddUnit(minimalUnitArgs(a.Type()))
 	u.SetAgentStatus(minimalStatusArgs())
@@ -135,7 +135,7 @@ func minimalApplicationArgs(modelType string) ApplicationArgs {
 		},
 		MetricsCredentials: []byte("sekrit"),
 	}
-	if modelType == "caas" {
+	if modelType == CAAS {
 		result.PasswordHash = "some-hash"
 		result.PodSpec = "some-spec"
 		result.CloudService = &CloudServiceArgs{
@@ -207,12 +207,12 @@ func (s *ApplicationSerializationSuite) TestMinimalApplicationValid(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestMinimalCAASApplicationValid(c *gc.C) {
-	application := minimalApplication(minimalApplicationArgs("caas"))
+	application := minimalApplication(minimalApplicationArgs(CAAS))
 	c.Assert(application.Validate(), jc.ErrorIsNil)
 }
 
 func (s *ApplicationSerializationSuite) TestMinimalMatchesCAAS(c *gc.C) {
-	args := minimalApplicationArgs("caas")
+	args := minimalApplicationArgs(CAAS)
 	bytes, err := yaml.Marshal(minimalApplication(args))
 	c.Assert(err, jc.ErrorIsNil)
 
@@ -256,7 +256,7 @@ func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
-	args := minimalApplicationArgs("caas")
+	args := minimalApplicationArgs(CAAS)
 	args.Type = ""
 	appV1 := minimalApplication(args)
 
@@ -272,7 +272,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
-	args := minimalApplicationArgs("caas")
+	args := minimalApplicationArgs(CAAS)
 	appV1 := minimalApplication(args)
 
 	// Make an app with fields not in v2 removed.
@@ -293,7 +293,7 @@ func (s *ApplicationSerializationSuite) TestParsingSerializedData(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestEndpointBindings(c *gc.C) {
-	args := minimalApplicationArgs("iaas")
+	args := minimalApplicationArgs(IAAS)
 	args.EndpointBindings = map[string]string{
 		"rel-name": "some-space",
 		"other":    "other-space",
@@ -329,7 +329,7 @@ func (s *ApplicationSerializationSuite) TestConstraints(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestStorageConstraints(c *gc.C) {
-	args := minimalApplicationArgs("iaas")
+	args := minimalApplicationArgs(IAAS)
 	args.StorageConstraints = map[string]StorageConstraintArgs{
 		"first":  {Pool: "first", Size: 1234, Count: 1},
 		"second": {Pool: "second", Size: 4321, Count: 7},
@@ -354,7 +354,7 @@ func (s *ApplicationSerializationSuite) TestStorageConstraints(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestApplicationConfig(c *gc.C) {
-	args := minimalApplicationArgs("caas")
+	args := minimalApplicationArgs(CAAS)
 	args.ApplicationConfig = map[string]interface{}{
 		"first":  "value 1",
 		"second": 42,
@@ -369,7 +369,7 @@ func (s *ApplicationSerializationSuite) TestApplicationConfig(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestPasswordHash(c *gc.C) {
-	args := minimalApplicationArgs("caas")
+	args := minimalApplicationArgs(CAAS)
 	args.PasswordHash = "passwordhash"
 	initial := minimalApplication(args)
 
@@ -378,7 +378,7 @@ func (s *ApplicationSerializationSuite) TestPasswordHash(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestPodSpec(c *gc.C) {
-	args := minimalApplicationArgs("caas")
+	args := minimalApplicationArgs(CAAS)
 	args.PodSpec = "podspec"
 	initial := minimalApplication(args)
 
@@ -387,7 +387,7 @@ func (s *ApplicationSerializationSuite) TestPodSpec(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {
-	args := minimalApplicationArgs("caas")
+	args := minimalApplicationArgs(CAAS)
 	initial := minimalApplication(args)
 	serviceArgs := CloudServiceArgs{
 		ProviderId: "some-provider",
@@ -403,7 +403,7 @@ func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestLeaderValid(c *gc.C) {
-	args := minimalApplicationArgs("iaas")
+	args := minimalApplicationArgs(IAAS)
 	args.Leader = "ubuntu/1"
 	application := newApplication(args)
 	application.SetStatus(minimalStatusArgs())
@@ -420,14 +420,14 @@ func (s *ApplicationSerializationSuite) TestResourcesAreValidated(c *gc.C) {
 }
 
 func (s *ApplicationSerializationSuite) TestCAASMissingToolsValidated(c *gc.C) {
-	app := minimalApplication(minimalApplicationArgs("caas"))
+	app := minimalApplication(minimalApplicationArgs(CAAS))
 	app.Tools_ = nil
 	err := app.Validate()
 	c.Assert(err, gc.ErrorMatches, `application "ubuntu" missing tools not valid`)
 }
 
 func (s *ApplicationSerializationSuite) TestCAASApplicationMissingTools(c *gc.C) {
-	app := minimalApplication(minimalApplicationArgs("caas"))
+	app := minimalApplication(minimalApplicationArgs(CAAS))
 	app.Tools_ = nil
 	initial := applications{
 		Version:       3,

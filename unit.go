@@ -355,7 +355,7 @@ func (u *unit) Validate() error {
 	if u.WorkloadStatus_ == nil {
 		return errors.NotValidf("unit %q missing workload status", u.Name_)
 	}
-	if u.Tools_ == nil && u.Type_ != "caas" {
+	if u.Tools_ == nil && u.Type_ != CAAS {
 		return errors.NotValidf("unit %q missing tools", u.Name_)
 	}
 	return nil

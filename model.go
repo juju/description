@@ -17,6 +17,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	// IAAS is the type for IAAS models.
+	IAAS = "iaas"
+
+	// CAAS is the type for CAAS models.
+	CAAS = "caas"
+)
+
 // Model is a database agnostic representation of an existing model.
 type Model interface {
 	HasAnnotations
@@ -1192,7 +1200,7 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 	// the way in.
 	result := &model{
 		Version:        4,
-		Type_:          "iaas",
+		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
 		Sequences_:     make(map[string]int),

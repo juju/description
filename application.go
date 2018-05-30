@@ -395,7 +395,7 @@ func (a *application) Validate() error {
 		return errors.NotValidf("application %q missing status", a.Name_)
 	}
 
-	if a.Tools_ == nil && a.Type_ == "caas" {
+	if a.Tools_ == nil && a.Type_ == CAAS {
 		return errors.NotValidf("application %q missing tools", a.Name_)
 	}
 
@@ -551,7 +551,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	result := &application{
 		Name_:                 valid["name"].(string),
 		Series_:               valid["series"].(string),
-		Type_:                 "iaas",
+		Type_:                 IAAS,
 		Subordinate_:          valid["subordinate"].(bool),
 		CharmURL_:             valid["charm-url"].(string),
 		Channel_:              valid["cs-channel"].(string),
@@ -614,7 +614,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 
 	toolsMap, ok := valid["tools"].(map[string]interface{})
 	// CAAS models require tools.
-	if importVersion >= 3 && !ok && result.Type_ == "caas" {
+	if importVersion >= 3 && !ok && result.Type_ == CAAS {
 		return nil, errors.NotFoundf("tools metadata in CAAS model")
 	}
 	if ok {
