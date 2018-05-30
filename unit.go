@@ -9,15 +9,67 @@ import (
 	"gopkg.in/juju/names.v2"
 )
 
+// Unit represents an instance of a unit in a model.
+type Unit interface {
+	HasAnnotations
+	HasConstraints
+
+	Tag() names.UnitTag
+	Name() string
+	Type() string
+	Machine() names.MachineTag
+
+	PasswordHash() string
+
+	Principal() names.UnitTag
+	Subordinates() []names.UnitTag
+
+	MeterStatusCode() string
+	MeterStatusInfo() string
+
+	Tools() AgentTools
+	SetTools(AgentToolsArgs)
+
+	WorkloadStatus() Status
+	SetWorkloadStatus(StatusArgs)
+
+	WorkloadStatusHistory() []Status
+	SetWorkloadStatusHistory([]StatusArgs)
+
+	WorkloadVersion() string
+
+	WorkloadVersionHistory() []Status
+	SetWorkloadVersionHistory([]StatusArgs)
+
+	AgentStatus() Status
+	SetAgentStatus(StatusArgs)
+
+	AgentStatusHistory() []Status
+	SetAgentStatusHistory([]StatusArgs)
+
+	AddResource(UnitResourceArgs) UnitResource
+	Resources() []UnitResource
+
+	AddPayload(PayloadArgs) Payload
+	Payloads() []Payload
+
+	CloudContainer() CloudContainer
+	SetCloudContainer(CloudContainerArgs)
+
+	Validate() error
+}
+
 type units struct {
 	Version int     `yaml:"version"`
 	Units_  []*unit `yaml:"units"`
 }
 
 type unit struct {
-	Name_ string `yaml:"name"`
-
+	Name_    string `yaml:"name"`
 	Machine_ string `yaml:"machine"`
+
+	// Type is not exported in YAML, it is set from the application type.
+	Type_ string `yaml:"-"`
 
 	AgentStatus_        *status        `yaml:"agent-status"`
 	AgentStatusHistory_ StatusHistory_ `yaml:"agent-status-history"`
@@ -32,7 +84,7 @@ type unit struct {
 	Subordinates_ []string `yaml:"subordinates,omitempty"`
 
 	PasswordHash_ string      `yaml:"password-hash"`
-	Tools_        *agentTools `yaml:"tools"`
+	Tools_        *agentTools `yaml:"tools,omitempty"`
 
 	MeterStatusCode_ string `yaml:"meter-status-code,omitempty"`
 	MeterStatusInfo_ string `yaml:"meter-status-info,omitempty"`
@@ -51,6 +103,7 @@ type unit struct {
 // UnitArgs is an argument struct used to add a Unit to a Application in the Model.
 type UnitArgs struct {
 	Tag          names.UnitTag
+	Type         string
 	Machine      names.MachineTag
 	PasswordHash string
 	Principal    names.UnitTag
@@ -72,6 +125,7 @@ func newUnit(args UnitArgs) *unit {
 	}
 	u := &unit{
 		Name_:                   args.Tag.Id(),
+		Type_:                   args.Type,
 		Machine_:                args.Machine.Id(),
 		PasswordHash_:           args.PasswordHash,
 		CloudContainer_:         newCloudContainer(args.CloudContainer),
@@ -97,6 +151,11 @@ func (u *unit) Tag() names.UnitTag {
 // Name implements Unit.
 func (u *unit) Name() string {
 	return u.Name_
+}
+
+// Type implements Unit
+func (u *unit) Type() string {
+	return u.Type_
 }
 
 // Machine implements Unit.
@@ -296,7 +355,7 @@ func (u *unit) Validate() error {
 	if u.WorkloadStatus_ == nil {
 		return errors.NotValidf("unit %q missing workload status", u.Name_)
 	}
-	if u.Tools_ == nil {
+	if u.Tools_ == nil && u.Type_ != CAAS {
 		return errors.NotValidf("unit %q missing tools", u.Name_)
 	}
 	return nil
@@ -382,6 +441,7 @@ func unitV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := unitV1Fields()
 	fields["cloud-container"] = schema.StringMap(schema.Any())
 	defaults["cloud-container"] = schema.Omit
+	defaults["tools"] = schema.Omit
 	return fields, defaults
 }
 
@@ -451,13 +511,18 @@ func importUnit(fields schema.Fields, defaults schema.Defaults, importVersion in
 
 	result.Subordinates_ = convertToStringSlice(valid["subordinates"])
 
-	// Tools and status are required, so we expect them to be there.
-	tools, err := importAgentTools(valid["tools"].(map[string]interface{}))
-	if err != nil {
-		return nil, errors.Trace(err)
+	// Tools are required for IAAS units but not for CAAS.
+	// Validation is done in importApplication().
+	toolsMap, ok := valid["tools"].(map[string]interface{})
+	if ok {
+		tools, err := importAgentTools(toolsMap)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.Tools_ = tools
 	}
-	result.Tools_ = tools
 
+	// Status is required, so we expect it to be there.
 	agentStatus, err := importStatus(valid["agent-status"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)

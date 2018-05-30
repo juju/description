@@ -127,7 +127,7 @@ func (s *ModelSerializationSuite) TestParsingModelV1(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	args := ModelArgs{
-		Type:  "iaas",
+		Type:  IAAS,
 		Owner: names.NewUserTag("magic"),
 		Config: map[string]interface{}{
 			"name": "awesome",
@@ -158,7 +158,7 @@ func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	addMinimalApplication(initial)
 	model := s.exportImport(c, initial)
 
-	c.Assert(model.Type(), gc.Equals, "iaas")
+	c.Assert(model.Type(), gc.Equals, IAAS)
 	c.Assert(model.Owner(), gc.Equals, args.Owner)
 	c.Assert(model.Tag().Id(), gc.Equals, "some-uuid")
 	c.Assert(model.Config(), jc.DeepEquals, args.Config)
@@ -898,7 +898,7 @@ func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 
 	c.Assert(model.Owner(), gc.Equals, names.NewUserTag("ben-harper"))
-	c.Assert(model.Type(), gc.Equals, "iaas")
+	c.Assert(model.Type(), gc.Equals, IAAS)
 }
 
 func (s *ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C) {
