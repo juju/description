@@ -109,7 +109,9 @@ type Volume interface {
 	Persistent() bool
 
 	Attachments() []VolumeAttachment
+	AttachmentPlans() []VolumeAttachmentPlan
 	AddAttachment(VolumeAttachmentArgs) VolumeAttachment
+	AddAttachmentPlan(VolumeAttachmentPlanArgs) VolumeAttachmentPlan
 }
 
 // VolumeAttachment represents a volume attached to a machine.
@@ -120,6 +122,18 @@ type VolumeAttachment interface {
 	DeviceName() string
 	DeviceLink() string
 	BusAddress() string
+	VolumePlanInfo() VolumePlanInfo
+}
+
+type VolumeAttachmentPlan interface {
+	Machine() names.MachineTag
+	BlockDevice() BlockDevice
+	VolumePlanInfo() VolumePlanInfo
+}
+
+type VolumePlanInfo interface {
+	DeviceType() string
+	DeviceAttributes() map[string]string
 }
 
 // Filesystem represents a filesystem in the model.

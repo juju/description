@@ -53,6 +53,10 @@ func testVolumeMap() map[interface{}]interface{} {
 			"version":     1,
 			"attachments": []interface{}{},
 		},
+		"attachmentplans": map[interface{}]interface{}{
+			"version":         1,
+			"attachmentplans": []interface{}{},
+		},
 	}
 }
 
@@ -174,6 +178,37 @@ func (s *VolumeSerializationSuite) TestAddingAttachments(c *gc.C) {
 	c.Assert(attachments, gc.HasLen, 2)
 	c.Check(attachments[0], jc.DeepEquals, attachment1)
 	c.Check(attachments[1], jc.DeepEquals, attachment2)
+}
+
+func testAttachmentPlanArgs(id string) VolumeAttachmentPlanArgs {
+	machineId := "42"
+
+	if len(id) > 0 {
+		machineId = id
+	}
+
+	return VolumeAttachmentPlanArgs{
+		Machine:    names.NewMachineTag(machineId),
+		HardwareId: "amazing-device",
+		WWN:        "for-a-second-there-i-thought-you-said-www",
+
+		DeviceType: "iscsi",
+		DeviceAttributes: map[string]string{
+			"chap-secret": "super-secret",
+		},
+	}
+}
+
+func (s *VolumeSerializationSuite) TestAddingAttachmentPlans(c *gc.C) {
+	original := testVolume()
+	attachmentPlan1 := original.AddAttachmentPlan(testAttachmentPlanArgs("1"))
+	attachmentPlan2 := original.AddAttachmentPlan(testAttachmentPlanArgs("2"))
+	volume := s.exportImport(c, original)
+	c.Assert(volume, jc.DeepEquals, original)
+	attachmentPlans := volume.AttachmentPlans()
+	c.Assert(attachmentPlans, gc.HasLen, 2)
+	c.Check(attachmentPlans[0], jc.DeepEquals, attachmentPlan1)
+	c.Check(attachmentPlans[1], jc.DeepEquals, attachmentPlan2)
 }
 
 func (s *VolumeSerializationSuite) TestParsingSerializedData(c *gc.C) {
