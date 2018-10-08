@@ -397,6 +397,7 @@ func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
 		CpuPower:         4000,
 		Tags:             []string{"much", "strong"},
 		AvailabilityZone: "everywhere",
+		CharmProfiles:    []string{"much", "strong"},
 	}
 
 	instance := newCloudInstance(args)
@@ -420,6 +421,16 @@ func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
 	// Also, changing the tags returned, doesn't modify the instance
 	tags[0] = "weird"
 	c.Assert(instance.Tags(), jc.DeepEquals, []string{"much", "strong"})
+
+	// Before we check charm profiles, modify args to make sure that the instance ones
+	// don't change.
+	args.CharmProfiles[0] = "weird"
+	profiles := instance.CharmProfiles()
+	c.Assert(profiles, jc.DeepEquals, []string{"much", "strong"})
+
+	// Also, changing the tags returned, doesn't modify the instance
+	profiles[0] = "weird"
+	c.Assert(instance.CharmProfiles(), jc.DeepEquals, []string{"much", "strong"})
 }
 
 func (s *CloudInstanceSerializationSuite) TestMinimalMatches(c *gc.C) {

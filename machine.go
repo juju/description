@@ -609,6 +609,7 @@ type CloudInstance interface {
 	CpuPower() uint64
 	Tags() []string
 	AvailabilityZone() string
+	CharmProfiles() []string
 
 	Validate() error
 }
@@ -624,11 +625,14 @@ type CloudInstanceArgs struct {
 	CpuPower         uint64
 	Tags             []string
 	AvailabilityZone string
+	CharmProfiles    []string
 }
 
 func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 	tags := make([]string, len(args.Tags))
 	copy(tags, args.Tags)
+	profiles := make([]string, len(args.CharmProfiles))
+	copy(profiles, args.CharmProfiles)
 	return &cloudInstance{
 		Version:           2,
 		InstanceId_:       args.InstanceId,
@@ -639,6 +643,7 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 		CpuPower_:         args.CpuPower,
 		Tags_:             tags,
 		AvailabilityZone_: args.AvailabilityZone,
+		CharmProfiles_:    profiles,
 		StatusHistory_:    newStatusHistory(),
 	}
 }
@@ -661,6 +666,7 @@ type cloudInstance struct {
 	CpuPower_         uint64   `yaml:"cpu-power,omitempty"`
 	Tags_             []string `yaml:"tags,omitempty"`
 	AvailabilityZone_ string   `yaml:"availability-zone,omitempty"`
+	CharmProfiles_    []string `yaml:"charm-profiles,omitempty"`
 }
 
 // InstanceId implements CloudInstance.
@@ -717,6 +723,13 @@ func (c *cloudInstance) Tags() []string {
 // AvailabilityZone implements CloudInstance.
 func (c *cloudInstance) AvailabilityZone() string {
 	return c.AvailabilityZone_
+}
+
+// CharmProfiles implements CloudInstance.
+func (c *cloudInstance) CharmProfiles() []string {
+	profiles := make([]string, len(c.CharmProfiles_))
+	copy(profiles, c.CharmProfiles_)
+	return profiles
 }
 
 // Validate implements CloudInstance.
