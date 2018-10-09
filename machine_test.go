@@ -367,7 +367,7 @@ func (s *CloudInstanceSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalCloudInstanceMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":        2,
+		"version":        3,
 		"instance-id":    "instance id",
 		"status":         minimalStatusMap(),
 		"status-history": emptyStatusHistoryMap(),
