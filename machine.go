@@ -609,6 +609,7 @@ type CloudInstance interface {
 	CpuPower() uint64
 	Tags() []string
 	AvailabilityZone() string
+	CharmProfiles() []string
 
 	Validate() error
 }
@@ -624,13 +625,16 @@ type CloudInstanceArgs struct {
 	CpuPower         uint64
 	Tags             []string
 	AvailabilityZone string
+	CharmProfiles    []string
 }
 
 func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 	tags := make([]string, len(args.Tags))
 	copy(tags, args.Tags)
+	profiles := make([]string, len(args.CharmProfiles))
+	copy(profiles, args.CharmProfiles)
 	return &cloudInstance{
-		Version:           2,
+		Version:           3,
 		InstanceId_:       args.InstanceId,
 		Architecture_:     args.Architecture,
 		Memory_:           args.Memory,
@@ -639,6 +643,7 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 		CpuPower_:         args.CpuPower,
 		Tags_:             tags,
 		AvailabilityZone_: args.AvailabilityZone,
+		CharmProfiles_:    profiles,
 		StatusHistory_:    newStatusHistory(),
 	}
 }
@@ -661,6 +666,7 @@ type cloudInstance struct {
 	CpuPower_         uint64   `yaml:"cpu-power,omitempty"`
 	Tags_             []string `yaml:"tags,omitempty"`
 	AvailabilityZone_ string   `yaml:"availability-zone,omitempty"`
+	CharmProfiles_    []string `yaml:"charm-profiles,omitempty"`
 }
 
 // InstanceId implements CloudInstance.
@@ -719,6 +725,13 @@ func (c *cloudInstance) AvailabilityZone() string {
 	return c.AvailabilityZone_
 }
 
+// CharmProfiles implements CloudInstance.
+func (c *cloudInstance) CharmProfiles() []string {
+	profiles := make([]string, len(c.CharmProfiles_))
+	copy(profiles, c.CharmProfiles_)
+	return profiles
+}
+
 // Validate implements CloudInstance.
 func (c *cloudInstance) Validate() error {
 	if c.InstanceId_ == "" {
@@ -749,6 +762,7 @@ type cloudInstanceDeserializationFunc func(map[string]interface{}) (*cloudInstan
 var cloudInstanceDeserializationFuncs = map[int]cloudInstanceDeserializationFunc{
 	1: importCloudInstanceV1,
 	2: importCloudInstanceV2,
+	3: importCloudInstanceV3,
 }
 
 func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
@@ -783,12 +797,23 @@ func cloudInstanceV2Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func cloudInstanceV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := cloudInstanceV2Fields()
+	fields["charm-profiles"] = schema.List(schema.String())
+	defaults["charm-profiles"] = schema.Omit
+	return fields, defaults
+}
+
 func importCloudInstanceV1(source map[string]interface{}) (*cloudInstance, error) {
 	return importCloudInstanceVx(source, 1, cloudInstanceV1Fields)
 }
 
 func importCloudInstanceV2(source map[string]interface{}) (*cloudInstance, error) {
 	return importCloudInstanceVx(source, 2, cloudInstanceV2Fields)
+}
+
+func importCloudInstanceV3(source map[string]interface{}) (*cloudInstance, error) {
+	return importCloudInstanceVx(source, 3, cloudInstanceV3Fields)
 }
 
 func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc func() (schema.Fields, schema.Defaults)) (*cloudInstance, error) {
@@ -807,7 +832,7 @@ func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc
 
 func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) (*cloudInstance, error) {
 	instance := &cloudInstance{
-		Version:           2,
+		Version:           3,
 		InstanceId_:       valid["instance-id"].(string),
 		Architecture_:     valid["architecture"].(string),
 		Memory_:           valid["memory"].(uint64),
@@ -816,17 +841,18 @@ func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) 
 		CpuPower_:         valid["cpu-power"].(uint64),
 		Tags_:             convertToStringSlice(valid["tags"]),
 		AvailabilityZone_: valid["availability-zone"].(string),
+		CharmProfiles_:    convertToStringSlice(valid["charm-profiles"]),
 		StatusHistory_:    newStatusHistory(),
 	}
 
-	switch importVersion {
-	case 1:
+	switch {
+	case importVersion == 1:
 		// Status was exported incorrectly, so we fake one here.
 		instance.SetStatus(StatusArgs{
 			Value: "unknown",
 		})
 
-	case 2:
+	case importVersion >= 2:
 		status, err := importStatus(valid["status"].(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Trace(err)
