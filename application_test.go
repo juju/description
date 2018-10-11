@@ -73,6 +73,8 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	result["type"] = CAAS
 	result["password-hash"] = "some-hash"
 	result["pod-spec"] = "some-spec"
+	result["placement"] = "foo=bar"
+	result["desired-scale"] = 2
 	result["cloud-service"] = map[interface{}]interface{}{
 		"version":     1,
 		"provider-id": "some-provider",
@@ -138,6 +140,8 @@ func minimalApplicationArgs(modelType string) ApplicationArgs {
 	if modelType == CAAS {
 		result.PasswordHash = "some-hash"
 		result.PodSpec = "some-spec"
+		result.Placement = "foo=bar"
+		result.DesiredScale = 2
 		result.CloudService = &CloudServiceArgs{
 			ProviderId: "some-provider",
 			Addresses: []AddressArgs{
@@ -176,6 +180,8 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		MetricsCredentials: []byte("sekrit"),
 		PasswordHash:       "passwordhash",
 		PodSpec:            "podspec",
+		Placement:          "foo=bar",
+		DesiredScale:       2,
 	}
 	application := newApplication(args)
 
@@ -190,6 +196,8 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.Exposed(), jc.IsTrue)
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 	c.Assert(application.PodSpec(), gc.Equals, "podspec")
+	c.Assert(application.Placement(), gc.Equals, "foo=bar")
+	c.Assert(application.DesiredScale(), gc.Equals, 2)
 	c.Assert(application.CloudService(), gc.IsNil)
 	c.Assert(application.StorageConstraints(), gc.HasLen, 0)
 	c.Assert(application.MinUnits(), gc.Equals, 42)
@@ -252,7 +260,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 3)
+	return s.exportImportVersion(c, application_, 4)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -264,6 +272,8 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest := minimalApplication()
 	appLatest.PasswordHash_ = ""
 	appLatest.PodSpec_ = ""
+	appLatest.Placement_ = ""
+	appLatest.DesiredScale_ = 0
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
 
@@ -279,10 +289,25 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest := appV1
 	appLatest.PasswordHash_ = ""
 	appLatest.PodSpec_ = ""
+	appLatest.Placement_ = ""
+	appLatest.DesiredScale_ = 0
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
+	c.Assert(appResult, jc.DeepEquals, appLatest)
+}
+
+func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	appV2 := minimalApplication(args)
+
+	// Make an app with fields not in v3 removed.
+	appLatest := appV2
+	appLatest.Placement_ = ""
+	appLatest.DesiredScale_ = 0
+
+	appResult := s.exportImportVersion(c, appV2, 3)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
@@ -384,6 +409,24 @@ func (s *ApplicationSerializationSuite) TestPodSpec(c *gc.C) {
 
 	application := s.exportImportLatest(c, initial)
 	c.Assert(application.PodSpec(), gc.Equals, "podspec")
+}
+
+func (s *ApplicationSerializationSuite) TestPlacement(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	args.Placement = "foo=baz"
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.Placement(), gc.Equals, "foo=baz")
+}
+
+func (s *ApplicationSerializationSuite) TestDesiredScale(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	args.DesiredScale = 3
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.DesiredScale(), gc.Equals, 3)
 }
 
 func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {

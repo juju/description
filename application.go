@@ -33,6 +33,8 @@ type Application interface {
 
 	PasswordHash() string
 	PodSpec() string
+	DesiredScale() int
+	Placement() string
 	CloudService() CloudService
 	SetCloudService(CloudServiceArgs)
 
@@ -105,6 +107,8 @@ type application struct {
 	// CAAS application fields.
 	PasswordHash_ string        `yaml:"password-hash,omitempty"`
 	PodSpec_      string        `yaml:"pod-spec,omitempty"`
+	Placement_    string        `yaml:"placement,omitempty"`
+	DesiredScale_ int           `yaml:"desired-scale,omitempty"`
 	CloudService_ *cloudService `yaml:"cloud-service,omitempty"`
 	Tools_        *agentTools   `yaml:"tools,omitempty"`
 }
@@ -121,6 +125,8 @@ type ApplicationArgs struct {
 	ForceCharm           bool
 	PasswordHash         string
 	PodSpec              string
+	Placement            string
+	DesiredScale         int
 	CloudService         *CloudServiceArgs
 	Exposed              bool
 	MinUnits             int
@@ -148,6 +154,8 @@ func newApplication(args ApplicationArgs) *application {
 		PasswordHash_:         args.PasswordHash,
 		PodSpec_:              args.PodSpec,
 		CloudService_:         newCloudService(args.CloudService),
+		Placement_:            args.Placement,
+		DesiredScale_:         args.DesiredScale,
 		MinUnits_:             args.MinUnits,
 		EndpointBindings_:     args.EndpointBindings,
 		ApplicationConfig_:    args.ApplicationConfig,
@@ -226,6 +234,16 @@ func (a *application) PasswordHash() string {
 // PodSpec implements Application.
 func (a *application) PodSpec() string {
 	return a.PodSpec_
+}
+
+// Placement implements Application.
+func (a *application) Placement() string {
+	return a.Placement_
+}
+
+// DesiredScale implements Application.
+func (a *application) DesiredScale() int {
+	return a.DesiredScale_
 }
 
 // MinUnits implements Application.
@@ -462,6 +480,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	1: importApplicationV1,
 	2: importApplicationV2,
 	3: importApplicationV3,
+	4: importApplicationV4,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -523,6 +542,15 @@ func applicationV3Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV4Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV3Fields()
+	fields["placement"] = schema.String()
+	fields["desired-scale"] = schema.Int()
+	defaults["placement"] = ""
+	defaults["desired-scale"] = int64(0)
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -536,6 +564,11 @@ func importApplicationV2(source map[string]interface{}) (*application, error) {
 func importApplicationV3(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV3Fields()
 	return importApplication(fields, defaults, 3, source)
+}
+
+func importApplicationV4(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV4Fields()
+	return importApplication(fields, defaults, 4, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -572,6 +605,10 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	if importVersion >= 3 {
 		result.PasswordHash_ = valid["password-hash"].(string)
 		result.PodSpec_ = valid["pod-spec"].(string)
+	}
+	if importVersion >= 4 {
+		result.Placement_ = valid["placement"].(string)
+		result.DesiredScale_ = int(valid["desired-scale"].(int64))
 	}
 
 	result.importAnnotations(valid)
