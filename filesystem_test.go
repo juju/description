@@ -283,3 +283,17 @@ func (s *FilesystemAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *g
 		Provisioned_: true,
 	})
 }
+
+func (s *FilesystemAttachmentSerializationSuite) TestUnitAttachmentParsing(c *gc.C) {
+	attachmentMap := testFilesystemAttachmentMap()
+	attachmentMap["host-id"] = "gitlab/0"
+
+	attachment, err := importFilesystemAttachmentV2(attachmentMap)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &filesystemAttachment{
+		HostID_:      "gitlab/0",
+		MountPoint_:  "/some/dir",
+		ReadOnly_:    true,
+		Provisioned_: true,
+	})
+}

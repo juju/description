@@ -425,9 +425,16 @@ func newVolumeAttachment(args VolumeAttachmentArgs) *volumeAttachment {
 	}
 }
 
+func storageAttachmentHost(id string) names.Tag {
+	if names.IsValidUnit(id) {
+		return names.NewUnitTag(id)
+	}
+	return names.NewMachineTag(id)
+}
+
 // Host implements VolumeAttachment
 func (a *volumeAttachment) Host() names.Tag {
-	return names.NewMachineTag(a.HostID_)
+	return storageAttachmentHost(a.HostID_)
 }
 
 // Provisioned implements VolumeAttachment
