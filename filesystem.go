@@ -278,7 +278,7 @@ func newFilesystemAttachment(args FilesystemAttachmentArgs) *filesystemAttachmen
 
 // Host implements FilesystemAttachment
 func (a *filesystemAttachment) Host() names.Tag {
-	return names.NewMachineTag(a.HostID_)
+	return storageAttachmentHost(a.HostID_)
 }
 
 // Provisioned implements FilesystemAttachment

@@ -332,3 +332,19 @@ func (s *VolumeAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C)
 		BusAddress_:  "nfi",
 	})
 }
+
+func (s *VolumeAttachmentSerializationSuite) TestUnitAttachmentParsing(c *gc.C) {
+	attachmentMap := testVolumeAttachmentMap()
+	attachmentMap["host-id"] = "gitlab/0"
+
+	attachment, err := importVolumeAttachmentV2(attachmentMap)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &volumeAttachment{
+		HostID_:      "gitlab/0",
+		ReadOnly_:    true,
+		Provisioned_: true,
+		DeviceName_:  "sdd",
+		DeviceLink_:  "link?",
+		BusAddress_:  "nfi",
+	})
+}
