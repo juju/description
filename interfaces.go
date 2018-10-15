@@ -116,7 +116,7 @@ type Volume interface {
 
 // VolumeAttachment represents a volume attached to a machine.
 type VolumeAttachment interface {
-	Machine() names.MachineTag
+	Host() names.Tag
 	Provisioned() bool
 	ReadOnly() bool
 	DeviceName() string
@@ -158,7 +158,7 @@ type Filesystem interface {
 
 // FilesystemAttachment represents a filesystem attached to a machine.
 type FilesystemAttachment interface {
-	Machine() names.MachineTag
+	Host() names.Tag
 	Provisioned() bool
 	MountPoint() string
 	ReadOnly() bool

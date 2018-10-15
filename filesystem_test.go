@@ -48,7 +48,7 @@ func testFilesystemMap() map[interface{}]interface{} {
 		"status":         minimalStatusMap(),
 		"status-history": emptyStatusHistoryMap(),
 		"attachments": map[interface{}]interface{}{
-			"version":     1,
+			"version":     2,
 			"attachments": []interface{}{},
 		},
 	}
@@ -195,9 +195,9 @@ func (s *FilesystemAttachmentSerializationSuite) SetUpTest(c *gc.C) {
 	}
 }
 
-func testFilesystemAttachmentMap() map[interface{}]interface{} {
-	return map[interface{}]interface{}{
-		"machine-id":  "42",
+func testFilesystemAttachmentMap() map[string]interface{} {
+	return map[string]interface{}{
+		"host-id":     "42",
 		"provisioned": true,
 		"read-only":   true,
 		"mount-point": "/some/dir",
@@ -214,7 +214,7 @@ func testFilesystemAttachmentArgs(id ...string) FilesystemAttachmentArgs {
 		machineID = id[0]
 	}
 	return FilesystemAttachmentArgs{
-		Machine:     names.NewMachineTag(machineID),
+		Host:        names.NewMachineTag(machineID),
 		Provisioned: true,
 		ReadOnly:    true,
 		MountPoint:  "/some/dir",
@@ -224,7 +224,7 @@ func testFilesystemAttachmentArgs(id ...string) FilesystemAttachmentArgs {
 func (s *FilesystemAttachmentSerializationSuite) TestNewFilesystemAttachment(c *gc.C) {
 	attachment := testFilesystemAttachment()
 
-	c.Check(attachment.Machine(), gc.Equals, names.NewMachineTag("42"))
+	c.Check(attachment.Host(), gc.Equals, names.NewMachineTag("42"))
 	c.Check(attachment.Provisioned(), jc.IsTrue)
 	c.Check(attachment.ReadOnly(), jc.IsTrue)
 	c.Check(attachment.MountPoint(), gc.Equals, "/some/dir")
@@ -234,15 +234,19 @@ func (s *FilesystemAttachmentSerializationSuite) TestFilesystemAttachmentMatches
 	bytes, err := yaml.Marshal(testFilesystemAttachment())
 	c.Assert(err, jc.ErrorIsNil)
 
-	var source map[interface{}]interface{}
+	var source map[string]interface{}
 	err = yaml.Unmarshal(bytes, &source)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(source, jc.DeepEquals, testFilesystemAttachmentMap())
 }
 
-func (s *FilesystemAttachmentSerializationSuite) exportImport(c *gc.C, attachment *filesystemAttachment) *filesystemAttachment {
+func (s *FilesystemAttachmentSerializationSuite) exportImportLatest(c *gc.C, attachment *filesystemAttachment) *filesystemAttachment {
+	return s.exportImportVersion(c, attachment, 2)
+}
+
+func (s *FilesystemAttachmentSerializationSuite) exportImportVersion(c *gc.C, attachment *filesystemAttachment, version int) *filesystemAttachment {
 	initial := filesystemAttachments{
-		Version:      1,
+		Version:      version,
 		Attachments_: []*filesystemAttachment{attachment},
 	}
 
@@ -261,6 +265,21 @@ func (s *FilesystemAttachmentSerializationSuite) exportImport(c *gc.C, attachmen
 
 func (s *FilesystemAttachmentSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	original := testFilesystemAttachment()
-	attachment := s.exportImport(c, original)
+	attachment := s.exportImportLatest(c, original)
 	c.Assert(attachment, jc.DeepEquals, original)
+}
+
+func (s *FilesystemAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
+	attachmentMapV1 := testFilesystemAttachmentMap()
+	attachmentMapV1["machine-id"] = attachmentMapV1["host-id"]
+	delete(attachmentMapV1, "host-id")
+
+	attachment, err := importFilesystemAttachmentV1(attachmentMapV1)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &filesystemAttachment{
+		HostID_:      "42",
+		MountPoint_:  "/some/dir",
+		ReadOnly_:    true,
+		Provisioned_: true,
+	})
 }

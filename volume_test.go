@@ -50,7 +50,7 @@ func testVolumeMap() map[interface{}]interface{} {
 		"status":         minimalStatusMap(),
 		"status-history": emptyStatusHistoryMap(),
 		"attachments": map[interface{}]interface{}{
-			"version":     1,
+			"version":     2,
 			"attachments": []interface{}{},
 		},
 		"attachmentplans": map[interface{}]interface{}{
@@ -236,9 +236,9 @@ func (s *VolumeAttachmentSerializationSuite) SetUpTest(c *gc.C) {
 	}
 }
 
-func testVolumeAttachmentMap() map[interface{}]interface{} {
-	return map[interface{}]interface{}{
-		"machine-id":  "42",
+func testVolumeAttachmentMap() map[string]interface{} {
+	return map[string]interface{}{
+		"host-id":     "42",
 		"provisioned": true,
 		"read-only":   true,
 		"device-name": "sdd",
@@ -257,7 +257,7 @@ func testVolumeAttachmentArgs(id ...string) VolumeAttachmentArgs {
 		machineID = id[0]
 	}
 	return VolumeAttachmentArgs{
-		Machine:     names.NewMachineTag(machineID),
+		Host:        names.NewMachineTag(machineID),
 		Provisioned: true,
 		ReadOnly:    true,
 		DeviceName:  "sdd",
@@ -269,7 +269,7 @@ func testVolumeAttachmentArgs(id ...string) VolumeAttachmentArgs {
 func (s *VolumeAttachmentSerializationSuite) TestNewVolumeAttachment(c *gc.C) {
 	attachment := testVolumeAttachment()
 
-	c.Check(attachment.Machine(), gc.Equals, names.NewMachineTag("42"))
+	c.Check(attachment.Host(), gc.Equals, names.NewMachineTag("42"))
 	c.Check(attachment.Provisioned(), jc.IsTrue)
 	c.Check(attachment.ReadOnly(), jc.IsTrue)
 	c.Check(attachment.DeviceName(), gc.Equals, "sdd")
@@ -281,15 +281,19 @@ func (s *VolumeAttachmentSerializationSuite) TestVolumeAttachmentMatches(c *gc.C
 	bytes, err := yaml.Marshal(testVolumeAttachment())
 	c.Assert(err, jc.ErrorIsNil)
 
-	var source map[interface{}]interface{}
+	var source map[string]interface{}
 	err = yaml.Unmarshal(bytes, &source)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(source, jc.DeepEquals, testVolumeAttachmentMap())
 }
 
-func (s *VolumeAttachmentSerializationSuite) exportImport(c *gc.C, attachment *volumeAttachment) *volumeAttachment {
+func (s *VolumeAttachmentSerializationSuite) exportImportLatest(c *gc.C, attachment *volumeAttachment) *volumeAttachment {
+	return s.exportImportVersion(c, attachment, 2)
+}
+
+func (s *VolumeAttachmentSerializationSuite) exportImportVersion(c *gc.C, attachment *volumeAttachment, version int) *volumeAttachment {
 	initial := volumeAttachments{
-		Version:      1,
+		Version:      2,
 		Attachments_: []*volumeAttachment{attachment},
 	}
 
@@ -308,6 +312,23 @@ func (s *VolumeAttachmentSerializationSuite) exportImport(c *gc.C, attachment *v
 
 func (s *VolumeAttachmentSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	original := testVolumeAttachment()
-	attachment := s.exportImport(c, original)
+	attachment := s.exportImportLatest(c, original)
 	c.Assert(attachment, jc.DeepEquals, original)
+}
+
+func (s *VolumeAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
+	attachmentMapV1 := testVolumeAttachmentMap()
+	attachmentMapV1["machine-id"] = attachmentMapV1["host-id"]
+	delete(attachmentMapV1, "host-id")
+
+	attachment, err := importVolumeAttachmentV1(attachmentMapV1)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &volumeAttachment{
+		HostID_:      "42",
+		ReadOnly_:    true,
+		Provisioned_: true,
+		DeviceName_:  "sdd",
+		DeviceLink_:  "link?",
+		BusAddress_:  "nfi",
+	})
 }

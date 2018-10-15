@@ -36,7 +36,7 @@ type filesystemAttachments struct {
 }
 
 type filesystemAttachment struct {
-	MachineID_   string `yaml:"machine-id"`
+	HostID_      string `yaml:"host-id"`
 	Provisioned_ bool   `yaml:"provisioned"`
 	MountPoint_  string `yaml:"mount-point,omitempty"`
 	ReadOnly_    bool   `yaml:"read-only"`
@@ -125,7 +125,7 @@ func (f *filesystem) SetStatus(args StatusArgs) {
 
 func (f *filesystem) setAttachments(attachments []*filesystemAttachment) {
 	f.Attachments_ = filesystemAttachments{
-		Version:      1,
+		Version:      2,
 		Attachments_: attachments,
 	}
 }
@@ -261,7 +261,7 @@ func importFilesystemV1(source map[string]interface{}) (*filesystem, error) {
 // FilesystemAttachmentArgs is an argument struct used to add information about the
 // cloud instance to a Filesystem.
 type FilesystemAttachmentArgs struct {
-	Machine     names.MachineTag
+	Host        names.Tag
 	Provisioned bool
 	ReadOnly    bool
 	MountPoint  string
@@ -269,16 +269,16 @@ type FilesystemAttachmentArgs struct {
 
 func newFilesystemAttachment(args FilesystemAttachmentArgs) *filesystemAttachment {
 	return &filesystemAttachment{
-		MachineID_:   args.Machine.Id(),
+		HostID_:      args.Host.Id(),
 		Provisioned_: args.Provisioned,
 		ReadOnly_:    args.ReadOnly,
 		MountPoint_:  args.MountPoint,
 	}
 }
 
-// Machine implements FilesystemAttachment
-func (a *filesystemAttachment) Machine() names.MachineTag {
-	return names.NewMachineTag(a.MachineID_)
+// Host implements FilesystemAttachment
+func (a *filesystemAttachment) Host() names.Tag {
+	return names.NewMachineTag(a.HostID_)
 }
 
 // Provisioned implements FilesystemAttachment
@@ -333,9 +333,20 @@ type filesystemAttachmentDeserializationFunc func(map[string]interface{}) (*file
 
 var filesystemAttachmentDeserializationFuncs = map[int]filesystemAttachmentDeserializationFunc{
 	1: importFilesystemAttachmentV1,
+	2: importFilesystemAttachmentV2,
 }
 
 func importFilesystemAttachmentV1(source map[string]interface{}) (*filesystemAttachment, error) {
+	fields, defaults := filesystemAttachmentV1Fields()
+	return importFilesystemAttachment(fields, defaults, 1, source)
+}
+
+func importFilesystemAttachmentV2(source map[string]interface{}) (*filesystemAttachment, error) {
+	fields, defaults := filesystemAttachmentV2Fields()
+	return importFilesystemAttachment(fields, defaults, 2, source)
+}
+
+func filesystemAttachmentV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"machine-id":  schema.String(),
 		"provisioned": schema.Bool(),
@@ -345,21 +356,38 @@ func importFilesystemAttachmentV1(source map[string]interface{}) (*filesystemAtt
 	defaults := schema.Defaults{
 		"mount-point": "",
 	}
+	return fields, defaults
+}
+
+func filesystemAttachmentV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := filesystemAttachmentV1Fields()
+	fields["host-id"] = schema.String()
+	delete(fields, "machine-id")
+	return fields, defaults
+}
+
+func importFilesystemAttachment(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*filesystemAttachment, error) {
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "filesystemAttachment v1 schema check failed")
+		return nil, errors.Annotatef(err, "filesystemAttachment schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
 	result := &filesystemAttachment{
-		MachineID_:   valid["machine-id"].(string),
 		Provisioned_: valid["provisioned"].(bool),
 		ReadOnly_:    valid["read-only"].(bool),
 		MountPoint_:  valid["mount-point"].(string),
 	}
+
+	if importVersion >= 2 {
+		result.HostID_ = valid["host-id"].(string)
+	} else {
+		result.HostID_ = valid["machine-id"].(string)
+	}
+
 	return result, nil
 }
