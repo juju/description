@@ -906,8 +906,11 @@ func (m *model) validateStorage(allMachineIDs, allApplications, allUnits set.Str
 			return errors.NotValidf("volume[%d] referencing unknown storage %q", i, storeID)
 		}
 		for j, attachment := range volume.Attachments() {
-			if machineID := attachment.Machine().Id(); !allMachineIDs.Contains(machineID) {
-				return errors.NotValidf("volume[%d].attachment[%d] referencing unknown machine %q", i, j, machineID)
+			hostID := attachment.Host().Id()
+			knownMachine := allMachineIDs.Contains(hostID)
+			knownUnit := allUnits.Contains(hostID)
+			if !knownMachine && !knownUnit {
+				return errors.NotValidf("volume[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
 			}
 		}
 	}
@@ -922,8 +925,11 @@ func (m *model) validateStorage(allMachineIDs, allApplications, allUnits set.Str
 			return errors.NotValidf("filesystem[%d] referencing unknown volume %q", i, volID)
 		}
 		for j, attachment := range filesystem.Attachments() {
-			if machineID := attachment.Machine().Id(); !allMachineIDs.Contains(machineID) {
-				return errors.NotValidf("filesystem[%d].attachment[%d] referencing unknown machine %q", i, j, machineID)
+			hostID := attachment.Host().Id()
+			knownMachine := allMachineIDs.Contains(hostID)
+			knownUnit := allUnits.Contains(hostID)
+			if !knownMachine && !knownUnit {
+				return errors.NotValidf("filesystem[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
 			}
 		}
 	}

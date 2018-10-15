@@ -56,7 +56,7 @@ func (v volumePlanInfo) DeviceAttributes() map[string]string {
 }
 
 type volumeAttachment struct {
-	MachineID_      string         `yaml:"machine-id"`
+	HostID_         string         `yaml:"host-id"`
 	Provisioned_    bool           `yaml:"provisioned"`
 	ReadOnly_       bool           `yaml:"read-only"`
 	DeviceName_     string         `yaml:"device-name"`
@@ -178,7 +178,7 @@ func (v *volume) SetStatus(args StatusArgs) {
 
 func (v *volume) setAttachments(attachments []*volumeAttachment) {
 	v.Attachments_ = volumeAttachments{
-		Version:      1,
+		Version:      2,
 		Attachments_: attachments,
 	}
 }
@@ -351,7 +351,7 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 // VolumeAttachmentArgs is an argument struct used to add information about the
 // cloud instance to a Volume.
 type VolumeAttachmentArgs struct {
-	Machine     names.MachineTag
+	Host        names.Tag
 	Provisioned bool
 	ReadOnly    bool
 	DeviceName  string
@@ -415,7 +415,7 @@ func newVolumeAttachment(args VolumeAttachmentArgs) *volumeAttachment {
 		planInfo.DeviceAttributes_ = args.DeviceAttributes
 	}
 	return &volumeAttachment{
-		MachineID_:      args.Machine.Id(),
+		HostID_:         args.Host.Id(),
 		Provisioned_:    args.Provisioned,
 		ReadOnly_:       args.ReadOnly,
 		DeviceName_:     args.DeviceName,
@@ -425,9 +425,9 @@ func newVolumeAttachment(args VolumeAttachmentArgs) *volumeAttachment {
 	}
 }
 
-// Machine implements VolumeAttachment
-func (a *volumeAttachment) Machine() names.MachineTag {
-	return names.NewMachineTag(a.MachineID_)
+// Host implements VolumeAttachment
+func (a *volumeAttachment) Host() names.Tag {
+	return names.NewMachineTag(a.HostID_)
 }
 
 // Provisioned implements VolumeAttachment
@@ -497,9 +497,20 @@ type volumeAttachmentDeserializationFunc func(map[string]interface{}) (*volumeAt
 
 var volumeAttachmentDeserializationFuncs = map[int]volumeAttachmentDeserializationFunc{
 	1: importVolumeAttachmentV1,
+	2: importVolumeAttachmentV2,
 }
 
 func importVolumeAttachmentV1(source map[string]interface{}) (*volumeAttachment, error) {
+	fields, defaults := volumeAttachmentV1Fields()
+	return importVolumeAttachment(fields, defaults, 1, source)
+}
+
+func importVolumeAttachmentV2(source map[string]interface{}) (*volumeAttachment, error) {
+	fields, defaults := volumeAttachmentV2Fields()
+	return importVolumeAttachment(fields, defaults, 2, source)
+}
+
+func volumeAttachmentV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"machine-id":  schema.String(),
 		"provisioned": schema.Bool(),
@@ -513,7 +524,17 @@ func importVolumeAttachmentV1(source map[string]interface{}) (*volumeAttachment,
 	defaults := schema.Defaults{
 		"plan-info": schema.Omit,
 	}
+	return fields, defaults
+}
 
+func volumeAttachmentV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := volumeAttachmentV1Fields()
+	fields["host-id"] = schema.String()
+	delete(fields, "machine-id")
+	return fields, defaults
+}
+
+func importVolumeAttachment(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*volumeAttachment, error) {
 	checker := schema.FieldMap(fields, defaults) // no defaults
 
 	coerced, err := checker.Coerce(source, nil)
@@ -534,7 +555,6 @@ func importVolumeAttachmentV1(source map[string]interface{}) (*volumeAttachment,
 	}
 
 	result := &volumeAttachment{
-		MachineID_:      valid["machine-id"].(string),
 		Provisioned_:    valid["provisioned"].(bool),
 		ReadOnly_:       valid["read-only"].(bool),
 		DeviceName_:     valid["device-name"].(string),
@@ -542,6 +562,13 @@ func importVolumeAttachmentV1(source map[string]interface{}) (*volumeAttachment,
 		BusAddress_:     valid["bus-address"].(string),
 		VolumePlanInfo_: planInfo,
 	}
+
+	if importVersion >= 2 {
+		result.HostID_ = valid["host-id"].(string)
+	} else {
+		result.HostID_ = valid["machine-id"].(string)
+	}
+
 	return result, nil
 }
 
