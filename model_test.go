@@ -125,6 +125,32 @@ func (s *ModelSerializationSuite) TestParsingModelV1(c *gc.C) {
 	c.Check(instance.Status().Value(), gc.Equals, "unknown")
 }
 
+func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
+	args := ModelArgs{
+		Type:  IAAS,
+		Owner: names.NewUserTag("magic"),
+		Config: map[string]interface{}{
+			"name": "awesome",
+			"uuid": "some-uuid",
+		},
+		LatestToolsVersion: version.MustParse("2.0.1"),
+		EnvironVersion:     123,
+		Blocks: map[string]string{
+			"all-changes": "locked down",
+		},
+		Cloud:       "vapour",
+		CloudRegion: "east-west",
+	}
+	initial := NewModel(args).(*model)
+	c.Assert(initial.Applications_.Version, gc.Equals, len(applicationDeserializationFuncs))
+	c.Assert(initial.Actions_.Version, gc.Equals, len(actionDeserializationFuncs))
+	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
+	c.Assert(initial.Relations_.Version, gc.Equals, len(relationDeserializationFuncs))
+	c.Assert(initial.RemoteApplications_.Version, gc.Equals, len(remoteApplicationFieldsFuncs))
+	c.Assert(initial.Spaces_.Version, gc.Equals, len(spaceDeserializationFuncs))
+	c.Assert(initial.Volumes_.Version, gc.Equals, len(volumeDeserializationFuncs))
+}
+
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	args := ModelArgs{
 		Type:  IAAS,
