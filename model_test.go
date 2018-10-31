@@ -796,9 +796,10 @@ remote-applications:
     version: 1
   status:
     status:
+      neverset: false
       updated: 2017-05-09T12:01:00Z
       value: running
-    version: 1
+    version: 2
   url: other.mysql
 version: 1
 `[1:]

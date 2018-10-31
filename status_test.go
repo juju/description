@@ -24,10 +24,11 @@ func minimalStatus() *status {
 
 func minimalStatusMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version": 1,
+		"version": 2,
 		"status": map[interface{}]interface{}{
-			"value":   "running",
-			"updated": "2016-01-28T11:50:00Z",
+			"value":    "running",
+			"updated":  "2016-01-28T11:50:00Z",
+			"neverset": false,
 		},
 	}
 }
@@ -66,6 +67,32 @@ func (s *StatusSerializationSuite) TestMissingValue(c *gc.C) {
 	s.statusFields["updated"] = "2016-01-28T11:50:00Z"
 	_, err := importStatus(testMap)
 	c.Check(err.Error(), gc.Equals, "status v1 schema check failed: value: expected string, got nothing")
+}
+
+func (s *StatusSerializationSuite) TestV1StatusMapIgnoresV2Fields(c *gc.C) {
+	v1Status := map[string]interface{}{
+		"version": 1,
+		"status": map[interface{}]interface{}{
+			"value":    "running",
+			"updated":  "2016-01-28T11:50:00Z",
+			"neverset": true,
+		},
+	}
+	result, err := importStatus(v1Status)
+	c.Assert(err, jc.ErrorIsNil)
+
+	args := minimalStatusArgs()
+	expected := &status{
+		Version: 2,
+		StatusPoint_: StatusPoint_{
+			Value_:    args.Value,
+			Message_:  args.Message,
+			Data_:     args.Data,
+			Updated_:  args.Updated.UTC(),
+			NeverSet_: false,
+		},
+	}
+	c.Assert(result, jc.DeepEquals, expected)
 }
 
 func (s *StatusSerializationSuite) TestMissingUpdated(c *gc.C) {
@@ -134,7 +161,7 @@ var _ = gc.Suite(&StatusHistorySerializationSuite{})
 
 func emptyStatusHistoryMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version": 1,
+		"version": 2,
 		"history": []interface{}{},
 	}
 }
