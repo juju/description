@@ -16,6 +16,7 @@ import (
 type Application interface {
 	HasAnnotations
 	HasConstraints
+	HasOperatorStatus
 	HasStatus
 	HasStatusHistory
 
@@ -83,6 +84,8 @@ type application struct {
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
+	// Only valid for caas models
+	OperatorStatus_ *status `yaml:"operator-status,omitempty"`
 
 	EndpointBindings_ map[string]string `yaml:"endpoint-bindings,omitempty"`
 
@@ -293,6 +296,20 @@ func (a *application) MetricsCredentials() []byte {
 	// can be decoded.
 	creds, _ := base64.StdEncoding.DecodeString(a.MetricsCredentials_)
 	return creds
+}
+
+// OperatorStatus implements Application.
+func (a *application) OperatorStatus() Status {
+	// To avoid typed nils check nil here.
+	if a.OperatorStatus_ == nil {
+		return nil
+	}
+	return a.OperatorStatus_
+}
+
+// SetOperatorStatus implements Application.
+func (a *application) SetOperatorStatus(args StatusArgs) {
+	a.OperatorStatus_ = newStatus(args)
 }
 
 // Status implements Application.
@@ -546,8 +563,10 @@ func applicationV4Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV3Fields()
 	fields["placement"] = schema.String()
 	fields["desired-scale"] = schema.Int()
+	fields["operator-status"] = schema.StringMap(schema.Any())
 	defaults["placement"] = ""
 	defaults["desired-scale"] = int64(0)
+	defaults["operator-status"] = schema.Omit
 	return fields, defaults
 }
 
@@ -609,6 +628,14 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	if importVersion >= 4 {
 		result.Placement_ = valid["placement"].(string)
 		result.DesiredScale_ = int(valid["desired-scale"].(int64))
+
+		if operatorStatus, ok := valid["operator-status"].(map[string]interface{}); ok {
+			status, err := importStatus(operatorStatus)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.OperatorStatus_ = status
+		}
 	}
 
 	result.importAnnotations(valid)

@@ -38,14 +38,15 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 		"source-model-uuid": "abcd-1234",
 		"is-consumer-proxy": true,
 		"status": map[interface{}]interface{}{
-			"version": 1,
+			"version": 2,
 			"status": map[interface{}]interface{}{
 				"value":   "running",
 				"message": "monkey & bear",
 				"data": map[interface{}]interface{}{
 					"after": "the curtain",
 				},
-				"updated": "2016-01-28T11:50:00Z",
+				"updated":  "2016-01-28T11:50:00Z",
+				"neverset": false,
 			},
 		},
 		"endpoints": map[interface{}]interface{}{

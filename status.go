@@ -17,6 +17,11 @@ type HasStatus interface {
 	SetStatus(StatusArgs)
 }
 
+type HasOperatorStatus interface {
+	SetOperatorStatus(StatusArgs)
+	OperatorStatus() Status
+}
+
 // HasStatusHistory defines the common methods for setting and
 // getting historical status entries for the various entities.
 type HasStatusHistory interface {
@@ -30,32 +35,35 @@ type Status interface {
 	Message() string
 	Data() map[string]interface{}
 	Updated() time.Time
+	NeverSet() bool
 }
 
 // StatusArgs is an argument struct used to set the agent, application, or
 // workload status.
 type StatusArgs struct {
-	Value   string
-	Message string
-	Data    map[string]interface{}
-	Updated time.Time
+	Value    string
+	Message  string
+	Data     map[string]interface{}
+	Updated  time.Time
+	NeverSet bool
 }
 
 func newStatus(args StatusArgs) *status {
 	return &status{
-		Version: 1,
+		Version: 2,
 		StatusPoint_: StatusPoint_{
-			Value_:   args.Value,
-			Message_: args.Message,
-			Data_:    args.Data,
-			Updated_: args.Updated.UTC(),
+			Value_:    args.Value,
+			Message_:  args.Message,
+			Data_:     args.Data,
+			Updated_:  args.Updated.UTC(),
+			NeverSet_: args.NeverSet,
 		},
 	}
 }
 
 func newStatusHistory() StatusHistory_ {
 	return StatusHistory_{
-		Version: 1,
+		Version: 2,
 	}
 }
 
@@ -63,10 +71,11 @@ func newStatusHistory() StatusHistory_ {
 // of an entity at a point in time. Used in the serialization of
 // both status and StatusHistory_.
 type StatusPoint_ struct {
-	Value_   string                 `yaml:"value"`
-	Message_ string                 `yaml:"message,omitempty"`
-	Data_    map[string]interface{} `yaml:"data,omitempty"`
-	Updated_ time.Time              `yaml:"updated"`
+	Value_    string                 `yaml:"value"`
+	Message_  string                 `yaml:"message,omitempty"`
+	Data_     map[string]interface{} `yaml:"data,omitempty"`
+	Updated_  time.Time              `yaml:"updated"`
+	NeverSet_ bool                   `yaml:"neverset"`
 }
 
 type status struct {
@@ -99,6 +108,11 @@ func (a *StatusPoint_) Updated() time.Time {
 	return a.Updated_
 }
 
+// NeverSet implements Status.
+func (a *StatusPoint_) NeverSet() bool {
+	return a.NeverSet_
+}
+
 func importStatus(source map[string]interface{}) (*status, error) {
 	checker := versionedEmbeddedChecker("status")
 	coerced, err := checker.Coerce(source, nil)
@@ -108,18 +122,19 @@ func importStatus(source map[string]interface{}) (*status, error) {
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	importFunc, ok := statusDeserializationFuncs[version]
+
+	getFields, ok := statusFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 
 	source = valid["status"].(map[string]interface{})
-	point, err := importFunc(source)
+	point, err := importStatusAllVersions(schema.FieldMap(getFields()), version, source)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 	return &status{
-		Version:      1,
+		Version:      2,
 		StatusPoint_: point,
 	}, nil
 }
@@ -133,13 +148,13 @@ func importStatusHistory(history *StatusHistory_, source map[string]interface{})
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	importFunc, ok := statusDeserializationFuncs[version]
+	getFields, ok := statusFieldsFuncs[version]
 	if !ok {
 		return errors.NotValidf("version %d", version)
 	}
 
 	sourceList := valid["history"].([]interface{})
-	points, err := importStatusList(sourceList, importFunc)
+	points, err := importStatusList(sourceList, getFields, version)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -147,14 +162,14 @@ func importStatusHistory(history *StatusHistory_, source map[string]interface{})
 	return nil
 }
 
-func importStatusList(sourceList []interface{}, importFunc statusDeserializationFunc) ([]*StatusPoint_, error) {
+func importStatusList(sourceList []interface{}, getFields statusFieldsFunc, version int) ([]*StatusPoint_, error) {
 	result := make([]*StatusPoint_, 0, len(sourceList))
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for status %d, %T", i, value)
 		}
-		point, err := importFunc(source)
+		point, err := importStatusAllVersions(schema.FieldMap(getFields()), version, source)
 		if err != nil {
 			return nil, errors.Annotatef(err, "status history %d", i)
 		}
@@ -163,13 +178,14 @@ func importStatusList(sourceList []interface{}, importFunc statusDeserialization
 	return result, nil
 }
 
-type statusDeserializationFunc func(map[string]interface{}) (StatusPoint_, error)
+type statusFieldsFunc func() (schema.Fields, schema.Defaults)
 
-var statusDeserializationFuncs = map[int]statusDeserializationFunc{
-	1: importStatusV1,
+var statusFieldsFuncs = map[int]statusFieldsFunc{
+	1: statusV1Fields,
+	2: statusV2Fields,
 }
 
-func importStatusV1(source map[string]interface{}) (StatusPoint_, error) {
+func statusV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"value":   schema.String(),
 		"message": schema.String(),
@@ -181,8 +197,18 @@ func importStatusV1(source map[string]interface{}) (StatusPoint_, error) {
 		"message": "",
 		"data":    schema.Omit,
 	}
-	checker := schema.FieldMap(fields, defaults)
 
+	return fields, defaults
+}
+
+func statusV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := statusV1Fields()
+	fields["neverset"] = schema.Bool()
+	defaults["neverset"] = false
+	return fields, defaults
+}
+
+func importStatusAllVersions(checker schema.Checker, importVersion int, source map[string]interface{}) (StatusPoint_, error) {
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return StatusPoint_{}, errors.Annotatef(err, "status v1 schema check failed")
@@ -195,12 +221,17 @@ func importStatusV1(source map[string]interface{}) (StatusPoint_, error) {
 	if sourceData, set := valid["data"]; set {
 		data = sourceData.(map[string]interface{})
 	}
-	return StatusPoint_{
+	statusPoint := StatusPoint_{
 		Value_:   valid["value"].(string),
 		Message_: valid["message"].(string),
 		Data_:    data,
 		Updated_: valid["updated"].(time.Time),
-	}, nil
+	}
+
+	if importVersion >= 2 {
+		statusPoint.NeverSet_ = valid["neverset"].(bool)
+	}
+	return statusPoint, nil
 }
 
 // StatusHistory implements HasStatusHistory.
@@ -220,10 +251,11 @@ func (s *StatusHistory_) SetStatusHistory(args []StatusArgs) {
 	points := make([]*StatusPoint_, len(args))
 	for i, arg := range args {
 		points[i] = &StatusPoint_{
-			Value_:   arg.Value,
-			Message_: arg.Message,
-			Data_:    arg.Data,
-			Updated_: arg.Updated.UTC(),
+			Value_:    arg.Value,
+			Message_:  arg.Message,
+			Data_:     arg.Data,
+			Updated_:  arg.Updated.UTC(),
+			NeverSet_: arg.NeverSet,
 		}
 	}
 	s.History = points

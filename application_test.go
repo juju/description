@@ -90,6 +90,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 		},
 	}
 	result["tools"] = minimalAgentToolsMap()
+	result["operator-status"] = minimalStatusMap()
 	return result
 }
 
@@ -105,6 +106,7 @@ func minimalApplication(args ...ApplicationArgs) *application {
 	a.setResources([]*resource{minimalResource()})
 	if a.Type_ == CAAS {
 		a.SetTools(minimalAgentToolsArgs())
+		a.SetOperatorStatus(minimalStatusArgs())
 	} else {
 		u.SetTools(minimalAgentToolsArgs())
 	}
@@ -293,6 +295,7 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.DesiredScale_ = 0
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
+	appLatest.OperatorStatus_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -306,6 +309,7 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest := appV2
 	appLatest.Placement_ = ""
 	appLatest.DesiredScale_ = 0
+	appLatest.OperatorStatus_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
