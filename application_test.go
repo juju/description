@@ -278,6 +278,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.DesiredScale_ = 0
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
+	appLatest.OperatorStatus_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	c.Assert(appResult, jc.DeepEquals, appLatest)

@@ -84,8 +84,6 @@ type application struct {
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
-	// Only valid for caas models
-	OperatorStatus_ *status `yaml:"operator-status,omitempty"`
 
 	EndpointBindings_ map[string]string `yaml:"endpoint-bindings,omitempty"`
 
@@ -108,12 +106,13 @@ type application struct {
 	StorageConstraints_ map[string]*storageconstraint `yaml:"storage-constraints,omitempty"`
 
 	// CAAS application fields.
-	PasswordHash_ string        `yaml:"password-hash,omitempty"`
-	PodSpec_      string        `yaml:"pod-spec,omitempty"`
-	Placement_    string        `yaml:"placement,omitempty"`
-	DesiredScale_ int           `yaml:"desired-scale,omitempty"`
-	CloudService_ *cloudService `yaml:"cloud-service,omitempty"`
-	Tools_        *agentTools   `yaml:"tools,omitempty"`
+	PasswordHash_   string        `yaml:"password-hash,omitempty"`
+	PodSpec_        string        `yaml:"pod-spec,omitempty"`
+	Placement_      string        `yaml:"placement,omitempty"`
+	DesiredScale_   int           `yaml:"desired-scale,omitempty"`
+	CloudService_   *cloudService `yaml:"cloud-service,omitempty"`
+	Tools_          *agentTools   `yaml:"tools,omitempty"`
+	OperatorStatus_ *status       `yaml:"operator-status,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
