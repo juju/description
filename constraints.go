@@ -28,6 +28,7 @@ type Constraints interface {
 
 	Spaces() []string
 	Tags() []string
+	Zones() []string
 
 	VirtType() string
 }
@@ -44,6 +45,7 @@ type ConstraintsArgs struct {
 
 	Spaces []string
 	Tags   []string
+	Zones  []string
 
 	VirtType string
 }
@@ -59,6 +61,9 @@ func newConstraints(args ConstraintsArgs) *constraints {
 	copy(tags, args.Tags)
 	spaces := make([]string, len(args.Spaces))
 	copy(spaces, args.Spaces)
+	zones := make([]string, len(args.Zones))
+	copy(zones, args.Zones)
+
 	return &constraints{
 		Version:       1,
 		Architecture_: args.Architecture,
@@ -70,6 +75,7 @@ func newConstraints(args ConstraintsArgs) *constraints {
 		RootDisk_:     args.RootDisk,
 		Spaces_:       spaces,
 		Tags_:         tags,
+		Zones_:        zones,
 		VirtType_:     args.VirtType,
 	}
 }
@@ -87,6 +93,7 @@ type constraints struct {
 
 	Spaces_ []string `yaml:"spaces,omitempty"`
 	Tags_   []string `yaml:"tags,omitempty"`
+	Zones_  []string `yaml:"zones,omitempty"`
 
 	VirtType_ string `yaml:"virt-type,omitempty"`
 }
@@ -146,6 +153,16 @@ func (c *constraints) Tags() []string {
 	return tags
 }
 
+// Zones implements Constraints.
+func (c *constraints) Zones() []string {
+	var zones []string
+	if count := len(c.Zones_); count > 0 {
+		zones = make([]string, count)
+		copy(zones, c.Zones_)
+	}
+	return zones
+}
+
 // VirtType implements Constraints.
 func (c *constraints) VirtType() string {
 	return c.VirtType_
@@ -184,6 +201,7 @@ func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
 
 		"spaces": schema.List(schema.String()),
 		"tags":   schema.List(schema.String()),
+		"zones":  schema.List(schema.String()),
 
 		"virt-type": schema.String(),
 	}
@@ -200,6 +218,7 @@ func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
 
 		"spaces": schema.Omit,
 		"tags":   schema.Omit,
+		"zones":  schema.Omit,
 
 		"virt-type": "",
 	}
@@ -240,6 +259,7 @@ func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
 
 		Spaces_: convertToStringSlice(valid["spaces"]),
 		Tags_:   convertToStringSlice(valid["tags"]),
+		Zones_:  convertToStringSlice(valid["zones"]),
 
 		VirtType_: valid["virt-type"].(string),
 	}, nil
@@ -260,5 +280,6 @@ func (c ConstraintsArgs) empty() bool {
 		c.RootDisk == 0 &&
 		c.Spaces == nil &&
 		c.Tags == nil &&
+		c.Zones == nil &&
 		c.VirtType == ""
 }
