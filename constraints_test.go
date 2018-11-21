@@ -34,6 +34,7 @@ func (s *ConstraintsSerializationSuite) allArgs() ConstraintsArgs {
 		RootDisk:     200 * gig,
 		Spaces:       []string{"my", "own"},
 		Tags:         []string{"much", "strong"},
+		Zones:        []string{"az1", "az2"},
 	}
 }
 
@@ -49,20 +50,26 @@ func (s *ConstraintsSerializationSuite) TestNewConstraints(c *gc.C) {
 	c.Assert(instance.Memory(), gc.Equals, args.Memory)
 	c.Assert(instance.RootDisk(), gc.Equals, args.RootDisk)
 
-	// Before we check tags and spaces, modify args to make sure that the
-	// instance ones don't change.
+	// Before we check tags, spaces and zones, modify args to make sure that
+	// the instance ones do not change.
 	args.Spaces[0] = "weird"
 	args.Tags[0] = "weird"
+	args.Zones[0] = "weird"
 	spaces := instance.Spaces()
 	c.Assert(spaces, jc.DeepEquals, []string{"my", "own"})
 	tags := instance.Tags()
 	c.Assert(tags, jc.DeepEquals, []string{"much", "strong"})
+	zones := instance.Zones()
+	c.Assert(zones, jc.DeepEquals, []string{"az1", "az2"})
 
-	// Also, changing the spaces tags returned, doesn't modify the instance
+	// Also, changing the spaces, tags or zones returned
+	// does not modify the instance.
 	spaces[0] = "weird"
 	tags[0] = "weird"
+	zones[0] = "weird"
 	c.Assert(instance.Spaces(), jc.DeepEquals, []string{"my", "own"})
 	c.Assert(instance.Tags(), jc.DeepEquals, []string{"much", "strong"})
+	c.Assert(instance.Zones(), jc.DeepEquals, []string{"az1", "az2"})
 }
 
 func (s *ConstraintsSerializationSuite) TestNewConstraintsWithVirt(c *gc.C) {
@@ -77,11 +84,12 @@ func (s *ConstraintsSerializationSuite) TestNewConstraintsEmpty(c *gc.C) {
 	c.Assert(instance, gc.IsNil)
 }
 
-func (s *ConstraintsSerializationSuite) TestEmptyTagsAndSpaces(c *gc.C) {
+func (s *ConstraintsSerializationSuite) TestEmptyTagsSpacesZones(c *gc.C) {
 	instance := newConstraints(ConstraintsArgs{Architecture: "amd64"})
 	// We actually want them to be nil, not empty slices.
 	c.Assert(instance.Tags(), gc.IsNil)
 	c.Assert(instance.Spaces(), gc.IsNil)
+	c.Assert(instance.Zones(), gc.IsNil)
 }
 
 func (s *ConstraintsSerializationSuite) TestEmptyVirt(c *gc.C) {
@@ -91,6 +99,12 @@ func (s *ConstraintsSerializationSuite) TestEmptyVirt(c *gc.C) {
 
 func (s *ConstraintsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	s.assertParsingSerializedConstraints(c, newConstraints(s.allArgs()))
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingSerializedVirt(c *gc.C) {
+	args := s.allArgs()
+	args.VirtType = "kvm"
+	s.assertParsingSerializedConstraints(c, newConstraints(args))
 }
 
 func (s *ConstraintsSerializationSuite) assertParsingSerializedConstraints(c *gc.C, initial Constraints) {
@@ -106,8 +120,3 @@ func (s *ConstraintsSerializationSuite) assertParsingSerializedConstraints(c *gc
 	c.Assert(instance, jc.DeepEquals, initial)
 }
 
-func (s *ConstraintsSerializationSuite) TestParsingSerializedVirt(c *gc.C) {
-	args := s.allArgs()
-	args.VirtType = "kvm"
-	s.assertParsingSerializedConstraints(c, newConstraints(args))
-}
