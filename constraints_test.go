@@ -101,6 +101,12 @@ func (s *ConstraintsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	s.assertParsingSerializedConstraints(c, newConstraints(s.allArgs()))
 }
 
+func (s *ConstraintsSerializationSuite) TestParsingSerializedVirt(c *gc.C) {
+	args := s.allArgs()
+	args.VirtType = "kvm"
+	s.assertParsingSerializedConstraints(c, newConstraints(args))
+}
+
 func (s *ConstraintsSerializationSuite) assertParsingSerializedConstraints(c *gc.C, initial Constraints) {
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)
@@ -114,8 +120,3 @@ func (s *ConstraintsSerializationSuite) assertParsingSerializedConstraints(c *gc
 	c.Assert(instance, jc.DeepEquals, initial)
 }
 
-func (s *ConstraintsSerializationSuite) TestParsingSerializedVirt(c *gc.C) {
-	args := s.allArgs()
-	args.VirtType = "kvm"
-	s.assertParsingSerializedConstraints(c, newConstraints(args))
-}

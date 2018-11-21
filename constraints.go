@@ -65,7 +65,7 @@ func newConstraints(args ConstraintsArgs) *constraints {
 	copy(zones, args.Zones)
 
 	return &constraints{
-		Version:       1,
+		Version:       2,
 		Architecture_: args.Architecture,
 		Container_:    args.Container,
 		CpuCores_:     args.CpuCores,
@@ -186,10 +186,47 @@ type constraintsDeserializationFunc func(map[string]interface{}) (*constraints, 
 
 var constraintsDeserializationFuncs = map[int]constraintsDeserializationFunc{
 	1: importConstraintsV1,
+	2: importConstraintsV2,
 }
 
 func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
-	fields := schema.Fields{
+	coerced, err := schema.FieldMap(constraintsSchemaV1(), constraintsDefaultsV1()).Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "constraints v1 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+
+	cores, err := constraintsValidCPUCores(valid)
+	if err != nil {
+		return nil, err
+	}
+
+	return validatedConstraints(1, valid, cores), nil
+}
+
+func importConstraintsV2(source map[string]interface{}) (*constraints, error) {
+	fields := constraintsSchemaV1()
+	fields["zones"] = schema.List(schema.String())
+
+	defaults := constraintsDefaultsV1()
+	defaults["zones"] = schema.Omit
+
+	coerced, err := schema.FieldMap(fields, defaults).Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "constraints v2 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+
+	cores, err := constraintsValidCPUCores(valid)
+	if err != nil {
+		return nil, err
+	}
+
+	return validatedConstraints(2, valid, cores), nil
+}
+
+func constraintsSchemaV1() schema.Fields {
+	return schema.Fields{
 		"architecture":  schema.String(),
 		"container":     schema.String(),
 		"cpu-cores":     schema.ForceUint(),
@@ -201,12 +238,13 @@ func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
 
 		"spaces": schema.List(schema.String()),
 		"tags":   schema.List(schema.String()),
-		"zones":  schema.List(schema.String()),
 
 		"virt-type": schema.String(),
 	}
-	// Some values don't have to be there.
-	defaults := schema.Defaults{
+}
+
+func constraintsDefaultsV1() schema.Defaults {
+	return schema.Defaults{
 		"architecture":  "",
 		"container":     "",
 		"cpu-cores":     schema.Omit,
@@ -218,37 +256,37 @@ func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
 
 		"spaces": schema.Omit,
 		"tags":   schema.Omit,
-		"zones":  schema.Omit,
 
 		"virt-type": "",
 	}
-	checker := schema.FieldMap(fields, defaults)
+}
 
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "constraints v1 schema check failed")
-	}
+// constraintsValidCPUCores returns an error if both aliases for CPU core count
+// are present in the list of fields.
+// If correctly specified, the cores value is returned.
+func constraintsValidCPUCores(valid map[string]interface{}) (uint64, error) {
+	var cores uint64
 
-	valid := coerced.(map[string]interface{})
 	_, hasCPU := valid["cpu-cores"]
 	_, hasCores := valid["cores"]
 	if hasCPU && hasCores {
-		return nil, errors.Errorf("can not specify both cores and cores constraints")
+		return cores, errors.Errorf("can not specify both cores and cores constraints")
 	}
 
-	var cores uint64
 	if hasCPU {
 		cores = valid["cpu-cores"].(uint64)
 	}
 	if hasCores {
 		cores = valid["cores"].(uint64)
 	}
+	return cores, nil
+}
 
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
-
-	return &constraints{
-		Version:       1,
+// validatedConstraints returns a constraints reference from the supplied
+// *valid* fields.
+func validatedConstraints(version int, valid map[string]interface{}, cores uint64) *constraints {
+	cons := &constraints{
+		Version:       version,
 		Architecture_: valid["architecture"].(string),
 		Container_:    valid["container"].(string),
 		CpuCores_:     cores,
@@ -259,10 +297,15 @@ func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
 
 		Spaces_: convertToStringSlice(valid["spaces"]),
 		Tags_:   convertToStringSlice(valid["tags"]),
-		Zones_:  convertToStringSlice(valid["zones"]),
 
 		VirtType_: valid["virt-type"].(string),
-	}, nil
+	}
+
+	if version > 1 {
+		cons.Zones_ =  convertToStringSlice(valid["zones"])
+	}
+
+	return cons
 }
 
 func addConstraintsSchema(fields schema.Fields, defaults schema.Defaults) {
