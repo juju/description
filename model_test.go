@@ -152,6 +152,18 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
+	s.testParsingYAMLWithMachine(c, func(initial Model) {
+		addMinimalMachine(initial, "0")
+	})
+}
+
+func (s *ModelSerializationSuite) TestParsingYAMLWithMissingModificationStatus(c *gc.C) {
+	s.testParsingYAMLWithMachine(c, func(initial Model) {
+		addMinimalMachineWithMissingModificationStatus(initial, "0")
+	})
+}
+
+func (s *ModelSerializationSuite) testParsingYAMLWithMachine(c *gc.C, machineFn func(Model)) {
 	args := ModelArgs{
 		Type:  IAAS,
 		Owner: names.NewUserTag("magic"),
@@ -180,7 +192,7 @@ func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 		DateCreated: time.Date(2015, 10, 9, 12, 34, 56, 0, time.UTC),
 	})
 	initial.SetStatus(StatusArgs{Value: "available"})
-	addMinimalMachine(initial, "0")
+	machineFn(initial)
 	addMinimalApplication(initial)
 	model := s.exportImport(c, initial)
 
@@ -302,6 +314,7 @@ func (s *ModelSerializationSuite) addMachineToModel(model Model, id string) Mach
 	machine.SetTools(minimalAgentToolsArgs())
 	machine.SetStatus(minimalStatusArgs())
 	machine.Instance().SetStatus(minimalStatusArgs())
+	machine.Instance().SetModificationStatus(minimalStatusArgs())
 	return machine
 }
 

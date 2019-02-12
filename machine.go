@@ -600,6 +600,7 @@ func importMachineV1(source map[string]interface{}) (*machine, error) {
 type CloudInstance interface {
 	HasStatus
 	HasStatusHistory
+	HasModificationStatus
 
 	InstanceId() string
 	Architecture() string
@@ -634,7 +635,7 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 	profiles := make([]string, len(args.CharmProfiles))
 	copy(profiles, args.CharmProfiles)
 	return &cloudInstance{
-		Version:           3,
+		Version:           4,
 		InstanceId_:       args.InstanceId,
 		Architecture_:     args.Architecture,
 		Memory_:           args.Memory,
@@ -655,6 +656,13 @@ type cloudInstance struct {
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
+
+	// ModificationStatus_ defines a status that can be used to highlight status
+	// changes to a machine instance after it's been provisioned. This is
+	// different from agent-status or machine-status, where the statuses tend to
+	// imply how the machine health is during a provisioning cycle or hook
+	// integration.
+	ModificationStatus_ *status `yaml:"modification-status,omitempty"`
 
 	// For all the optional values, empty values make no sense, and
 	// it would be better to have them not set rather than set with
@@ -686,6 +694,20 @@ func (c *cloudInstance) Status() Status {
 // SetStatus implements CloudInstance.
 func (c *cloudInstance) SetStatus(args StatusArgs) {
 	c.Status_ = newStatus(args)
+}
+
+// ModificationStatus implements CloudInstance.
+func (c *cloudInstance) ModificationStatus() Status {
+	// To avoid typed nils check nil here.
+	if c.ModificationStatus_ == nil {
+		return nil
+	}
+	return c.ModificationStatus_
+}
+
+// SetModificationStatus implements CloudInstance.
+func (c *cloudInstance) SetModificationStatus(args StatusArgs) {
+	c.ModificationStatus_ = newStatus(args)
 }
 
 // Architecture implements CloudInstance.
@@ -763,6 +785,7 @@ var cloudInstanceDeserializationFuncs = map[int]cloudInstanceDeserializationFunc
 	1: importCloudInstanceV1,
 	2: importCloudInstanceV2,
 	3: importCloudInstanceV3,
+	4: importCloudInstanceV4,
 }
 
 func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
@@ -804,6 +827,13 @@ func cloudInstanceV3Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func cloudInstanceV4Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := cloudInstanceV3Fields()
+	fields["modification-status"] = schema.StringMap(schema.Any())
+	defaults["modification-status"] = schema.Omit
+	return fields, defaults
+}
+
 func importCloudInstanceV1(source map[string]interface{}) (*cloudInstance, error) {
 	return importCloudInstanceVx(source, 1, cloudInstanceV1Fields)
 }
@@ -814,6 +844,10 @@ func importCloudInstanceV2(source map[string]interface{}) (*cloudInstance, error
 
 func importCloudInstanceV3(source map[string]interface{}) (*cloudInstance, error) {
 	return importCloudInstanceVx(source, 3, cloudInstanceV3Fields)
+}
+
+func importCloudInstanceV4(source map[string]interface{}) (*cloudInstance, error) {
+	return importCloudInstanceVx(source, 4, cloudInstanceV4Fields)
 }
 
 func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc func() (schema.Fields, schema.Defaults)) (*cloudInstance, error) {
@@ -832,7 +866,7 @@ func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc
 
 func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) (*cloudInstance, error) {
 	instance := &cloudInstance{
-		Version:           3,
+		Version:           4,
 		InstanceId_:       valid["instance-id"].(string),
 		Architecture_:     valid["architecture"].(string),
 		Memory_:           valid["memory"].(uint64),
@@ -862,6 +896,13 @@ func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) 
 			return nil, errors.Trace(err)
 		}
 
+		if importVersion > 3 {
+			modificationStatus, err := importModificationStatus(valid["modification-status"])
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			instance.ModificationStatus_ = modificationStatus
+		}
 	default:
 		return nil, errors.NotValidf("unexpected version: %d", importVersion)
 	}
