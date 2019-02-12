@@ -24,8 +24,17 @@ type HasOperatorStatus interface {
 
 // HasModificationStatus defines the comment methods for setting and getting
 // status entries for the various entities that are modified by actions.
+// The modification changes, are changes that can alter the machine instance
+// and setting the status can then be surfaced to the operator using the status.
+// This is different from agent-status or machine-status, where the statuses
+// tend to imply how the machine health is during a provisioning cycle or hook
+// integration.
+// Statuses that are expected: Applied, Error.
 type HasModificationStatus interface {
 	ModificationStatus() Status
+	// SetModificationStatus allows the changing of the modification status, of
+	// a type, which is meant to highlight the changing to a machine instance
+	// after it's been provisioned.
 	SetModificationStatus(StatusArgs)
 }
 

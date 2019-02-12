@@ -654,8 +654,14 @@ type cloudInstance struct {
 
 	InstanceId_ string `yaml:"instance-id"`
 
-	Status_             *status `yaml:"status"`
-	StatusHistory_      `yaml:"status-history"`
+	Status_        *status `yaml:"status"`
+	StatusHistory_ `yaml:"status-history"`
+
+	// ModificationStatus_ defines a status that can be used to highlight status
+	// changes to a machine instance after it's been provisioned. This is
+	// different from agent-status or machine-status, where the statuses tend to
+	// imply how the machine health is during a provisioning cycle or hook
+	// integration.
 	ModificationStatus_ *status `yaml:"modification-status,omitempty"`
 
 	// For all the optional values, empty values make no sense, and

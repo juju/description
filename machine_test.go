@@ -278,6 +278,10 @@ func (*MachineSerializationSuite) TestNestedParsing(c *gc.C) {
 	c.Assert(machines, jc.DeepEquals, expected)
 }
 
+// TestNestedParsingWithPriorVersion tests the scenario of a using a version of
+// a machine with a older version of a cloud instance. We want to ensure that
+// we can mix and match type versions without inducing a panic that was found
+// whilst developing.
 func (*MachineSerializationSuite) TestNestedParsingWithPriorVersion(c *gc.C) {
 	machines, err := importMachines(map[string]interface{}{
 		"version": 1,
