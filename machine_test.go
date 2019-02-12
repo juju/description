@@ -54,7 +54,40 @@ func minimalMachineMap(id string, containers ...interface{}) map[interface{}]int
 	}
 }
 
+func minimalMachineMapWithPriorInstanceMap(id string, containers ...interface{}) map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		"id":             id,
+		"nonce":          "a-nonce",
+		"password-hash":  "some-hash",
+		"instance":       minimalCloudInstanceMapPriorVersion(),
+		"series":         "zesty",
+		"tools":          minimalAgentToolsMap(),
+		"jobs":           []interface{}{"host-units"},
+		"containers":     containers,
+		"status":         minimalStatusMap(),
+		"status-history": emptyStatusHistoryMap(),
+		"block-devices":  emptyBlockDeviceMap(),
+	}
+}
+
 func minimalMachine(id string, containers ...*machine) *machine {
+	m := newMachine(MachineArgs{
+		Id:           names.NewMachineTag(id),
+		Nonce:        "a-nonce",
+		PasswordHash: "some-hash",
+		Series:       "zesty",
+		Jobs:         []string{"host-units"},
+	})
+	m.Containers_ = containers
+	m.SetInstance(minimalCloudInstanceArgs())
+	m.Instance().SetStatus(minimalStatusArgs())
+	m.Instance().SetModificationStatus(minimalStatusArgs())
+	m.SetTools(minimalAgentToolsArgs())
+	m.SetStatus(minimalStatusArgs())
+	return m
+}
+
+func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *machine {
 	m := newMachine(MachineArgs{
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
@@ -71,6 +104,21 @@ func minimalMachine(id string, containers ...*machine) *machine {
 }
 
 func addMinimalMachine(model Model, id string) {
+	m := model.AddMachine(MachineArgs{
+		Id:           names.NewMachineTag(id),
+		Nonce:        "a-nonce",
+		PasswordHash: "some-hash",
+		Series:       "zesty",
+		Jobs:         []string{"host-units"},
+	})
+	m.SetInstance(minimalCloudInstanceArgs())
+	m.SetTools(minimalAgentToolsArgs())
+	m.SetStatus(minimalStatusArgs())
+	m.Instance().SetStatus(minimalStatusArgs())
+	m.Instance().SetModificationStatus(minimalStatusArgs())
+}
+
+func addMinimalMachineWithMissingModificationStatus(model Model, id string) {
 	m := model.AddMachine(MachineArgs{
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
@@ -230,6 +278,39 @@ func (*MachineSerializationSuite) TestNestedParsing(c *gc.C) {
 	c.Assert(machines, jc.DeepEquals, expected)
 }
 
+func (*MachineSerializationSuite) TestNestedParsingWithPriorVersion(c *gc.C) {
+	machines, err := importMachines(map[string]interface{}{
+		"version": 1,
+		"machines": []interface{}{
+			minimalMachineMapWithPriorInstanceMap("0"),
+			minimalMachineMapWithPriorInstanceMap("1",
+				minimalMachineMapWithPriorInstanceMap("1/lxd/0"),
+				minimalMachineMapWithPriorInstanceMap("1/lxd/1"),
+			),
+			minimalMachineMapWithPriorInstanceMap("2",
+				minimalMachineMapWithPriorInstanceMap("2/kvm/0",
+					minimalMachineMapWithPriorInstanceMap("2/kvm/0/lxd/0"),
+					minimalMachineMapWithPriorInstanceMap("2/kvm/0/lxd/1"),
+				),
+			),
+		}})
+	c.Assert(err, jc.ErrorIsNil)
+	expected := []*machine{
+		minimalMachineWithPriorInstanceMap("0"),
+		minimalMachineWithPriorInstanceMap("1",
+			minimalMachineWithPriorInstanceMap("1/lxd/0"),
+			minimalMachineWithPriorInstanceMap("1/lxd/1"),
+		),
+		minimalMachineWithPriorInstanceMap("2",
+			minimalMachineWithPriorInstanceMap("2/kvm/0",
+				minimalMachineWithPriorInstanceMap("2/kvm/0/lxd/0"),
+				minimalMachineWithPriorInstanceMap("2/kvm/0/lxd/1"),
+			),
+		),
+	}
+	c.Assert(machines, jc.DeepEquals, expected)
+}
+
 func (s *MachineSerializationSuite) addOpenedPorts(m Machine) []OpenedPortsArgs {
 	args := []OpenedPortsArgs{
 		{
@@ -329,6 +410,7 @@ func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	m.SetStatus(minimalStatusArgs())
 	m.SetInstance(minimalCloudInstanceArgs())
 	m.Instance().SetStatus(minimalStatusArgs())
+	m.Instance().SetModificationStatus(minimalStatusArgs())
 	m.AddBlockDevice(allBlockDeviceArgs())
 	s.addOpenedPorts(m)
 
@@ -367,6 +449,16 @@ func (s *CloudInstanceSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalCloudInstanceMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
+		"version":             4,
+		"instance-id":         "instance id",
+		"status":              minimalStatusMap(),
+		"status-history":      emptyStatusHistoryMap(),
+		"modification-status": minimalStatusMap(),
+	}
+}
+
+func minimalCloudInstanceMapPriorVersion() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
 		"version":        3,
 		"instance-id":    "instance id",
 		"status":         minimalStatusMap(),
@@ -377,6 +469,7 @@ func minimalCloudInstanceMap() map[interface{}]interface{} {
 func minimalCloudInstance() *cloudInstance {
 	instance := newCloudInstance(minimalCloudInstanceArgs())
 	instance.SetStatus(minimalStatusArgs())
+	instance.SetModificationStatus(minimalStatusArgs())
 	return instance
 }
 
@@ -402,6 +495,7 @@ func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
 
 	instance := newCloudInstance(args)
 	instance.SetStatus(minimalStatusArgs())
+	instance.SetModificationStatus(minimalStatusArgs())
 
 	c.Check(instance.Validate(), jc.ErrorIsNil)
 	c.Check(instance.InstanceId(), gc.Equals, args.InstanceId)
@@ -431,6 +525,9 @@ func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
 	// Also, changing the tags returned, doesn't modify the instance
 	profiles[0] = "weird"
 	c.Assert(instance.CharmProfiles(), jc.DeepEquals, []string{"much", "strong"})
+
+	// Check that the modification status is valid
+	c.Check(instance.ModificationStatus(), gc.DeepEquals, newStatus(minimalStatusArgs()))
 }
 
 func (s *CloudInstanceSerializationSuite) TestMinimalMatches(c *gc.C) {
@@ -453,6 +550,7 @@ func (s *CloudInstanceSerializationSuite) TestParsingSerializedData(c *gc.C) {
 		Tags:         []string{"much", "strong"},
 	})
 	initial.SetStatus(minimalStatusArgs())
+	initial.SetModificationStatus(minimalStatusArgs())
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)
 
@@ -477,6 +575,18 @@ func (s *CloudInstanceSerializationSuite) TestValidateMissingStatus(c *gc.C) {
 	err := initial.Validate()
 	c.Check(err, jc.Satisfies, errors.IsNotValid)
 	c.Check(err, gc.ErrorMatches, `instance "magic" missing status not valid`)
+}
+
+func (s *CloudInstanceSerializationSuite) TestValidateInvalidModificationStatus(c *gc.C) {
+	args := CloudInstanceArgs{
+		InstanceId: "instance id",
+	}
+	instance := newCloudInstance(args)
+	instance.SetStatus(minimalStatusArgs())
+	instance.SetModificationStatus(StatusArgs{})
+
+	err := instance.Validate()
+	c.Check(err, gc.IsNil)
 }
 
 type AgentToolsSerializationSuite struct {

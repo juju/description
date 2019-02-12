@@ -22,6 +22,13 @@ type HasOperatorStatus interface {
 	OperatorStatus() Status
 }
 
+// HasModificationStatus defines the comment methods for setting and getting
+// status entries for the various entities that are modified by actions.
+type HasModificationStatus interface {
+	ModificationStatus() Status
+	SetModificationStatus(StatusArgs)
+}
+
 // HasStatusHistory defines the common methods for setting and
 // getting historical status entries for the various entities.
 type HasStatusHistory interface {
@@ -176,6 +183,13 @@ func importStatusList(sourceList []interface{}, getFields statusFieldsFunc, vers
 		result = append(result, &point)
 	}
 	return result, nil
+}
+
+func importModificationStatus(source interface{}) (*status, error) {
+	if sourceMap, ok := source.(map[string]interface{}); ok {
+		return importStatus(sourceMap)
+	}
+	return nil, nil
 }
 
 type statusFieldsFunc func() (schema.Fields, schema.Defaults)
