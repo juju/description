@@ -35,6 +35,7 @@ func (s *ConstraintsSerializationSuite) allArgs() ConstraintsArgs {
 		Spaces:       []string{"my", "own"},
 		Tags:         []string{"much", "strong"},
 		Zones:        []string{"az1", "az2"},
+		VirtType:     "something",
 	}
 }
 
@@ -120,3 +121,90 @@ func (s *ConstraintsSerializationSuite) assertParsingSerializedConstraints(c *gc
 	c.Assert(instance, jc.DeepEquals, initial)
 }
 
+func (s *ConstraintsSerializationSuite) testConstraints() *constraints {
+	return newConstraints(s.allArgs())
+}
+
+func (s *ConstraintsSerializationSuite) importConstraints(c *gc.C, original map[string]interface{}) *constraints {
+	imported, err := importConstraints(original)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(imported, gc.NotNil)
+	return imported
+}
+
+func (s *ConstraintsSerializationSuite) allV2Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":       2,
+		"architecture":  "amd64",
+		"container":     "lxd",
+		"cores":         8,
+		"cpu-power":     4000,
+		"instance-type": "magic",
+		"memory":        16 * gig,
+		"root-disk":     200 * gig,
+		"spaces":        []interface{}{"my", "own"},
+		"tags":          []interface{}{"much", "strong"},
+		"zones":         []interface{}{"az1", "az2"},
+		"virt-type":     "something",
+	}
+}
+
+func (s *ConstraintsSerializationSuite) allV1Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":       1,
+		"architecture":  "amd64",
+		"container":     "lxd",
+		"cores":         8,
+		"cpu-power":     4000,
+		"instance-type": "magic",
+		"memory":        16 * gig,
+		"root-disk":     200 * gig,
+		"spaces":        []interface{}{"my", "own"},
+		"tags":          []interface{}{"much", "strong"},
+		"virt-type":     "something",
+	}
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV1Full(c *gc.C) {
+	original := s.allV1Map()
+	imported := s.importConstraints(c, original)
+	expected := s.testConstraints()
+	expected.Zones_ = nil
+	expected.Version = 1
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV1Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version": 1,
+	}
+	imported := s.importConstraints(c, original)
+	expected := &constraints{Version: 1}
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV1IgnoresNewFields(c *gc.C) {
+	original := s.allV1Map()
+	original["zones"] = []string{"whatever"}
+	imported := s.importConstraints(c, original)
+	expected := s.testConstraints()
+	expected.Zones_ = nil
+	expected.Version = 1
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV2Full(c *gc.C) {
+	original := s.allV2Map()
+	imported := s.importConstraints(c, original)
+	expected := s.testConstraints()
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV2Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version": 2,
+	}
+	imported := s.importConstraints(c, original)
+	expected := &constraints{Version: 2}
+	c.Assert(imported, gc.DeepEquals, expected)
+}
