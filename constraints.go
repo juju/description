@@ -25,6 +25,7 @@ type Constraints interface {
 	InstanceType() string
 	Memory() uint64
 	RootDisk() uint64
+	RootDiskSource() string
 
 	Spaces() []string
 	Tags() []string
@@ -35,13 +36,14 @@ type Constraints interface {
 
 // ConstraintsArgs is an argument struct to construct Constraints.
 type ConstraintsArgs struct {
-	Architecture string
-	Container    string
-	CpuCores     uint64
-	CpuPower     uint64
-	InstanceType string
-	Memory       uint64
-	RootDisk     uint64
+	Architecture   string
+	Container      string
+	CpuCores       uint64
+	CpuPower       uint64
+	InstanceType   string
+	Memory         uint64
+	RootDisk       uint64
+	RootDiskSource string
 
 	Spaces []string
 	Tags   []string
@@ -65,31 +67,33 @@ func newConstraints(args ConstraintsArgs) *constraints {
 	copy(zones, args.Zones)
 
 	return &constraints{
-		Version:       2,
-		Architecture_: args.Architecture,
-		Container_:    args.Container,
-		CpuCores_:     args.CpuCores,
-		CpuPower_:     args.CpuPower,
-		InstanceType_: args.InstanceType,
-		Memory_:       args.Memory,
-		RootDisk_:     args.RootDisk,
-		Spaces_:       spaces,
-		Tags_:         tags,
-		Zones_:        zones,
-		VirtType_:     args.VirtType,
+		Version:         3,
+		Architecture_:   args.Architecture,
+		Container_:      args.Container,
+		CpuCores_:       args.CpuCores,
+		CpuPower_:       args.CpuPower,
+		InstanceType_:   args.InstanceType,
+		Memory_:         args.Memory,
+		RootDisk_:       args.RootDisk,
+		RootDiskSource_: args.RootDiskSource,
+		Spaces_:         spaces,
+		Tags_:           tags,
+		Zones_:          zones,
+		VirtType_:       args.VirtType,
 	}
 }
 
 type constraints struct {
 	Version int `yaml:"version"`
 
-	Architecture_ string `yaml:"architecture,omitempty"`
-	Container_    string `yaml:"container,omitempty"`
-	CpuCores_     uint64 `yaml:"cores,omitempty"`
-	CpuPower_     uint64 `yaml:"cpu-power,omitempty"`
-	InstanceType_ string `yaml:"instance-type,omitempty"`
-	Memory_       uint64 `yaml:"memory,omitempty"`
-	RootDisk_     uint64 `yaml:"root-disk,omitempty"`
+	Architecture_   string `yaml:"architecture,omitempty"`
+	Container_      string `yaml:"container,omitempty"`
+	CpuCores_       uint64 `yaml:"cores,omitempty"`
+	CpuPower_       uint64 `yaml:"cpu-power,omitempty"`
+	InstanceType_   string `yaml:"instance-type,omitempty"`
+	Memory_         uint64 `yaml:"memory,omitempty"`
+	RootDisk_       uint64 `yaml:"root-disk,omitempty"`
+	RootDiskSource_ string `yaml:"root-disk-source,omitempty"`
 
 	Spaces_ []string `yaml:"spaces,omitempty"`
 	Tags_   []string `yaml:"tags,omitempty"`
@@ -131,6 +135,11 @@ func (c *constraints) Memory() uint64 {
 // RootDisk implements Constraints.
 func (c *constraints) RootDisk() uint64 {
 	return c.RootDisk_
+}
+
+// RootDiskSource implements Constraints.
+func (c *constraints) RootDiskSource() string {
+	return c.RootDiskSource_
 }
 
 // Spaces implements Constraints.
@@ -196,6 +205,7 @@ func importConstraints(source map[string]interface{}) (*constraints, error) {
 var constraintsFieldsFuncs = map[int]fieldsFunc{
 	1: constraintsV1Fields,
 	2: constraintsV2Fields,
+	3: constraintsV3Fields,
 }
 
 func constraintsV1Fields() (schema.Fields, schema.Defaults) {
@@ -236,6 +246,13 @@ func constraintsV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := constraintsV1Fields()
 	fields["zones"] = schema.List(schema.String())
 	defaults["zones"] = schema.Omit
+	return fields, defaults
+}
+
+func constraintsV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := constraintsV2Fields()
+	fields["root-disk-source"] = schema.String()
+	defaults["root-disk-source"] = ""
 	return fields, defaults
 }
 
@@ -282,6 +299,9 @@ func validatedConstraints(version int, valid map[string]interface{}, cores uint6
 	if version > 1 {
 		cons.Zones_ = convertToStringSlice(valid["zones"])
 	}
+	if version > 2 {
+		cons.RootDiskSource_ = valid["root-disk-source"].(string)
+	}
 
 	return cons
 }
@@ -299,6 +319,7 @@ func (c ConstraintsArgs) empty() bool {
 		c.InstanceType == "" &&
 		c.Memory == 0 &&
 		c.RootDisk == 0 &&
+		c.RootDiskSource == "" &&
 		c.Spaces == nil &&
 		c.Tags == nil &&
 		c.Zones == nil &&

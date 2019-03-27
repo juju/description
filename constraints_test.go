@@ -25,23 +25,24 @@ func (s *ConstraintsSerializationSuite) SetUpTest(c *gc.C) {
 func (s *ConstraintsSerializationSuite) allArgs() ConstraintsArgs {
 	// NOTE: using gig from package_test.go
 	return ConstraintsArgs{
-		Architecture: "amd64",
-		Container:    "lxd",
-		CpuCores:     8,
-		CpuPower:     4000,
-		InstanceType: "magic",
-		Memory:       16 * gig,
-		RootDisk:     200 * gig,
-		Spaces:       []string{"my", "own"},
-		Tags:         []string{"much", "strong"},
-		Zones:        []string{"az1", "az2"},
-		VirtType:     "something",
+		Architecture:   "amd64",
+		Container:      "lxd",
+		CpuCores:       8,
+		CpuPower:       4000,
+		InstanceType:   "magic",
+		Memory:         16 * gig,
+		RootDisk:       200 * gig,
+		RootDiskSource: "somewhere-good",
+		Spaces:         []string{"my", "own"},
+		Tags:           []string{"much", "strong"},
+		Zones:          []string{"az1", "az2"},
+		VirtType:       "something",
 	}
 }
 
 func (s *ConstraintsSerializationSuite) TestNewConstraints(c *gc.C) {
 	args := s.allArgs()
-	instance := newConstraints(args)
+	var instance Constraints = newConstraints(args)
 
 	c.Assert(instance.Architecture(), gc.Equals, args.Architecture)
 	c.Assert(instance.Container(), gc.Equals, args.Container)
@@ -50,6 +51,7 @@ func (s *ConstraintsSerializationSuite) TestNewConstraints(c *gc.C) {
 	c.Assert(instance.InstanceType(), gc.Equals, args.InstanceType)
 	c.Assert(instance.Memory(), gc.Equals, args.Memory)
 	c.Assert(instance.RootDisk(), gc.Equals, args.RootDisk)
+	c.Assert(instance.RootDiskSource(), gc.Equals, args.RootDiskSource)
 
 	// Before we check tags, spaces and zones, modify args to make sure that
 	// the instance ones do not change.
@@ -132,23 +134,6 @@ func (s *ConstraintsSerializationSuite) importConstraints(c *gc.C, original map[
 	return imported
 }
 
-func (s *ConstraintsSerializationSuite) allV2Map() map[string]interface{} {
-	return map[string]interface{}{
-		"version":       2,
-		"architecture":  "amd64",
-		"container":     "lxd",
-		"cores":         8,
-		"cpu-power":     4000,
-		"instance-type": "magic",
-		"memory":        16 * gig,
-		"root-disk":     200 * gig,
-		"spaces":        []interface{}{"my", "own"},
-		"tags":          []interface{}{"much", "strong"},
-		"zones":         []interface{}{"az1", "az2"},
-		"virt-type":     "something",
-	}
-}
-
 func (s *ConstraintsSerializationSuite) allV1Map() map[string]interface{} {
 	return map[string]interface{}{
 		"version":       1,
@@ -170,6 +155,7 @@ func (s *ConstraintsSerializationSuite) TestParsingV1Full(c *gc.C) {
 	imported := s.importConstraints(c, original)
 	expected := s.testConstraints()
 	expected.Zones_ = nil
+	expected.RootDiskSource_ = ""
 	expected.Version = 1
 	c.Assert(imported, gc.DeepEquals, expected)
 }
@@ -187,16 +173,32 @@ func (s *ConstraintsSerializationSuite) TestParsingV1IgnoresNewFields(c *gc.C) {
 	original := s.allV1Map()
 	original["zones"] = []string{"whatever"}
 	imported := s.importConstraints(c, original)
-	expected := s.testConstraints()
-	expected.Zones_ = nil
-	expected.Version = 1
-	c.Assert(imported, gc.DeepEquals, expected)
+	c.Assert(imported.Zones_, gc.IsNil)
+}
+
+func (s *ConstraintsSerializationSuite) allV2Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":       2,
+		"architecture":  "amd64",
+		"container":     "lxd",
+		"cores":         8,
+		"cpu-power":     4000,
+		"instance-type": "magic",
+		"memory":        16 * gig,
+		"root-disk":     200 * gig,
+		"spaces":        []interface{}{"my", "own"},
+		"tags":          []interface{}{"much", "strong"},
+		"zones":         []interface{}{"az1", "az2"},
+		"virt-type":     "something",
+	}
 }
 
 func (s *ConstraintsSerializationSuite) TestParsingV2Full(c *gc.C) {
 	original := s.allV2Map()
 	imported := s.importConstraints(c, original)
 	expected := s.testConstraints()
+	expected.RootDiskSource_ = ""
+	expected.Version = 2
 	c.Assert(imported, gc.DeepEquals, expected)
 }
 
@@ -206,5 +208,46 @@ func (s *ConstraintsSerializationSuite) TestParsingV2Minimal(c *gc.C) {
 	}
 	imported := s.importConstraints(c, original)
 	expected := &constraints{Version: 2}
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV2IgnoresNewFields(c *gc.C) {
+	original := s.allV2Map()
+	original["root-disk-source"] = "secret-sauce"
+	imported := s.importConstraints(c, original)
+	c.Assert(imported.RootDiskSource_, gc.Equals, "")
+}
+
+func (s *ConstraintsSerializationSuite) allV3Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":          3,
+		"architecture":     "amd64",
+		"container":        "lxd",
+		"cores":            8,
+		"cpu-power":        4000,
+		"instance-type":    "magic",
+		"memory":           16 * gig,
+		"root-disk":        200 * gig,
+		"root-disk-source": "somewhere-good",
+		"spaces":           []interface{}{"my", "own"},
+		"tags":             []interface{}{"much", "strong"},
+		"zones":            []interface{}{"az1", "az2"},
+		"virt-type":        "something",
+	}
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV3Full(c *gc.C) {
+	original := s.allV3Map()
+	imported := s.importConstraints(c, original)
+	expected := s.testConstraints()
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV3Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version": 3,
+	}
+	imported := s.importConstraints(c, original)
+	expected := &constraints{Version: 3}
 	c.Assert(imported, gc.DeepEquals, expected)
 }
