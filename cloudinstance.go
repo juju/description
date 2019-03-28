@@ -184,21 +184,19 @@ func importCloudInstance(source map[string]interface{}) (*cloudInstance, error) 
 		return nil, errors.Annotate(err, "cloudInstance version schema check failed")
 	}
 
-	importFunc, ok := cloudInstanceDeserializationFuncs[version]
+	getFields, ok := cloudInstanceFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 
-	return importFunc(source)
+	return importCloudInstanceVx(source, version, getFields)
 }
 
-type cloudInstanceDeserializationFunc func(map[string]interface{}) (*cloudInstance, error)
-
-var cloudInstanceDeserializationFuncs = map[int]cloudInstanceDeserializationFunc{
-	1: importCloudInstanceV1,
-	2: importCloudInstanceV2,
-	3: importCloudInstanceV3,
-	4: importCloudInstanceV4,
+var cloudInstanceFieldsFuncs = map[int]fieldsFunc{
+	1: cloudInstanceV1Fields,
+	2: cloudInstanceV2Fields,
+	3: cloudInstanceV3Fields,
+	4: cloudInstanceV4Fields,
 }
 
 func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
@@ -245,22 +243,6 @@ func cloudInstanceV4Fields() (schema.Fields, schema.Defaults) {
 	fields["modification-status"] = schema.StringMap(schema.Any())
 	defaults["modification-status"] = schema.Omit
 	return fields, defaults
-}
-
-func importCloudInstanceV1(source map[string]interface{}) (*cloudInstance, error) {
-	return importCloudInstanceVx(source, 1, cloudInstanceV1Fields)
-}
-
-func importCloudInstanceV2(source map[string]interface{}) (*cloudInstance, error) {
-	return importCloudInstanceVx(source, 2, cloudInstanceV2Fields)
-}
-
-func importCloudInstanceV3(source map[string]interface{}) (*cloudInstance, error) {
-	return importCloudInstanceVx(source, 3, cloudInstanceV3Fields)
-}
-
-func importCloudInstanceV4(source map[string]interface{}) (*cloudInstance, error) {
-	return importCloudInstanceVx(source, 4, cloudInstanceV4Fields)
 }
 
 func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc func() (schema.Fields, schema.Defaults)) (*cloudInstance, error) {
