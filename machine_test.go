@@ -59,7 +59,7 @@ func minimalMachineMapWithPriorInstanceMap(id string, containers ...interface{})
 		"id":             id,
 		"nonce":          "a-nonce",
 		"password-hash":  "some-hash",
-		"instance":       minimalCloudInstanceMapPriorVersion(),
+		"instance":       minimalCloudInstanceMapV3(),
 		"series":         "zesty",
 		"tools":          minimalAgentToolsMap(),
 		"jobs":           []interface{}{"host-units"},
@@ -97,6 +97,10 @@ func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *mach
 	})
 	m.Containers_ = containers
 	m.SetInstance(minimalCloudInstanceArgs())
+	// The new instance constructed by SetInstance will be the current
+	// version, change it to 3 to match the version returned by
+	// minimalMachineMapWithPriorInstanceMap.
+	m.Instance_.Version = 3
 	m.Instance().SetStatus(minimalStatusArgs())
 	m.SetTools(minimalAgentToolsArgs())
 	m.SetStatus(minimalStatusArgs())

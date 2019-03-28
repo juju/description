@@ -19,6 +19,7 @@ type CloudInstance interface {
 	Architecture() string
 	Memory() uint64
 	RootDisk() uint64
+	RootDiskSource() string
 	CpuCores() uint64
 	CpuPower() uint64
 	Tags() []string
@@ -35,6 +36,7 @@ type CloudInstanceArgs struct {
 	Architecture     string
 	Memory           uint64
 	RootDisk         uint64
+	RootDiskSource   string
 	CpuCores         uint64
 	CpuPower         uint64
 	Tags             []string
@@ -48,11 +50,12 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 	profiles := make([]string, len(args.CharmProfiles))
 	copy(profiles, args.CharmProfiles)
 	return &cloudInstance{
-		Version:           4,
+		Version:           5,
 		InstanceId_:       args.InstanceId,
 		Architecture_:     args.Architecture,
 		Memory_:           args.Memory,
 		RootDisk_:         args.RootDisk,
+		RootDiskSource_:   args.RootDiskSource,
 		CpuCores_:         args.CpuCores,
 		CpuPower_:         args.CpuPower,
 		Tags_:             tags,
@@ -83,6 +86,7 @@ type cloudInstance struct {
 	Architecture_     string   `yaml:"architecture,omitempty"`
 	Memory_           uint64   `yaml:"memory,omitempty"`
 	RootDisk_         uint64   `yaml:"root-disk,omitempty"`
+	RootDiskSource_   string   `yaml:"root-disk-source,omitempty"`
 	CpuCores_         uint64   `yaml:"cores,omitempty"`
 	CpuPower_         uint64   `yaml:"cpu-power,omitempty"`
 	Tags_             []string `yaml:"tags,omitempty"`
@@ -136,6 +140,11 @@ func (c *cloudInstance) Memory() uint64 {
 // RootDisk implements CloudInstance.
 func (c *cloudInstance) RootDisk() uint64 {
 	return c.RootDisk_
+}
+
+// RootDiskSource implements CloudInstance.
+func (c *cloudInstance) RootDiskSource() string {
+	return c.RootDiskSource_
 }
 
 // CpuCores implements CloudInstance.
@@ -197,6 +206,7 @@ var cloudInstanceFieldsFuncs = map[int]fieldsFunc{
 	2: cloudInstanceV2Fields,
 	3: cloudInstanceV3Fields,
 	4: cloudInstanceV4Fields,
+	5: cloudInstanceV5Fields,
 }
 
 func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
@@ -245,6 +255,13 @@ func cloudInstanceV4Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func cloudInstanceV5Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := cloudInstanceV4Fields()
+	fields["root-disk-source"] = schema.String()
+	defaults["root-disk-source"] = ""
+	return fields, defaults
+}
+
 func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc func() (schema.Fields, schema.Defaults)) (*cloudInstance, error) {
 	fields, defaults := fieldFunc()
 	checker := schema.FieldMap(fields, defaults)
@@ -261,7 +278,7 @@ func importCloudInstanceVx(source map[string]interface{}, version int, fieldFunc
 
 func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) (*cloudInstance, error) {
 	instance := &cloudInstance{
-		Version:           4,
+		Version:           importVersion,
 		InstanceId_:       valid["instance-id"].(string),
 		Architecture_:     valid["architecture"].(string),
 		Memory_:           valid["memory"].(uint64),
@@ -297,6 +314,10 @@ func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) 
 				return nil, errors.Trace(err)
 			}
 			instance.ModificationStatus_ = modificationStatus
+		}
+
+		if importVersion > 4 {
+			instance.RootDiskSource_ = valid["root-disk-source"].(string)
 		}
 	default:
 		return nil, errors.NotValidf("unexpected version: %d", importVersion)

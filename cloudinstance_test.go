@@ -25,7 +25,7 @@ func (s *CloudInstanceSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalCloudInstanceMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":             4,
+		"version":             5,
 		"instance-id":         "instance id",
 		"status":              minimalStatusMap(),
 		"status-history":      emptyStatusHistoryMap(),
@@ -33,7 +33,7 @@ func minimalCloudInstanceMap() map[interface{}]interface{} {
 	}
 }
 
-func minimalCloudInstanceMapPriorVersion() map[interface{}]interface{} {
+func minimalCloudInstanceMapV3() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"version":        3,
 		"instance-id":    "instance id",
@@ -56,28 +56,14 @@ func minimalCloudInstanceArgs() CloudInstanceArgs {
 }
 
 func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
-	// NOTE: using gig from package_test.go
-	args := CloudInstanceArgs{
-		InstanceId:       "instance id",
-		Architecture:     "amd64",
-		Memory:           16 * gig,
-		RootDisk:         200 * gig,
-		CpuCores:         8,
-		CpuPower:         4000,
-		Tags:             []string{"much", "strong"},
-		AvailabilityZone: "everywhere",
-		CharmProfiles:    []string{"much", "strong"},
-	}
-
-	var instance CloudInstance = newCloudInstance(args)
-	instance.SetStatus(minimalStatusArgs())
-	instance.SetModificationStatus(minimalStatusArgs())
-
+	args := s.testArgs()
+	var instance CloudInstance = s.testCloudInstance()
 	c.Check(instance.Validate(), jc.ErrorIsNil)
 	c.Check(instance.InstanceId(), gc.Equals, args.InstanceId)
 	c.Check(instance.Architecture(), gc.Equals, args.Architecture)
 	c.Check(instance.Memory(), gc.Equals, args.Memory)
 	c.Check(instance.RootDisk(), gc.Equals, args.RootDisk)
+	c.Check(instance.RootDiskSource(), gc.Equals, args.RootDiskSource)
 	c.Check(instance.CpuCores(), gc.Equals, args.CpuCores)
 	c.Check(instance.CpuPower(), gc.Equals, args.CpuPower)
 	c.Check(instance.AvailabilityZone(), gc.Equals, args.AvailabilityZone)
@@ -163,4 +149,125 @@ func (s *CloudInstanceSerializationSuite) TestValidateInvalidModificationStatus(
 
 	err := instance.Validate()
 	c.Check(err, gc.IsNil)
+}
+
+func (s *CloudInstanceSerializationSuite) importCloudInstance(c *gc.C, source map[string]interface{}) *cloudInstance {
+	imported, err := importCloudInstance(source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(imported, gc.NotNil)
+	return imported
+}
+
+func (s *CloudInstanceSerializationSuite) testArgs() CloudInstanceArgs {
+	// NOTE: using gig from package_test.go
+	return CloudInstanceArgs{
+		InstanceId:       "instance id",
+		Architecture:     "amd64",
+		Memory:           16 * gig,
+		RootDisk:         200 * gig,
+		RootDiskSource:   "my-house",
+		CpuCores:         8,
+		CpuPower:         4000,
+		Tags:             []string{"much", "strong"},
+		AvailabilityZone: "everywhere",
+		CharmProfiles:    []string{"much", "strong"},
+	}
+}
+
+func (s *CloudInstanceSerializationSuite) testCloudInstance() *cloudInstance {
+	instance := newCloudInstance(s.testArgs())
+	instance.SetStatus(minimalStatusArgs())
+	instance.SetModificationStatus(minimalStatusArgs())
+	return instance
+}
+
+func (s *CloudInstanceSerializationSuite) allV4Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":             4,
+		"instance-id":         "instance id",
+		"status":              minimalStatusMap(),
+		"status-history":      emptyStatusHistoryMap(),
+		"modification-status": minimalStatusMap(),
+		"architecture":        "amd64",
+		"memory":              16 * gig,
+		"root-disk":           200 * gig,
+		"cores":               8,
+		"cpu-power":           4000,
+		"tags":                []string{"much", "strong"},
+		"availability-zone":   "everywhere",
+		"charm-profiles":      []string{"much", "strong"},
+	}
+}
+
+func (s *CloudInstanceSerializationSuite) TestParsingV4Full(c *gc.C) {
+	original := s.allV4Map()
+	imported := s.importCloudInstance(c, original)
+	expected := s.testCloudInstance()
+	expected.RootDiskSource_ = ""
+	expected.Version = 4
+	c.Assert(imported, jc.DeepEquals, expected)
+}
+
+func (s *CloudInstanceSerializationSuite) TestParsingV4Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version":             4,
+		"instance-id":         "instance id",
+		"status":              minimalStatusMap(),
+		"status-history":      emptyStatusHistoryMap(),
+		"modification-status": minimalStatusMap(),
+	}
+	imported := s.importCloudInstance(c, original)
+	expected := newCloudInstance(minimalCloudInstanceArgs())
+	expected.SetStatus(minimalStatusArgs())
+	expected.SetModificationStatus(minimalStatusArgs())
+	expected.Version = 4
+	c.Assert(imported, jc.DeepEquals, expected)
+}
+
+func (s *CloudInstanceSerializationSuite) TestParsingV4IgnoresNewField(c *gc.C) {
+	original := s.allV4Map()
+	original["root-disk-source"] = "somewhere"
+	imported := s.importCloudInstance(c, original)
+	c.Assert(imported.RootDiskSource_, gc.Equals, "")
+}
+
+func (s *CloudInstanceSerializationSuite) allV5Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":             5,
+		"instance-id":         "instance id",
+		"status":              minimalStatusMap(),
+		"status-history":      emptyStatusHistoryMap(),
+		"modification-status": minimalStatusMap(),
+		"architecture":        "amd64",
+		"memory":              16 * gig,
+		"root-disk":           200 * gig,
+		"root-disk-source":    "my-house",
+		"cores":               8,
+		"cpu-power":           4000,
+		"tags":                []string{"much", "strong"},
+		"availability-zone":   "everywhere",
+		"charm-profiles":      []string{"much", "strong"},
+	}
+}
+
+func (s *CloudInstanceSerializationSuite) TestParsingV5Full(c *gc.C) {
+	original := s.allV5Map()
+	imported := s.importCloudInstance(c, original)
+	expected := s.testCloudInstance()
+	c.Assert(imported, jc.DeepEquals, expected)
+}
+
+func (s *CloudInstanceSerializationSuite) TestParsingV5Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version":             5,
+		"instance-id":         "instance id",
+		"status":              minimalStatusMap(),
+		"status-history":      emptyStatusHistoryMap(),
+		"modification-status": minimalStatusMap(),
+	}
+	imported := s.importCloudInstance(c, original)
+	expected := newCloudInstance(minimalCloudInstanceArgs())
+	expected.SetStatus(minimalStatusArgs())
+	expected.SetModificationStatus(minimalStatusArgs())
+	c.Assert(imported, jc.DeepEquals, expected)
 }
