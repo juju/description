@@ -25,6 +25,7 @@ type Constraints interface {
 	InstanceType() string
 	Memory() uint64
 	RootDisk() uint64
+	RootDiskSource() string
 
 	Spaces() []string
 	Tags() []string
@@ -35,13 +36,14 @@ type Constraints interface {
 
 // ConstraintsArgs is an argument struct to construct Constraints.
 type ConstraintsArgs struct {
-	Architecture string
-	Container    string
-	CpuCores     uint64
-	CpuPower     uint64
-	InstanceType string
-	Memory       uint64
-	RootDisk     uint64
+	Architecture   string
+	Container      string
+	CpuCores       uint64
+	CpuPower       uint64
+	InstanceType   string
+	Memory         uint64
+	RootDisk       uint64
+	RootDiskSource string
 
 	Spaces []string
 	Tags   []string
@@ -65,31 +67,33 @@ func newConstraints(args ConstraintsArgs) *constraints {
 	copy(zones, args.Zones)
 
 	return &constraints{
-		Version:       2,
-		Architecture_: args.Architecture,
-		Container_:    args.Container,
-		CpuCores_:     args.CpuCores,
-		CpuPower_:     args.CpuPower,
-		InstanceType_: args.InstanceType,
-		Memory_:       args.Memory,
-		RootDisk_:     args.RootDisk,
-		Spaces_:       spaces,
-		Tags_:         tags,
-		Zones_:        zones,
-		VirtType_:     args.VirtType,
+		Version:         3,
+		Architecture_:   args.Architecture,
+		Container_:      args.Container,
+		CpuCores_:       args.CpuCores,
+		CpuPower_:       args.CpuPower,
+		InstanceType_:   args.InstanceType,
+		Memory_:         args.Memory,
+		RootDisk_:       args.RootDisk,
+		RootDiskSource_: args.RootDiskSource,
+		Spaces_:         spaces,
+		Tags_:           tags,
+		Zones_:          zones,
+		VirtType_:       args.VirtType,
 	}
 }
 
 type constraints struct {
 	Version int `yaml:"version"`
 
-	Architecture_ string `yaml:"architecture,omitempty"`
-	Container_    string `yaml:"container,omitempty"`
-	CpuCores_     uint64 `yaml:"cores,omitempty"`
-	CpuPower_     uint64 `yaml:"cpu-power,omitempty"`
-	InstanceType_ string `yaml:"instance-type,omitempty"`
-	Memory_       uint64 `yaml:"memory,omitempty"`
-	RootDisk_     uint64 `yaml:"root-disk,omitempty"`
+	Architecture_   string `yaml:"architecture,omitempty"`
+	Container_      string `yaml:"container,omitempty"`
+	CpuCores_       uint64 `yaml:"cores,omitempty"`
+	CpuPower_       uint64 `yaml:"cpu-power,omitempty"`
+	InstanceType_   string `yaml:"instance-type,omitempty"`
+	Memory_         uint64 `yaml:"memory,omitempty"`
+	RootDisk_       uint64 `yaml:"root-disk,omitempty"`
+	RootDiskSource_ string `yaml:"root-disk-source,omitempty"`
 
 	Spaces_ []string `yaml:"spaces,omitempty"`
 	Tags_   []string `yaml:"tags,omitempty"`
@@ -133,6 +137,11 @@ func (c *constraints) RootDisk() uint64 {
 	return c.RootDisk_
 }
 
+// RootDiskSource implements Constraints.
+func (c *constraints) RootDiskSource() string {
+	return c.RootDiskSource_
+}
+
 // Spaces implements Constraints.
 func (c *constraints) Spaces() []string {
 	var spaces []string
@@ -173,60 +182,34 @@ func importConstraints(source map[string]interface{}) (*constraints, error) {
 	if err != nil {
 		return nil, errors.Annotate(err, "constraints version schema check failed")
 	}
-
-	importFunc, ok := constraintsDeserializationFuncs[version]
+	getFields, ok := constraintsFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
+	checker := schema.FieldMap(getFields())
 
-	return importFunc(source)
-}
-
-type constraintsDeserializationFunc func(map[string]interface{}) (*constraints, error)
-
-var constraintsDeserializationFuncs = map[int]constraintsDeserializationFunc{
-	1: importConstraintsV1,
-	2: importConstraintsV2,
-}
-
-func importConstraintsV1(source map[string]interface{}) (*constraints, error) {
-	coerced, err := schema.FieldMap(constraintsSchemaV1(), constraintsDefaultsV1()).Coerce(source, nil)
+	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "constraints v1 schema check failed")
+		return nil, errors.Annotatef(err, "constraints v%d schema check failed", version)
 	}
-	valid := coerced.(map[string]interface{})
 
+	valid := coerced.(map[string]interface{})
 	cores, err := constraintsValidCPUCores(valid)
 	if err != nil {
 		return nil, err
 	}
 
-	return validatedConstraints(1, valid, cores), nil
+	return validatedConstraints(version, valid, cores), nil
 }
 
-func importConstraintsV2(source map[string]interface{}) (*constraints, error) {
-	fields := constraintsSchemaV1()
-	fields["zones"] = schema.List(schema.String())
-
-	defaults := constraintsDefaultsV1()
-	defaults["zones"] = schema.Omit
-
-	coerced, err := schema.FieldMap(fields, defaults).Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "constraints v2 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-
-	cores, err := constraintsValidCPUCores(valid)
-	if err != nil {
-		return nil, err
-	}
-
-	return validatedConstraints(2, valid, cores), nil
+var constraintsFieldsFuncs = map[int]fieldsFunc{
+	1: constraintsV1Fields,
+	2: constraintsV2Fields,
+	3: constraintsV3Fields,
 }
 
-func constraintsSchemaV1() schema.Fields {
-	return schema.Fields{
+func constraintsV1Fields() (schema.Fields, schema.Defaults) {
+	fields := schema.Fields{
 		"architecture":  schema.String(),
 		"container":     schema.String(),
 		"cpu-cores":     schema.ForceUint(),
@@ -241,10 +224,7 @@ func constraintsSchemaV1() schema.Fields {
 
 		"virt-type": schema.String(),
 	}
-}
-
-func constraintsDefaultsV1() schema.Defaults {
-	return schema.Defaults{
+	defaults := schema.Defaults{
 		"architecture":  "",
 		"container":     "",
 		"cpu-cores":     schema.Omit,
@@ -259,6 +239,21 @@ func constraintsDefaultsV1() schema.Defaults {
 
 		"virt-type": "",
 	}
+	return fields, defaults
+}
+
+func constraintsV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := constraintsV1Fields()
+	fields["zones"] = schema.List(schema.String())
+	defaults["zones"] = schema.Omit
+	return fields, defaults
+}
+
+func constraintsV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := constraintsV2Fields()
+	fields["root-disk-source"] = schema.String()
+	defaults["root-disk-source"] = ""
+	return fields, defaults
 }
 
 // constraintsValidCPUCores returns an error if both aliases for CPU core count
@@ -302,7 +297,10 @@ func validatedConstraints(version int, valid map[string]interface{}, cores uint6
 	}
 
 	if version > 1 {
-		cons.Zones_ =  convertToStringSlice(valid["zones"])
+		cons.Zones_ = convertToStringSlice(valid["zones"])
+	}
+	if version > 2 {
+		cons.RootDiskSource_ = valid["root-disk-source"].(string)
 	}
 
 	return cons
@@ -321,6 +319,7 @@ func (c ConstraintsArgs) empty() bool {
 		c.InstanceType == "" &&
 		c.Memory == 0 &&
 		c.RootDisk == 0 &&
+		c.RootDiskSource == "" &&
 		c.Spaces == nil &&
 		c.Tags == nil &&
 		c.Zones == nil &&

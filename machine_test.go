@@ -59,7 +59,7 @@ func minimalMachineMapWithPriorInstanceMap(id string, containers ...interface{})
 		"id":             id,
 		"nonce":          "a-nonce",
 		"password-hash":  "some-hash",
-		"instance":       minimalCloudInstanceMapPriorVersion(),
+		"instance":       minimalCloudInstanceMapV3(),
 		"series":         "zesty",
 		"tools":          minimalAgentToolsMap(),
 		"jobs":           []interface{}{"host-units"},
@@ -97,6 +97,10 @@ func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *mach
 	})
 	m.Containers_ = containers
 	m.SetInstance(minimalCloudInstanceArgs())
+	// The new instance constructed by SetInstance will be the current
+	// version, change it to 3 to match the version returned by
+	// minimalMachineMapWithPriorInstanceMap.
+	m.Instance_.Version = 3
 	m.Instance().SetStatus(minimalStatusArgs())
 	m.SetTools(minimalAgentToolsArgs())
 	m.SetStatus(minimalStatusArgs())
@@ -436,161 +440,6 @@ func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
 
 	machine := s.exportImport(c, m)
 	c.Assert(machine, jc.DeepEquals, m)
-}
-
-type CloudInstanceSerializationSuite struct {
-	SerializationSuite
-}
-
-var _ = gc.Suite(&CloudInstanceSerializationSuite{})
-
-func (s *CloudInstanceSerializationSuite) SetUpTest(c *gc.C) {
-	s.importName = "cloudInstance"
-	s.importFunc = func(m map[string]interface{}) (interface{}, error) {
-		return importCloudInstance(m)
-	}
-}
-
-func minimalCloudInstanceMap() map[interface{}]interface{} {
-	return map[interface{}]interface{}{
-		"version":             4,
-		"instance-id":         "instance id",
-		"status":              minimalStatusMap(),
-		"status-history":      emptyStatusHistoryMap(),
-		"modification-status": minimalStatusMap(),
-	}
-}
-
-func minimalCloudInstanceMapPriorVersion() map[interface{}]interface{} {
-	return map[interface{}]interface{}{
-		"version":        3,
-		"instance-id":    "instance id",
-		"status":         minimalStatusMap(),
-		"status-history": emptyStatusHistoryMap(),
-	}
-}
-
-func minimalCloudInstance() *cloudInstance {
-	instance := newCloudInstance(minimalCloudInstanceArgs())
-	instance.SetStatus(minimalStatusArgs())
-	instance.SetModificationStatus(minimalStatusArgs())
-	return instance
-}
-
-func minimalCloudInstanceArgs() CloudInstanceArgs {
-	return CloudInstanceArgs{
-		InstanceId: "instance id",
-	}
-}
-
-func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
-	// NOTE: using gig from package_test.go
-	args := CloudInstanceArgs{
-		InstanceId:       "instance id",
-		Architecture:     "amd64",
-		Memory:           16 * gig,
-		RootDisk:         200 * gig,
-		CpuCores:         8,
-		CpuPower:         4000,
-		Tags:             []string{"much", "strong"},
-		AvailabilityZone: "everywhere",
-		CharmProfiles:    []string{"much", "strong"},
-	}
-
-	instance := newCloudInstance(args)
-	instance.SetStatus(minimalStatusArgs())
-	instance.SetModificationStatus(minimalStatusArgs())
-
-	c.Check(instance.Validate(), jc.ErrorIsNil)
-	c.Check(instance.InstanceId(), gc.Equals, args.InstanceId)
-	c.Check(instance.Architecture(), gc.Equals, args.Architecture)
-	c.Check(instance.Memory(), gc.Equals, args.Memory)
-	c.Check(instance.RootDisk(), gc.Equals, args.RootDisk)
-	c.Check(instance.CpuCores(), gc.Equals, args.CpuCores)
-	c.Check(instance.CpuPower(), gc.Equals, args.CpuPower)
-	c.Check(instance.AvailabilityZone(), gc.Equals, args.AvailabilityZone)
-
-	// Before we check tags, modify args to make sure that the instance ones
-	// don't change.
-	args.Tags[0] = "weird"
-	tags := instance.Tags()
-	c.Assert(tags, jc.DeepEquals, []string{"much", "strong"})
-
-	// Also, changing the tags returned, doesn't modify the instance
-	tags[0] = "weird"
-	c.Assert(instance.Tags(), jc.DeepEquals, []string{"much", "strong"})
-
-	// Before we check charm profiles, modify args to make sure that the instance ones
-	// don't change.
-	args.CharmProfiles[0] = "weird"
-	profiles := instance.CharmProfiles()
-	c.Assert(profiles, jc.DeepEquals, []string{"much", "strong"})
-
-	// Also, changing the tags returned, doesn't modify the instance
-	profiles[0] = "weird"
-	c.Assert(instance.CharmProfiles(), jc.DeepEquals, []string{"much", "strong"})
-
-	// Check that the modification status is valid
-	c.Check(instance.ModificationStatus(), gc.DeepEquals, newStatus(minimalStatusArgs()))
-}
-
-func (s *CloudInstanceSerializationSuite) TestMinimalMatches(c *gc.C) {
-	bytes, err := yaml.Marshal(minimalCloudInstance())
-	c.Assert(err, jc.ErrorIsNil)
-
-	var source map[interface{}]interface{}
-	err = yaml.Unmarshal(bytes, &source)
-	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(source, jc.DeepEquals, minimalCloudInstanceMap())
-}
-
-func (s *CloudInstanceSerializationSuite) TestParsingSerializedData(c *gc.C) {
-	const MaxUint64 = 1<<64 - 1
-	initial := newCloudInstance(CloudInstanceArgs{
-		InstanceId:   "instance id",
-		Architecture: "amd64",
-		Memory:       16 * gig,
-		CpuPower:     MaxUint64,
-		Tags:         []string{"much", "strong"},
-	})
-	initial.SetStatus(minimalStatusArgs())
-	initial.SetModificationStatus(minimalStatusArgs())
-	bytes, err := yaml.Marshal(initial)
-	c.Assert(err, jc.ErrorIsNil)
-
-	var source map[string]interface{}
-	err = yaml.Unmarshal(bytes, &source)
-	c.Assert(err, jc.ErrorIsNil)
-
-	instance, err := importCloudInstance(source)
-	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(instance, jc.DeepEquals, initial)
-}
-
-func (s *CloudInstanceSerializationSuite) TestValidateMissingID(c *gc.C) {
-	initial := newCloudInstance(CloudInstanceArgs{})
-	err := initial.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
-	c.Check(err, gc.ErrorMatches, "instance missing id not valid")
-}
-
-func (s *CloudInstanceSerializationSuite) TestValidateMissingStatus(c *gc.C) {
-	initial := newCloudInstance(CloudInstanceArgs{InstanceId: "magic"})
-	err := initial.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
-	c.Check(err, gc.ErrorMatches, `instance "magic" missing status not valid`)
-}
-
-func (s *CloudInstanceSerializationSuite) TestValidateInvalidModificationStatus(c *gc.C) {
-	args := CloudInstanceArgs{
-		InstanceId: "instance id",
-	}
-	instance := newCloudInstance(args)
-	instance.SetStatus(minimalStatusArgs())
-	instance.SetModificationStatus(StatusArgs{})
-
-	err := instance.Validate()
-	c.Check(err, gc.IsNil)
 }
 
 type AgentToolsSerializationSuite struct {
