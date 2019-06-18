@@ -65,6 +65,12 @@ func minimalApplicationMap() map[interface{}]interface{} {
 				minimalUnitMap(),
 			},
 		},
+		"offers": map[interface{}]interface{}{
+			"version": 1,
+			"offers": []interface{}{
+				minimalApplicationOfferMap(),
+			},
+		},
 	}
 }
 
@@ -91,6 +97,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	}
 	result["tools"] = minimalAgentToolsMap()
 	result["operator-status"] = minimalStatusMap()
+	delete(result, "offers")
 	return result
 }
 
@@ -109,6 +116,12 @@ func minimalApplication(args ...ApplicationArgs) *application {
 		a.SetOperatorStatus(minimalStatusArgs())
 	} else {
 		u.SetTools(minimalAgentToolsArgs())
+		a.setOffers([]*applicationOffer{
+			{
+				OfferName_: "my-offer",
+				Endpoints_: []string{"endpoint-1", "endpoint-2"},
+			},
+		})
 	}
 	return a
 }
@@ -262,7 +275,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 4)
+	return s.exportImportVersion(c, application_, 5)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -279,6 +292,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
+	appLatest.Offers_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -297,6 +311,7 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
+	appLatest.Offers_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -311,6 +326,7 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.Placement_ = ""
 	appLatest.DesiredScale_ = 0
 	appLatest.OperatorStatus_ = nil
+	appLatest.Offers_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	c.Assert(appResult, jc.DeepEquals, appLatest)

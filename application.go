@@ -59,6 +59,9 @@ type Application interface {
 	Tools() AgentTools
 	SetTools(AgentToolsArgs)
 
+	Offers() []ApplicationOffer
+	AddOffer(ApplicationOfferArgs) ApplicationOffer
+
 	Validate() error
 }
 
@@ -113,6 +116,9 @@ type application struct {
 	CloudService_   *cloudService `yaml:"cloud-service,omitempty"`
 	Tools_          *agentTools   `yaml:"tools,omitempty"`
 	OperatorStatus_ *status       `yaml:"operator-status,omitempty"`
+
+	// Offer-related fields
+	Offers_ *applicationOffers `yaml:"offers,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -420,6 +426,39 @@ func (a *application) SetTools(args AgentToolsArgs) {
 	a.Tools_ = newAgentTools(args)
 }
 
+// Offers implements Application.
+func (a *application) Offers() []ApplicationOffer {
+	if a.Offers_ == nil || len(a.Offers_.Offers) == 0 {
+		return nil
+	}
+
+	res := make([]ApplicationOffer, len(a.Offers_.Offers))
+	for i, offer := range a.Offers_.Offers {
+		res[i] = offer
+	}
+	return res
+}
+
+// AddOffer implements Application.
+func (a *application) AddOffer(args ApplicationOfferArgs) ApplicationOffer {
+	if a.Offers_ == nil {
+		a.Offers_ = &applicationOffers{
+			Version: 1,
+		}
+	}
+
+	offer := newApplicationOffer(args)
+	a.Offers_.Offers = append(a.Offers_.Offers, offer)
+	return offer
+}
+
+func (a *application) setOffers(offers []*applicationOffer) {
+	a.Offers_ = &applicationOffers{
+		Version: 1,
+		Offers:  offers,
+	}
+}
+
 // Validate implements Application.
 func (a *application) Validate() error {
 	if a.Name_ == "" {
@@ -497,6 +536,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	2: importApplicationV2,
 	3: importApplicationV3,
 	4: importApplicationV4,
+	5: importApplicationV5,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -569,6 +609,13 @@ func applicationV4Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV5Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV4Fields()
+	fields["offers"] = schema.StringMap(schema.Any())
+	defaults["offers"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -587,6 +634,11 @@ func importApplicationV3(source map[string]interface{}) (*application, error) {
 func importApplicationV4(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV4Fields()
 	return importApplication(fields, defaults, 4, source)
+}
+
+func importApplicationV5(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV5Fields()
+	return importApplication(fields, defaults, 5, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -634,6 +686,15 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 				return nil, errors.Trace(err)
 			}
 			result.OperatorStatus_ = status
+		}
+	}
+	if importVersion >= 5 {
+		if offerMap, ok := valid["offers"]; ok {
+			offers, err := importApplicationOffers(offerMap.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.setOffers(offers)
 		}
 	}
 
