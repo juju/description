@@ -4,13 +4,28 @@
 package description
 
 import (
+	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type ApplicationOfferSerializationSuite struct {
+	SliceSerializationSuite
 }
 
 var _ = gc.Suite(&ApplicationOfferSerializationSuite{})
+
+func (s *ApplicationOfferSerializationSuite) SetUpTest(c *gc.C) {
+	s.SliceSerializationSuite.SetUpTest(c)
+	s.importName = "offers"
+	s.sliceName = "offers"
+	s.importFunc = func(m map[string]interface{}) (interface{}, error) {
+		return importApplicationOffers(m)
+	}
+	s.testFields = func(m map[string]interface{}) {
+		m["offers"] = []interface{}{}
+	}
+}
 
 func (s *ApplicationOfferSerializationSuite) TestNewApplicationOffer(c *gc.C) {
 	offer := newApplicationOffer(ApplicationOfferArgs{
@@ -20,4 +35,43 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOffer(c *gc.C) {
 
 	c.Check(offer.OfferName(), gc.Equals, "my-offer")
 	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
+}
+
+func (s *ApplicationOfferSerializationSuite) TestParsingSerializedData(c *gc.C) {
+	initial := newApplicationOffer(ApplicationOfferArgs{
+		OfferName: "my-offer",
+		Endpoints: []string{"endpoint-1", "endpoint-2"},
+	})
+	offer := s.exportImportLatest(c, initial)
+	c.Assert(offer, jc.DeepEquals, initial)
+}
+
+func (s *ApplicationOfferSerializationSuite) exportImportLatest(c *gc.C, offer *applicationOffer) *applicationOffer {
+	return s.exportImportVersion(c, offer, 1)
+}
+
+func (s *ApplicationOfferSerializationSuite) exportImportVersion(c *gc.C, offer_ *applicationOffer, version int) *applicationOffer {
+	initial := &applicationOffers{
+		Version: version,
+		Offers:  []*applicationOffer{offer_},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	offers, err := importApplicationOffers(source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(offers, gc.HasLen, 1)
+	return offers[0]
+}
+
+func minimalApplicationOfferMap() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		"offer-name": "my-offer",
+		"endpoints":  []interface{}{"endpoint-1", "endpoint-2"},
+	}
 }
