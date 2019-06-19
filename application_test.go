@@ -65,13 +65,18 @@ func minimalApplicationMap() map[interface{}]interface{} {
 				minimalUnitMap(),
 			},
 		},
-		"offers": map[interface{}]interface{}{
-			"version": 1,
-			"offers": []interface{}{
-				minimalApplicationOfferMap(),
-			},
+	}
+}
+
+func minimalApplicationWithOfferMap() map[interface{}]interface{} {
+	result := minimalApplicationMap()
+	result["offers"] = map[interface{}]interface{}{
+		"version": 1,
+		"offers": []interface{}{
+			minimalApplicationOfferMap(),
 		},
 	}
+	return result
 }
 
 func minimalApplicationMapCAAS() map[interface{}]interface{} {
@@ -97,7 +102,6 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	}
 	result["tools"] = minimalAgentToolsMap()
 	result["operator-status"] = minimalStatusMap()
-	delete(result, "offers")
 	return result
 }
 
@@ -116,6 +120,13 @@ func minimalApplication(args ...ApplicationArgs) *application {
 		a.SetOperatorStatus(minimalStatusArgs())
 	} else {
 		u.SetTools(minimalAgentToolsArgs())
+	}
+	return a
+}
+
+func minimalApplicationWithOffer(args ...ApplicationArgs) *application {
+	a := minimalApplication(args...)
+	if a.Type_ != CAAS {
 		a.setOffers([]*applicationOffer{
 			{
 				OfferName_: "my-offer",
@@ -253,6 +264,22 @@ func (s *ApplicationSerializationSuite) TestMinimalMatchesIAAS(c *gc.C) {
 	err = yaml.Unmarshal(bytes, &source)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(source, jc.DeepEquals, minimalApplicationMap())
+}
+
+func (s *ApplicationSerializationSuite) TestMinimalWithOfferMatchesIAAS(c *gc.C) {
+	bytes, err := yaml.Marshal(minimalApplicationWithOffer())
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[interface{}]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(source, jc.DeepEquals, minimalApplicationWithOfferMap())
+}
+
+func (s *ApplicationSerializationSuite) TestParsingSerializedDataWithOfferBlock(c *gc.C) {
+	app := minimalApplicationWithOffer()
+	application := s.exportImportLatest(c, app)
+	c.Assert(application, jc.DeepEquals, app)
 }
 
 func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application_ *application, version int) *application {
