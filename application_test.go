@@ -68,6 +68,17 @@ func minimalApplicationMap() map[interface{}]interface{} {
 	}
 }
 
+func minimalApplicationWithOfferMap() map[interface{}]interface{} {
+	result := minimalApplicationMap()
+	result["offers"] = map[interface{}]interface{}{
+		"version": 1,
+		"offers": []interface{}{
+			minimalApplicationOfferMap(),
+		},
+	}
+	return result
+}
+
 func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	result := minimalApplicationMap()
 	result["type"] = CAAS
@@ -109,6 +120,19 @@ func minimalApplication(args ...ApplicationArgs) *application {
 		a.SetOperatorStatus(minimalStatusArgs())
 	} else {
 		u.SetTools(minimalAgentToolsArgs())
+	}
+	return a
+}
+
+func minimalApplicationWithOffer(args ...ApplicationArgs) *application {
+	a := minimalApplication(args...)
+	if a.Type_ != CAAS {
+		a.setOffers([]*applicationOffer{
+			{
+				OfferName_: "my-offer",
+				Endpoints_: []string{"endpoint-1", "endpoint-2"},
+			},
+		})
 	}
 	return a
 }
@@ -242,6 +266,22 @@ func (s *ApplicationSerializationSuite) TestMinimalMatchesIAAS(c *gc.C) {
 	c.Assert(source, jc.DeepEquals, minimalApplicationMap())
 }
 
+func (s *ApplicationSerializationSuite) TestMinimalWithOfferMatchesIAAS(c *gc.C) {
+	bytes, err := yaml.Marshal(minimalApplicationWithOffer())
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[interface{}]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(source, jc.DeepEquals, minimalApplicationWithOfferMap())
+}
+
+func (s *ApplicationSerializationSuite) TestParsingSerializedDataWithOfferBlock(c *gc.C) {
+	app := minimalApplicationWithOffer()
+	application := s.exportImportLatest(c, app)
+	c.Assert(application, jc.DeepEquals, app)
+}
+
 func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application_ *application, version int) *application {
 	initial := applications{
 		Version:       version,
@@ -262,7 +302,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 4)
+	return s.exportImportVersion(c, application_, 5)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -279,6 +319,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
+	appLatest.Offers_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -297,6 +338,7 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
+	appLatest.Offers_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -311,6 +353,7 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.Placement_ = ""
 	appLatest.DesiredScale_ = 0
 	appLatest.OperatorStatus_ = nil
+	appLatest.Offers_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
