@@ -12,26 +12,36 @@ import (
 type ApplicationOffer interface {
 	OfferName() string
 	Endpoints() []string
+	ACL() map[string]string
 }
 
 var _ ApplicationOffer = (*applicationOffer)(nil)
 
 type applicationOffers struct {
 	Version int                 `yaml:"version"`
-	Offers  []*applicationOffer `yaml:"offers"`
+	Offers  []*applicationOffer `yaml:"offers,omitempty"`
 }
 
 type applicationOffer struct {
-	OfferName_ string   `yaml:"offer-name"`
-	Endpoints_ []string `yaml:"endpoints"`
+	OfferName_ string            `yaml:"offer-name"`
+	Endpoints_ []string          `yaml:"endpoints,omitempty"`
+	ACL_       map[string]string `yaml:"acl,omitempty"`
 }
 
+// OfferName implements ApplicationOffer.
 func (o *applicationOffer) OfferName() string {
 	return o.OfferName_
 }
 
+// Endpoints implements ApplicationOffer.
 func (o *applicationOffer) Endpoints() []string {
 	return o.Endpoints_
+}
+
+// ACL implements ApplicationOffer. It returns a map were keys are users and
+// values are access permissions.
+func (o *applicationOffer) ACL() map[string]string {
+	return o.ACL_
 }
 
 // ApplicationOfferArgs is an argument struct used to instanciate a new
@@ -39,12 +49,14 @@ func (o *applicationOffer) Endpoints() []string {
 type ApplicationOfferArgs struct {
 	OfferName string
 	Endpoints []string
+	ACL       map[string]string
 }
 
 func newApplicationOffer(args ApplicationOfferArgs) *applicationOffer {
 	return &applicationOffer{
 		OfferName_: args.OfferName,
 		Endpoints_: args.Endpoints,
+		ACL_:       args.ACL,
 	}
 }
 
@@ -94,6 +106,7 @@ func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
 	fields := schema.Fields{
 		"offer-name": schema.String(),
 		"endpoints":  schema.List(schema.String()),
+		"acl":        schema.Map(schema.String(), schema.String()),
 	}
 	checker := schema.FieldMap(fields, nil)
 
@@ -109,8 +122,15 @@ func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
 		endpoints[i] = ep.(string)
 	}
 
+	validACL := valid["acl"].(map[interface{}]interface{})
+	aclMap := make(map[string]string, len(validACL))
+	for user, access := range validACL {
+		aclMap[user.(string)] = access.(string)
+	}
+
 	return &applicationOffer{
 		OfferName_: valid["offer-name"].(string),
 		Endpoints_: endpoints,
+		ACL_:       aclMap,
 	}, nil
 }

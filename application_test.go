@@ -131,6 +131,11 @@ func minimalApplicationWithOffer(args ...ApplicationArgs) *application {
 			{
 				OfferName_: "my-offer",
 				Endpoints_: []string{"endpoint-1", "endpoint-2"},
+				ACL_: map[string]string{
+					"admin": "admin",
+					"foo":   "read",
+					"bar":   "consume",
+				},
 			},
 		})
 	}
