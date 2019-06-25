@@ -31,16 +31,31 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOffer(c *gc.C) {
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferName: "my-offer",
 		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		ACL: map[string]string{
+			"admin": "admin",
+			"foo":   "read",
+			"bar":   "consume",
+		},
 	})
 
 	c.Check(offer.OfferName(), gc.Equals, "my-offer")
 	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
+	c.Check(offer.ACL(), gc.DeepEquals, map[string]string{
+		"admin": "admin",
+		"foo":   "read",
+		"bar":   "consume",
+	})
 }
 
 func (s *ApplicationOfferSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := newApplicationOffer(ApplicationOfferArgs{
 		OfferName: "my-offer",
 		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		ACL: map[string]string{
+			"admin": "admin",
+			"foo":   "read",
+			"bar":   "consume",
+		},
 	})
 	offer := s.exportImportLatest(c, initial)
 	c.Assert(offer, jc.DeepEquals, initial)
@@ -73,5 +88,10 @@ func minimalApplicationOfferMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"offer-name": "my-offer",
 		"endpoints":  []interface{}{"endpoint-1", "endpoint-2"},
+		"acl": map[interface{}]interface{}{
+			"admin": "admin",
+			"foo":   "read",
+			"bar":   "consume",
+		},
 	}
 }
