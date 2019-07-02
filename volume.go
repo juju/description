@@ -56,19 +56,19 @@ func (v volumePlanInfo) DeviceAttributes() map[string]string {
 }
 
 type volumeAttachment struct {
-	HostID_         string         `yaml:"host-id"`
-	Provisioned_    bool           `yaml:"provisioned"`
-	ReadOnly_       bool           `yaml:"read-only"`
-	DeviceName_     string         `yaml:"device-name"`
-	DeviceLink_     string         `yaml:"device-link"`
-	BusAddress_     string         `yaml:"bus-address"`
-	VolumePlanInfo_ volumePlanInfo `yaml:"plan-info,omitempty"`
+	HostID_         string          `yaml:"host-id"`
+	Provisioned_    bool            `yaml:"provisioned"`
+	ReadOnly_       bool            `yaml:"read-only"`
+	DeviceName_     string          `yaml:"device-name"`
+	DeviceLink_     string          `yaml:"device-link"`
+	BusAddress_     string          `yaml:"bus-address"`
+	VolumePlanInfo_ *volumePlanInfo `yaml:"plan-info,omitempty"`
 }
 
 type volumeAttachmentPlan struct {
-	MachineID_   string         `yaml:"machine-id"`
-	BlockDevice_ *blockdevice   `yaml:"block-device,omitempty"`
-	PlanInfo_    volumePlanInfo `yaml:"plan-info,omitempty"`
+	MachineID_   string          `yaml:"machine-id"`
+	BlockDevice_ *blockdevice    `yaml:"block-device,omitempty"`
+	PlanInfo_    *volumePlanInfo `yaml:"plan-info,omitempty"`
 }
 
 func (v volumeAttachmentPlan) Machine() names.MachineTag {
@@ -397,32 +397,39 @@ func newVolumeAttachmentPlan(args VolumeAttachmentPlanArgs) *volumeAttachmentPla
 		InUse_:          args.InUse,
 		MountPoint_:     args.MountPoint,
 	}
-	planInfo := volumePlanInfo{
-		DeviceType_:       args.DeviceType,
-		DeviceAttributes_: args.DeviceAttributes,
-	}
-	return &volumeAttachmentPlan{
+	plan := volumeAttachmentPlan{
 		MachineID_:   args.Machine.Id(),
 		BlockDevice_: blockDevice,
-		PlanInfo_:    planInfo,
 	}
+
+	if args.DeviceType != "" && args.DeviceAttributes != nil {
+		plan.PlanInfo_ = &volumePlanInfo{
+			DeviceType_:       args.DeviceType,
+			DeviceAttributes_: args.DeviceAttributes,
+		}
+	}
+
+	return &plan
 }
 
 func newVolumeAttachment(args VolumeAttachmentArgs) *volumeAttachment {
-	planInfo := volumePlanInfo{}
+	att := volumeAttachment{
+		HostID_:      args.Host.Id(),
+		Provisioned_: args.Provisioned,
+		ReadOnly_:    args.ReadOnly,
+		DeviceName_:  args.DeviceName,
+		DeviceLink_:  args.DeviceLink,
+		BusAddress_:  args.BusAddress,
+	}
+
 	if args.DeviceType != "" && args.DeviceAttributes != nil {
-		planInfo.DeviceType_ = args.DeviceType
-		planInfo.DeviceAttributes_ = args.DeviceAttributes
+		att.VolumePlanInfo_ = &volumePlanInfo{
+			DeviceType_:       args.DeviceType,
+			DeviceAttributes_: args.DeviceAttributes,
+		}
 	}
-	return &volumeAttachment{
-		HostID_:         args.Host.Id(),
-		Provisioned_:    args.Provisioned,
-		ReadOnly_:       args.ReadOnly,
-		DeviceName_:     args.DeviceName,
-		DeviceLink_:     args.DeviceLink,
-		BusAddress_:     args.BusAddress,
-		VolumePlanInfo_: planInfo,
-	}
+
+	return &att
 }
 
 func storageAttachmentHost(id string) names.Tag {
@@ -552,22 +559,20 @@ func importVolumeAttachment(fields schema.Fields, defaults schema.Defaults, impo
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	var planInfo volumePlanInfo
+	result := &volumeAttachment{
+		Provisioned_: valid["provisioned"].(bool),
+		ReadOnly_:    valid["read-only"].(bool),
+		DeviceName_:  valid["device-name"].(string),
+		DeviceLink_:  valid["device-link"].(string),
+		BusAddress_:  valid["bus-address"].(string),
+	}
 
 	if valid["plan-info"] != nil {
-		planInfo, err = importVolumePlanInfo(valid["plan-info"].(map[string]interface{}))
+		planInfo, err := importVolumePlanInfo(valid["plan-info"].(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Annotatef(err, "volumeAttachmentPlanInfo schema check failed")
 		}
-	}
-
-	result := &volumeAttachment{
-		Provisioned_:    valid["provisioned"].(bool),
-		ReadOnly_:       valid["read-only"].(bool),
-		DeviceName_:     valid["device-name"].(string),
-		DeviceLink_:     valid["device-link"].(string),
-		BusAddress_:     valid["bus-address"].(string),
-		VolumePlanInfo_: planInfo,
+		result.VolumePlanInfo_ = planInfo
 	}
 
 	if importVersion >= 2 {
@@ -628,7 +633,7 @@ func coerceMapInterfacerToMapString(value map[string]interface{}) map[string]str
 	return newMap
 }
 
-func importVolumePlanInfo(source map[string]interface{}) (volumePlanInfo, error) {
+func importVolumePlanInfo(source map[string]interface{}) (*volumePlanInfo, error) {
 	fields := schema.Fields{
 		"device-type":       schema.String(),
 		"device-attributes": schema.StringMap(schema.String()),
@@ -638,12 +643,12 @@ func importVolumePlanInfo(source map[string]interface{}) (volumePlanInfo, error)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return volumePlanInfo{}, errors.Annotatef(err, "volumePlanInfo schema check failed")
+		return nil, errors.Annotatef(err, "volumePlanInfo schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 
 	devAttrs := coerceMapInterfacerToMapString(valid["device-attributes"].(map[string]interface{}))
-	return volumePlanInfo{
+	return &volumePlanInfo{
 		DeviceType_:       valid["device-type"].(string),
 		DeviceAttributes_: devAttrs,
 	}, nil

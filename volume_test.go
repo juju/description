@@ -94,6 +94,7 @@ func (s *VolumeSerializationSuite) TestNewVolume(c *gc.C) {
 	c.Check(volume.Persistent(), jc.IsTrue)
 
 	c.Check(volume.Attachments(), gc.HasLen, 0)
+	c.Check(volume.AttachmentPlans(), gc.HasLen, 0)
 }
 
 func (s *VolumeSerializationSuite) TestVolumeValid(c *gc.C) {
@@ -275,6 +276,7 @@ func (s *VolumeAttachmentSerializationSuite) TestNewVolumeAttachment(c *gc.C) {
 	c.Check(attachment.DeviceName(), gc.Equals, "sdd")
 	c.Check(attachment.DeviceLink(), gc.Equals, "link?")
 	c.Check(attachment.BusAddress(), gc.Equals, "nfi")
+	c.Check(attachment.VolumePlanInfo(), gc.IsNil)
 }
 
 func (s *VolumeAttachmentSerializationSuite) TestVolumeAttachmentMatches(c *gc.C) {
