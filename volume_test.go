@@ -94,7 +94,6 @@ func (s *VolumeSerializationSuite) TestNewVolume(c *gc.C) {
 	c.Check(volume.Persistent(), jc.IsTrue)
 
 	c.Check(volume.Attachments(), gc.HasLen, 0)
-	c.Check(volume.AttachmentPlans(), gc.HasLen, 0)
 }
 
 func (s *VolumeSerializationSuite) TestVolumeValid(c *gc.C) {
@@ -203,7 +202,12 @@ func testAttachmentPlanArgs(id string) VolumeAttachmentPlanArgs {
 func (s *VolumeSerializationSuite) TestAddingAttachmentPlans(c *gc.C) {
 	original := testVolume()
 	attachmentPlan1 := original.AddAttachmentPlan(testAttachmentPlanArgs("1"))
-	attachmentPlan2 := original.AddAttachmentPlan(testAttachmentPlanArgs("2"))
+
+	// Test a plan with no attributes.
+	plan := testAttachmentPlanArgs("2")
+	plan.DeviceAttributes = nil
+	attachmentPlan2 := original.AddAttachmentPlan(plan)
+
 	volume := s.exportImport(c, original)
 	c.Assert(volume, jc.DeepEquals, original)
 	attachmentPlans := volume.AttachmentPlans()
@@ -276,7 +280,6 @@ func (s *VolumeAttachmentSerializationSuite) TestNewVolumeAttachment(c *gc.C) {
 	c.Check(attachment.DeviceName(), gc.Equals, "sdd")
 	c.Check(attachment.DeviceLink(), gc.Equals, "link?")
 	c.Check(attachment.BusAddress(), gc.Equals, "nfi")
-	c.Check(attachment.VolumePlanInfo(), gc.IsNil)
 }
 
 func (s *VolumeAttachmentSerializationSuite) TestVolumeAttachmentMatches(c *gc.C) {
