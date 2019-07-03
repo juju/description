@@ -202,7 +202,12 @@ func testAttachmentPlanArgs(id string) VolumeAttachmentPlanArgs {
 func (s *VolumeSerializationSuite) TestAddingAttachmentPlans(c *gc.C) {
 	original := testVolume()
 	attachmentPlan1 := original.AddAttachmentPlan(testAttachmentPlanArgs("1"))
-	attachmentPlan2 := original.AddAttachmentPlan(testAttachmentPlanArgs("2"))
+
+	// Test a plan with no attributes.
+	plan := testAttachmentPlanArgs("2")
+	plan.DeviceAttributes = nil
+	attachmentPlan2 := original.AddAttachmentPlan(plan)
+
 	volume := s.exportImport(c, original)
 	c.Assert(volume, jc.DeepEquals, original)
 	attachmentPlans := volume.AttachmentPlans()

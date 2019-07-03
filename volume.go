@@ -634,7 +634,11 @@ func importVolumePlanInfo(source map[string]interface{}) (volumePlanInfo, error)
 		"device-attributes": schema.StringMap(schema.String()),
 	}
 
-	checker := schema.FieldMap(fields, nil)
+	defaults := schema.Defaults{
+		"device-attributes": schema.Omit,
+	}
+
+	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -642,11 +646,14 @@ func importVolumePlanInfo(source map[string]interface{}) (volumePlanInfo, error)
 	}
 	valid := coerced.(map[string]interface{})
 
-	devAttrs := coerceMapInterfacerToMapString(valid["device-attributes"].(map[string]interface{}))
-	return volumePlanInfo{
-		DeviceType_:       valid["device-type"].(string),
-		DeviceAttributes_: devAttrs,
-	}, nil
+	planInfo := volumePlanInfo{
+		DeviceType_: valid["device-type"].(string),
+	}
+	if valid["device-attributes"] != nil {
+		planInfo.DeviceAttributes_ = coerceMapInterfacerToMapString(valid["device-attributes"].(map[string]interface{}))
+	}
+
+	return planInfo, nil
 }
 
 func importVolumeAttachmentPlanV1(source map[string]interface{}) (*volumeAttachmentPlan, error) {
