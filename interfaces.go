@@ -21,6 +21,7 @@ type AgentTools interface {
 
 // Space represents a network space, which is a named collection of subnets.
 type Space interface {
+	Id() string
 	Name() string
 	Public() bool
 	ProviderID() string
