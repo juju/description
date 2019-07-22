@@ -14,6 +14,7 @@ type spaces struct {
 }
 
 type space struct {
+	Id_         string `yaml:"id"`
 	Name_       string `yaml:"name"`
 	Public_     bool   `yaml:"public"`
 	ProviderID_ string `yaml:"provider-id,omitempty"`
@@ -22,6 +23,7 @@ type space struct {
 // SpaceArgs is an argument struct used to create a new internal space
 // type that supports the Space interface.
 type SpaceArgs struct {
+	Id         string
 	Name       string
 	Public     bool
 	ProviderID string
@@ -29,10 +31,16 @@ type SpaceArgs struct {
 
 func newSpace(args SpaceArgs) *space {
 	return &space{
+		Id_:         args.Id,
 		Name_:       args.Name,
 		Public_:     args.Public,
 		ProviderID_: args.ProviderID,
 	}
+}
+
+// Id implements Space.
+func (s *space) Id() string {
+	return s.Id_
 }
 
 // Name implements Space.
@@ -87,18 +95,11 @@ type spaceDeserializationFunc func(map[string]interface{}) (*space, error)
 
 var spaceDeserializationFuncs = map[int]spaceDeserializationFunc{
 	1: importSpaceV1,
+	2: importSpaceV2,
 }
 
 func importSpaceV1(source map[string]interface{}) (*space, error) {
-	fields := schema.Fields{
-		"name":        schema.String(),
-		"public":      schema.Bool(),
-		"provider-id": schema.String(),
-	}
-	// Some values don't have to be there.
-	defaults := schema.Defaults{
-		"provider-id": "",
-	}
+	fields, defaults := spaceV1Fields()
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
@@ -114,4 +115,38 @@ func importSpaceV1(source map[string]interface{}) (*space, error) {
 		Public_:     valid["public"].(bool),
 		ProviderID_: valid["provider-id"].(string),
 	}, nil
+}
+
+func importSpaceV2(source map[string]interface{}) (*space, error) {
+	fields, defaults := spaceV1Fields()
+	fields["id"] = schema.String()
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "space v2 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+
+	return &space{
+		Id_:         valid["id"].(string),
+		Name_:       valid["name"].(string),
+		Public_:     valid["public"].(bool),
+		ProviderID_: valid["provider-id"].(string),
+	}, nil
+}
+
+func spaceV1Fields() (schema.Fields, schema.Defaults) {
+	fields := schema.Fields{
+		"name":        schema.String(),
+		"public":      schema.Bool(),
+		"provider-id": schema.String(),
+	}
+	// Some values don't have to be there.
+	defaults := schema.Defaults{
+		"provider-id": "",
+	}
+	return fields, defaults
 }

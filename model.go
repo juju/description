@@ -444,7 +444,7 @@ func (m *model) AddSpace(args SpaceArgs) Space {
 
 func (m *model) setSpaces(spaceList []*space) {
 	m.Spaces_ = spaces{
-		Version: 1,
+		Version: 2,
 		Spaces_: spaceList,
 	}
 }

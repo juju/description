@@ -34,16 +34,44 @@ func (s *SpaceSerializationSuite) TestNewSpace(c *gc.C) {
 		ProviderID: "magic",
 	}
 	space := newSpace(args)
+	c.Assert(space.Id(), gc.Equals, "")
 	c.Assert(space.Name(), gc.Equals, args.Name)
 	c.Assert(space.Public(), gc.Equals, args.Public)
 	c.Assert(space.ProviderID(), gc.Equals, args.ProviderID)
 }
 
-func (s *SpaceSerializationSuite) TestParsingSerializedData(c *gc.C) {
+func (s *SpaceSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
 	initial := spaces{
 		Version: 1,
 		Spaces_: []*space{
 			newSpace(SpaceArgs{
+				Name:       "special",
+				Public:     true,
+				ProviderID: "magic",
+			}),
+			newSpace(SpaceArgs{Name: "foo"}),
+		},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	spaces, err := importSpaces(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(spaces, jc.DeepEquals, initial.Spaces_)
+}
+
+func (s *SpaceSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
+	initial := spaces{
+		Version: 2,
+		Spaces_: []*space{
+			newSpace(SpaceArgs{
+				Id:         "1",
 				Name:       "special",
 				Public:     true,
 				ProviderID: "magic",

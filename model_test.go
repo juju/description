@@ -965,8 +965,10 @@ func (s *ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C)
 
 func (s *ModelSerializationSuite) TestSpaces(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
-	space := initial.AddSpace(SpaceArgs{Name: "special"})
+	space := initial.AddSpace(SpaceArgs{Id: "1", Name: "special"})
 	c.Assert(space.Name(), gc.Equals, "special")
+	c.Assert(space.Id(), gc.Equals, "1")
+
 	spaces := initial.Spaces()
 	c.Assert(spaces, gc.HasLen, 1)
 	c.Assert(spaces[0], gc.Equals, space)
