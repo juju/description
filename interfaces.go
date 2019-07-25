@@ -209,3 +209,20 @@ type StorageInstanceConstraints struct {
 	Pool string
 	Size uint64
 }
+
+// Subnet represents a network subnet.
+type Subnet interface {
+	ProviderId() string
+	ProviderNetworkId() string
+	ProviderSpaceId() string
+	CIDR() string
+	VLANTag() int
+	AvailabilityZones() []string
+	IsPublic() bool
+	SpaceID() string
+	SpaceName() string
+	FanLocalUnderlay() string
+	FanOverlay() string
+	AllocatableIPHigh() string
+	AllocatableIPLow() string
+}

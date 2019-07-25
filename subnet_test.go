@@ -27,24 +27,27 @@ func (s *SubnetSerializationSuite) SetUpTest(c *gc.C) {
 	}
 }
 
-func testSubnetMap() map[interface{}]interface{} {
-	return map[interface{}]interface{}{
-		"cidr":                "10.0.0.0/24",
-		"provider-id":         "magic",
-		"provider-network-id": "carpet",
-		"provider-space-id":   "ride",
-		"vlan-tag":            64,
-		"space-name":          "foo",
-		"availability-zones":  []interface{}{"bar", "baz"},
-		"fan-local-underlay":  "1.2.3.4/24",
-		"fan-overlay":         "253.0.0.0/8",
-		"allocatable-ip-high": "10.0.0.255",
-		"allocatable-ip-low":  "10.0.0.0",
+func testSubnet(version int) *subnet {
+	args := testSubnetArgs()
+	switch version {
+	case 1:
+		args.ProviderNetworkId = ""
+		fallthrough
+	case 2:
+		args.AvailabilityZones = []string{"bar"}
+		args.ProviderSpaceId = ""
+		fallthrough
+	case 3:
+		args.FanLocalUnderlay = ""
+		args.FanOverlay = ""
+		fallthrough
+	case 4:
+		args.SpaceID = ""
+		args.IsPublic = false
+	case 5:
+		args.SpaceName = ""
 	}
-}
-
-func testSubnet() *subnet {
-	return newSubnet(testSubnetArgs())
+	return newSubnet(args)
 }
 
 func testSubnetArgs() SubnetArgs {
@@ -55,6 +58,8 @@ func testSubnetArgs() SubnetArgs {
 		ProviderSpaceId:   "ride",
 		VLANTag:           64,
 		SpaceName:         "foo",
+		SpaceID:           "7",
+		IsPublic:          true,
 		FanLocalUnderlay:  "1.2.3.4/24",
 		FanOverlay:        "253.0.0.0/8",
 		AvailabilityZones: []string{"bar", "baz"},
@@ -72,6 +77,8 @@ func (s *SubnetSerializationSuite) TestNewSubnet(c *gc.C) {
 	c.Assert(subnet.ProviderSpaceId(), gc.Equals, args.ProviderSpaceId)
 	c.Assert(subnet.VLANTag(), gc.Equals, args.VLANTag)
 	c.Assert(subnet.SpaceName(), gc.Equals, args.SpaceName)
+	c.Assert(subnet.SpaceID(), gc.Equals, args.SpaceID)
+	c.Assert(subnet.IsPublic(), jc.IsTrue)
 	c.Assert(subnet.AvailabilityZones(), gc.DeepEquals, args.AvailabilityZones)
 	c.Assert(subnet.AllocatableIPHigh(), gc.Equals, args.AllocatableIPHigh)
 	c.Assert(subnet.AllocatableIPLow(), gc.Equals, args.AllocatableIPLow)
@@ -127,12 +134,7 @@ func testSubnetV1Map() map[string]interface{} {
 func (s *SubnetSerializationSuite) TestParsingV1Full(c *gc.C) {
 	original := testSubnetV1Map()
 	imported := s.importSubnet(c, original, 1)
-	expected := testSubnet()
-	expected.AvailabilityZones_ = []string{"bar"}
-	expected.ProviderSpaceId_ = ""
-	expected.ProviderNetworkId_ = ""
-	expected.FanLocalUnderlay_ = ""
-	expected.FanOverlay_ = ""
+	expected := testSubnet(1)
 	c.Assert(imported, jc.DeepEquals, expected)
 }
 
@@ -177,11 +179,7 @@ func testSubnetV2Map() map[string]interface{} {
 func (s *SubnetSerializationSuite) TestParsingV2Full(c *gc.C) {
 	original := testSubnetV2Map()
 	imported := s.importSubnet(c, original, 2)
-	expected := testSubnet()
-	expected.AvailabilityZones_ = []string{"bar"}
-	expected.ProviderSpaceId_ = ""
-	expected.FanLocalUnderlay_ = ""
-	expected.FanOverlay_ = ""
+	expected := testSubnet(2)
 	c.Assert(imported, jc.DeepEquals, expected)
 }
 
@@ -231,9 +229,7 @@ func testSubnetV3Map() map[string]interface{} {
 func (s *SubnetSerializationSuite) TestParsingV3Full(c *gc.C) {
 	original := testSubnetV3Map()
 	imported := s.importSubnet(c, original, 3)
-	expected := testSubnet()
-	expected.FanLocalUnderlay_ = ""
-	expected.FanOverlay_ = ""
+	expected := testSubnet(3)
 	c.Assert(imported, jc.DeepEquals, expected)
 }
 
@@ -242,6 +238,7 @@ func (s *SubnetSerializationSuite) TestParsingV3Minimal(c *gc.C) {
 	subnet := s.exportImport(c, original, 3)
 	c.Assert(subnet, jc.DeepEquals, original)
 }
+
 func (s *SubnetSerializationSuite) TestParsingV3IgnoresNewFields(c *gc.C) {
 	original := testSubnetV3Map()
 	original["fan-local-underlay"] = "somethingelse"
@@ -253,7 +250,7 @@ func (s *SubnetSerializationSuite) TestParsingV3IgnoresNewFields(c *gc.C) {
 }
 
 func (s *SubnetSerializationSuite) TestParsingV4Full(c *gc.C) {
-	original := testSubnet()
+	original := testSubnet(4)
 	subnet := s.exportImport(c, original, 4)
 	c.Assert(subnet, jc.DeepEquals, original)
 }
@@ -261,5 +258,29 @@ func (s *SubnetSerializationSuite) TestParsingV4Full(c *gc.C) {
 func (s *SubnetSerializationSuite) TestParsingV4Minimal(c *gc.C) {
 	original := newSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
 	subnet := s.exportImport(c, original, 4)
+	c.Assert(subnet, jc.DeepEquals, original)
+}
+
+func (s *SubnetSerializationSuite) TestParsingV4IgnoresNewFields(c *gc.C) {
+	original := testSubnetV3Map()
+	original["fan-local-underlay"] = "1.2.3.4/24"
+	original["fan-overlay"] = "253.0.0.0/8"
+	original["space-id"] = ""
+	original["is-public"] = false
+	subnet := s.importSubnet(c, original, 4)
+	// The new fields are ignored by the import because they don't exist in v4.
+	c.Assert(subnet.SpaceID_, gc.Equals, "")
+	c.Assert(subnet.IsPublic_, jc.IsFalse)
+}
+
+func (s *SubnetSerializationSuite) TestParsingV5Full(c *gc.C) {
+	original := testSubnet(5)
+	subnet := s.exportImport(c, original, 5)
+	c.Assert(subnet, jc.DeepEquals, original)
+}
+
+func (s *SubnetSerializationSuite) TestParsingV5Minimal(c *gc.C) {
+	original := newSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
+	subnet := s.exportImport(c, original, 5)
 	c.Assert(subnet, jc.DeepEquals, original)
 }

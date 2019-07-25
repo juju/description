@@ -8,21 +8,6 @@ import (
 	"github.com/juju/schema"
 )
 
-// Subnet represents a network subnet.
-type Subnet interface {
-	ProviderId() string
-	ProviderNetworkId() string
-	ProviderSpaceId() string
-	CIDR() string
-	VLANTag() int
-	AvailabilityZones() []string
-	SpaceName() string
-	FanLocalUnderlay() string
-	FanOverlay() string
-	AllocatableIPHigh() string
-	AllocatableIPLow() string
-}
-
 type subnets struct {
 	Version  int       `yaml:"version"`
 	Subnets_ []*subnet `yaml:"subnets"`
@@ -36,6 +21,10 @@ type subnet struct {
 	VLANTag_           int    `yaml:"vlan-tag"`
 
 	AvailabilityZones_ []string `yaml:"availability-zones"`
+	IsPublic_          bool     `yaml:"is-public"`
+	SpaceID_           string   `yaml:"space-id"`
+
+	// SpaceName is now deprecated and not used past version 4.
 	SpaceName_         string   `yaml:"space-name"`
 
 	FanLocalUnderlay_ string `yaml:"fan-local-underlay,omitempty"`
@@ -56,7 +45,12 @@ type SubnetArgs struct {
 	CIDR              string
 	VLANTag           int
 	AvailabilityZones []string
+	IsPublic          bool
+
+	// SpaceName is now deprecated and not used past version 4.
 	SpaceName         string
+
+	SpaceID           string
 	FanLocalUnderlay  string
 	FanOverlay        string
 
@@ -72,9 +66,11 @@ func newSubnet(args SubnetArgs) *subnet {
 		ProviderNetworkId_: args.ProviderNetworkId,
 		ProviderSpaceId_:   args.ProviderSpaceId,
 		SpaceName_:         args.SpaceName,
+		SpaceID_:           args.SpaceID,
 		CIDR_:              args.CIDR,
 		VLANTag_:           args.VLANTag,
 		AvailabilityZones_: args.AvailabilityZones,
+		IsPublic_:          args.IsPublic,
 		FanLocalUnderlay_:  args.FanLocalUnderlay,
 		FanOverlay_:        args.FanOverlay,
 		AllocatableIPHigh_: args.AllocatableIPHigh,
@@ -102,6 +98,11 @@ func (s *subnet) SpaceName() string {
 	return s.SpaceName_
 }
 
+// SpaceID implements Subnet.
+func (s *subnet) SpaceID() string {
+	return s.SpaceID_
+}
+
 // CIDR implements Subnet.
 func (s *subnet) CIDR() string {
 	return s.CIDR_
@@ -115,6 +116,11 @@ func (s *subnet) VLANTag() int {
 // AvailabilityZones implements Subnet.
 func (s *subnet) AvailabilityZones() []string {
 	return s.AvailabilityZones_
+}
+
+// IsPublic implements Subnet.
+func (s *subnet) IsPublic() bool {
+	return s.IsPublic_
 }
 
 // FanLocalUnderlay implements Subnet.
@@ -180,6 +186,7 @@ var subnetFieldsFuncs = map[int]fieldsFunc{
 	2: subnetV2Fields,
 	3: subnetV3Fields,
 	4: subnetV4Fields,
+	5: subnetV5Fields,
 }
 
 func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
@@ -189,7 +196,6 @@ func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, err
 		CIDR_:              valid["cidr"].(string),
 		ProviderId_:        valid["provider-id"].(string),
 		VLANTag_:           int(valid["vlan-tag"].(int64)),
-		SpaceName_:         valid["space-name"].(string),
 		AllocatableIPHigh_: valid["allocatable-ip-high"].(string),
 		AllocatableIPLow_:  valid["allocatable-ip-low"].(string),
 	}
@@ -205,6 +211,12 @@ func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, err
 	if version >= 4 {
 		result.FanLocalUnderlay_ = valid["fan-local-underlay"].(string)
 		result.FanOverlay_ = valid["fan-overlay"].(string)
+	}
+	if version >= 5 {
+		result.SpaceID_ = valid["space-id"].(string)
+		result.IsPublic_ = valid["is-public"].(bool)
+	} else {
+		result.SpaceName_ = valid["space-name"].(string)
 	}
 	return &result, nil
 }
@@ -249,5 +261,13 @@ func subnetV4Fields() (schema.Fields, schema.Defaults) {
 	fields["fan-overlay"] = schema.String()
 	defaults["fan-local-underlay"] = ""
 	defaults["fan-overlay"] = ""
+	return fields, defaults
+}
+
+func subnetV5Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := subnetV4Fields()
+	fields["space-id"] = schema.String()
+	fields["is-public"] = schema.Bool()
+	delete(fields, "space-name")
 	return fields, defaults
 }
