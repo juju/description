@@ -29,11 +29,6 @@ type subnet struct {
 
 	FanLocalUnderlay_ string `yaml:"fan-local-underlay,omitempty"`
 	FanOverlay_       string `yaml:"fan-overlay,omitempty"`
-
-	// These will be deprecated once the address allocation strategy for
-	// EC2 is changed. They are unused already on MAAS.
-	AllocatableIPHigh_ string `yaml:"allocatable-ip-high,omitempty"`
-	AllocatableIPLow_  string `yaml:"allocatable-ip-low,omitempty"`
 }
 
 // SubnetArgs is an argument struct used to create a
@@ -53,11 +48,6 @@ type SubnetArgs struct {
 	SpaceID           string
 	FanLocalUnderlay  string
 	FanOverlay        string
-
-	// These will be deprecated once the address allocation strategy for
-	// EC2 is changed. They are unused already on MAAS.
-	AllocatableIPHigh string
-	AllocatableIPLow  string
 }
 
 func newSubnet(args SubnetArgs) *subnet {
@@ -73,8 +63,6 @@ func newSubnet(args SubnetArgs) *subnet {
 		IsPublic_:          args.IsPublic,
 		FanLocalUnderlay_:  args.FanLocalUnderlay,
 		FanOverlay_:        args.FanOverlay,
-		AllocatableIPHigh_: args.AllocatableIPHigh,
-		AllocatableIPLow_:  args.AllocatableIPLow,
 	}
 }
 
@@ -133,16 +121,6 @@ func (s *subnet) FanOverlay() string {
 	return s.FanOverlay_
 }
 
-// AllocatableIPHigh implements Subnet.
-func (s *subnet) AllocatableIPHigh() string {
-	return s.AllocatableIPHigh_
-}
-
-// AllocatableIPLow implements Subnet.
-func (s *subnet) AllocatableIPLow() string {
-	return s.AllocatableIPLow_
-}
-
 func importSubnets(source map[string]interface{}) ([]*subnet, error) {
 	checker := versionedChecker("subnets")
 	coerced, err := checker.Coerce(source, nil)
@@ -196,8 +174,6 @@ func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, err
 		CIDR_:              valid["cidr"].(string),
 		ProviderId_:        valid["provider-id"].(string),
 		VLANTag_:           int(valid["vlan-tag"].(int64)),
-		AllocatableIPHigh_: valid["allocatable-ip-high"].(string),
-		AllocatableIPLow_:  valid["allocatable-ip-low"].(string),
 	}
 	if version >= 2 {
 		result.ProviderNetworkId_ = valid["provider-network-id"].(string)

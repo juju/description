@@ -63,8 +63,6 @@ func testSubnetArgs() SubnetArgs {
 		FanLocalUnderlay:  "1.2.3.4/24",
 		FanOverlay:        "253.0.0.0/8",
 		AvailabilityZones: []string{"bar", "baz"},
-		AllocatableIPHigh: "10.0.0.255",
-		AllocatableIPLow:  "10.0.0.0",
 	}
 }
 
@@ -80,8 +78,6 @@ func (s *SubnetSerializationSuite) TestNewSubnet(c *gc.C) {
 	c.Assert(subnet.SpaceID(), gc.Equals, args.SpaceID)
 	c.Assert(subnet.IsPublic(), jc.IsTrue)
 	c.Assert(subnet.AvailabilityZones(), gc.DeepEquals, args.AvailabilityZones)
-	c.Assert(subnet.AllocatableIPHigh(), gc.Equals, args.AllocatableIPHigh)
-	c.Assert(subnet.AllocatableIPLow(), gc.Equals, args.AllocatableIPLow)
 }
 
 func (s *SubnetSerializationSuite) exportImport(c *gc.C, subnet_ *subnet, version int) *subnet {

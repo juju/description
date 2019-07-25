@@ -223,6 +223,4 @@ type Subnet interface {
 	SpaceName() string
 	FanLocalUnderlay() string
 	FanOverlay() string
-	AllocatableIPHigh() string
-	AllocatableIPLow() string
 }
