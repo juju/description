@@ -490,7 +490,7 @@ func (m *model) AddSubnet(args SubnetArgs) Subnet {
 
 func (m *model) setSubnets(subnetList []*subnet) {
 	m.Subnets_ = subnets{
-		Version:  4,
+		Version:  5,
 		Subnets_: subnetList,
 	}
 }
@@ -939,16 +939,16 @@ func (m *model) validateStorage(allMachineIDs, allApplications, allUnits set.Str
 
 // validateSubnets makes sure that any spaces referenced by subnets exist.
 func (m *model) validateSubnets() error {
-	spaceNames := set.NewStrings()
+	spaceIDs := set.NewStrings()
 	for _, space := range m.Spaces_.Spaces_ {
-		spaceNames.Add(space.Name())
+		spaceIDs.Add(space.Id())
 	}
 	for _, subnet := range m.Subnets_.Subnets_ {
-		if subnet.SpaceName() == "" {
+		if subnet.SpaceID() == "" {
 			continue
 		}
-		if !spaceNames.Contains(subnet.SpaceName()) {
-			return errors.Errorf("subnet %q references non-existent space %q", subnet.CIDR(), subnet.SpaceName())
+		if !spaceIDs.Contains(subnet.SpaceID()) {
+			return errors.Errorf("subnet %q references non-existent space %q", subnet.CIDR(), subnet.SpaceID())
 		}
 	}
 
