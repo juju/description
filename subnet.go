@@ -14,6 +14,7 @@ type subnets struct {
 }
 
 type subnet struct {
+	ID_                string `yaml:"subnet-id"`
 	ProviderId_        string `yaml:"provider-id,omitempty"`
 	ProviderNetworkId_ string `yaml:"provider-network-id,omitempty"`
 	ProviderSpaceId_   string `yaml:"provider-space-id,omitempty"`
@@ -25,7 +26,7 @@ type subnet struct {
 	SpaceID_           string   `yaml:"space-id"`
 
 	// SpaceName is now deprecated and not used past version 4.
-	SpaceName_         string   `yaml:"space-name"`
+	SpaceName_ string `yaml:"space-name"`
 
 	FanLocalUnderlay_ string `yaml:"fan-local-underlay,omitempty"`
 	FanOverlay_       string `yaml:"fan-overlay,omitempty"`
@@ -34,6 +35,7 @@ type subnet struct {
 // SubnetArgs is an argument struct used to create a
 // new internal subnet type that supports the Subnet interface.
 type SubnetArgs struct {
+	ID                string
 	ProviderId        string
 	ProviderNetworkId string
 	ProviderSpaceId   string
@@ -43,15 +45,16 @@ type SubnetArgs struct {
 	IsPublic          bool
 
 	// SpaceName is now deprecated and not used past version 4.
-	SpaceName         string
+	SpaceName string
 
-	SpaceID           string
-	FanLocalUnderlay  string
-	FanOverlay        string
+	SpaceID          string
+	FanLocalUnderlay string
+	FanOverlay       string
 }
 
 func newSubnet(args SubnetArgs) *subnet {
 	return &subnet{
+		ID_:                args.ID,
 		ProviderId_:        args.ProviderId,
 		ProviderNetworkId_: args.ProviderNetworkId,
 		ProviderSpaceId_:   args.ProviderSpaceId,
@@ -64,6 +67,11 @@ func newSubnet(args SubnetArgs) *subnet {
 		FanLocalUnderlay_:  args.FanLocalUnderlay,
 		FanOverlay_:        args.FanOverlay,
 	}
+}
+
+// ID implements Subnet.
+func (s *subnet) ID() string {
+	return s.ID_
 }
 
 // ProviderId implements Subnet.
@@ -165,15 +173,16 @@ var subnetFieldsFuncs = map[int]fieldsFunc{
 	3: subnetV3Fields,
 	4: subnetV4Fields,
 	5: subnetV5Fields,
+	6: subnetV6Fields,
 }
 
 func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := subnet{
-		CIDR_:              valid["cidr"].(string),
-		ProviderId_:        valid["provider-id"].(string),
-		VLANTag_:           int(valid["vlan-tag"].(int64)),
+		CIDR_:       valid["cidr"].(string),
+		ProviderId_: valid["provider-id"].(string),
+		VLANTag_:    int(valid["vlan-tag"].(int64)),
 	}
 	if version >= 2 {
 		result.ProviderNetworkId_ = valid["provider-network-id"].(string)
@@ -193,6 +202,9 @@ func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, err
 		result.IsPublic_ = valid["is-public"].(bool)
 	} else {
 		result.SpaceName_ = valid["space-name"].(string)
+	}
+	if version >= 6 {
+		result.ID_ = valid["subnet-id"].(string)
 	}
 	return &result, nil
 }
@@ -245,5 +257,11 @@ func subnetV5Fields() (schema.Fields, schema.Defaults) {
 	fields["space-id"] = schema.String()
 	fields["is-public"] = schema.Bool()
 	delete(fields, "space-name")
+	return fields, defaults
+}
+
+func subnetV6Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := subnetV5Fields()
+	fields["subnet-id"] = schema.String()
 	return fields, defaults
 }
