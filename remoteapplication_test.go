@@ -70,6 +70,7 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 					"version": 3,
 					"subnets": []interface{}{map[interface{}]interface{}{
 						"cidr":                "2.3.4.0/24",
+						"subnet-id":           "",
 						"is-public":           false,
 						"space-id":            "",
 						"space-name":          "",

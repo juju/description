@@ -280,3 +280,16 @@ func (s *SubnetSerializationSuite) TestParsingV5Minimal(c *gc.C) {
 	subnet := s.exportImport(c, original, 5)
 	c.Assert(subnet, jc.DeepEquals, original)
 }
+
+func (s *SubnetSerializationSuite) TestParsingV6Full(c *gc.C) {
+	original := testSubnet(5)
+	original.ID_ = "42"
+	subnet := s.exportImport(c, original, 6)
+	c.Assert(subnet, jc.DeepEquals, original)
+}
+
+func (s *SubnetSerializationSuite) TestParsingV6Minimal(c *gc.C) {
+	original := newSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
+	subnet := s.exportImport(c, original, 6)
+	c.Assert(subnet, jc.DeepEquals, original)
+}

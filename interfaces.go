@@ -212,6 +212,7 @@ type StorageInstanceConstraints struct {
 
 // Subnet represents a network subnet.
 type Subnet interface {
+	ID() string
 	ProviderId() string
 	ProviderNetworkId() string
 	ProviderSpaceId() string
