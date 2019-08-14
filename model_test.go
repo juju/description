@@ -1002,11 +1002,12 @@ func (s *ModelSerializationSuite) TestLinkLayerDevice(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestSubnets(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial.AddSubnet(SubnetArgs{CIDR: "10.0.20.0/24", SpaceID:"0"})
 	subnet := initial.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24"})
 	c.Assert(subnet.CIDR(), gc.Equals, "10.0.0.0/24")
 	subnets := initial.Subnets()
-	c.Assert(subnets, gc.HasLen, 1)
-	c.Assert(subnets[0], jc.DeepEquals, subnet)
+	c.Assert(subnets, gc.HasLen, 2)
+	c.Assert(subnets[1], jc.DeepEquals, subnet)
 
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)
