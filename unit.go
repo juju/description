@@ -6,7 +6,7 @@ package description
 import (
 	"github.com/juju/errors"
 	"github.com/juju/schema"
-	"gopkg.in/juju/names.v2"
+	"gopkg.in/juju/names.v3"
 )
 
 // Unit represents an instance of a unit in a model.

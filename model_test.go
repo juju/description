@@ -12,7 +12,7 @@ import (
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
 	gc "gopkg.in/check.v1"
-	"gopkg.in/juju/names.v2"
+	"gopkg.in/juju/names.v3"
 	"gopkg.in/yaml.v2"
 )
 
@@ -1002,7 +1002,7 @@ func (s *ModelSerializationSuite) TestLinkLayerDevice(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestSubnets(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
-	initial.AddSubnet(SubnetArgs{CIDR: "10.0.20.0/24", SpaceID:"0"})
+	initial.AddSubnet(SubnetArgs{CIDR: "10.0.20.0/24", SpaceID: "0"})
 	subnet := initial.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24"})
 	c.Assert(subnet.CIDR(), gc.Equals, "10.0.0.0/24")
 	subnets := initial.Subnets()
