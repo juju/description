@@ -108,7 +108,7 @@ func (r *relation) AddEndpoint(args EndpointArgs) Endpoint {
 
 func (r *relation) setEndpoints(endpointList []*endpoint) {
 	r.Endpoints_ = &endpoints{
-		Version:    1,
+		Version:    2,
 		Endpoints_: endpointList,
 	}
 }
@@ -246,6 +246,8 @@ type Endpoint interface {
 	AllSettings() map[string]map[string]interface{}
 	Settings(unitName string) map[string]interface{}
 	SetUnitSettings(unitName string, settings map[string]interface{})
+	ApplicationSettings() map[string]interface{}
+	SetApplicationSettings(settings map[string]interface{})
 }
 
 type endpoints struct {
@@ -262,7 +264,8 @@ type endpoint struct {
 	Limit_           int    `yaml:"limit"`
 	Scope_           string `yaml:"scope"`
 
-	UnitSettings_ map[string]map[string]interface{} `yaml:"unit-settings"`
+	UnitSettings_        map[string]map[string]interface{} `yaml:"unit-settings"`
+	ApplicationSettings_ map[string]interface{}            `yaml:"application-settings"`
 }
 
 // EndpointArgs is an argument struct used to specify a relation.
@@ -278,14 +281,15 @@ type EndpointArgs struct {
 
 func newEndpoint(args EndpointArgs) *endpoint {
 	return &endpoint{
-		ApplicationName_: args.ApplicationName,
-		Name_:            args.Name,
-		Role_:            args.Role,
-		Interface_:       args.Interface,
-		Optional_:        args.Optional,
-		Limit_:           args.Limit,
-		Scope_:           args.Scope,
-		UnitSettings_:    make(map[string]map[string]interface{}),
+		ApplicationName_:     args.ApplicationName,
+		Name_:                args.Name,
+		Role_:                args.Role,
+		Interface_:           args.Interface,
+		Optional_:            args.Optional,
+		Limit_:               args.Limit,
+		Scope_:               args.Scope,
+		UnitSettings_:        make(map[string]map[string]interface{}),
+		ApplicationSettings_: make(map[string]interface{}),
 	}
 }
 
@@ -356,6 +360,16 @@ func (e *endpoint) SetUnitSettings(unitName string, settings map[string]interfac
 	e.UnitSettings_[unitName] = settings
 }
 
+// ApplicationSettings implements Endpoint.
+func (e *endpoint) ApplicationSettings() map[string]interface{} {
+	return e.ApplicationSettings_
+}
+
+// SetApplicationSettings implements Endpoint.
+func (e *endpoint) SetApplicationSettings(settings map[string]interface{}) {
+	e.ApplicationSettings_ = settings
+}
+
 func importEndpoints(source map[string]interface{}) ([]*endpoint, error) {
 	checker := versionedChecker("endpoints")
 	coerced, err := checker.Coerce(source, nil)
@@ -396,6 +410,7 @@ func importEndpointList(sourceList []interface{}, checker schema.Checker, versio
 
 var endpointFieldsFuncs = map[int]fieldsFunc{
 	1: endpointV1Fields,
+	2: endpointV2Fields,
 }
 
 func endpointV1Fields() (schema.Fields, schema.Defaults) {
@@ -412,20 +427,31 @@ func endpointV1Fields() (schema.Fields, schema.Defaults) {
 	return fields, nil
 }
 
+func endpointV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := endpointV1Fields()
+	fields["application-settings"] = schema.StringMap(schema.Any())
+	return fields, defaults
+}
+
 func newEndpointFromValid(valid map[string]interface{}, version int) (*endpoint, error) {
 	result := &endpoint{
-		ApplicationName_: valid["application-name"].(string),
-		Name_:            valid["name"].(string),
-		Role_:            valid["role"].(string),
-		Interface_:       valid["interface"].(string),
-		Optional_:        valid["optional"].(bool),
-		Limit_:           int(valid["limit"].(int64)),
-		Scope_:           valid["scope"].(string),
-		UnitSettings_:    make(map[string]map[string]interface{}),
+		ApplicationName_:     valid["application-name"].(string),
+		Name_:                valid["name"].(string),
+		Role_:                valid["role"].(string),
+		Interface_:           valid["interface"].(string),
+		Optional_:            valid["optional"].(bool),
+		Limit_:               int(valid["limit"].(int64)),
+		Scope_:               valid["scope"].(string),
+		UnitSettings_:        make(map[string]map[string]interface{}),
+		ApplicationSettings_: make(map[string]interface{}),
 	}
 
 	for unitname, settings := range valid["unit-settings"].(map[string]interface{}) {
 		result.UnitSettings_[unitname] = settings.(map[string]interface{})
+	}
+
+	if version >= 2 {
+		result.ApplicationSettings_ = valid["application-settings"].(map[string]interface{})
 	}
 
 	return result, nil
