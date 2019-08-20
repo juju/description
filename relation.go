@@ -122,40 +122,22 @@ func importRelations(source map[string]interface{}) ([]*relation, error) {
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	importFunc, ok := relationDeserializationFuncs[version]
+
+	getFields, ok := relationFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 	relationList := valid["relations"].([]interface{})
-	return importRelationList(relationList, importFunc)
+	return importRelationList(relationList, schema.FieldMap(getFields()), version)
 }
 
-func importRelationList(sourceList []interface{}, importFunc relationDeserializationFunc) ([]*relation, error) {
+func importRelationList(sourceList []interface{}, checker schema.Checker, version int) ([]*relation, error) {
 	result := make([]*relation, 0, len(sourceList))
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for relation %d, %T", i, value)
 		}
-		relation, err := importFunc(source)
-		if err != nil {
-			return nil, errors.Annotatef(err, "relation %d", i)
-		}
-		result = append(result, relation)
-	}
-	return result, nil
-}
-
-type relationDeserializationFunc func(map[string]interface{}) (*relation, error)
-
-var relationDeserializationFuncs = map[int]relationDeserializationFunc{
-	1: newRelationImporter(1, schema.FieldMap(relationV1Fields())),
-	2: newRelationImporter(2, schema.FieldMap(relationV2Fields())),
-	3: newRelationImporter(3, schema.FieldMap(relationV3Fields())),
-}
-
-func newRelationImporter(v int, checker schema.Checker) func(map[string]interface{}) (*relation, error) {
-	return func(source map[string]interface{}) (*relation, error) {
 		// Some relations don't have status.
 		// Older broken exports included status even when it was nil.
 		// Remove any nil value so schema validation doesn't complain.
@@ -164,13 +146,22 @@ func newRelationImporter(v int, checker schema.Checker) func(map[string]interfac
 		}
 		coerced, err := checker.Coerce(source, nil)
 		if err != nil {
-			return nil, errors.Annotatef(err, "relation v%d schema check failed", v)
+			return nil, errors.Annotatef(err, "relation %d v%d schema check failed", i, version)
 		}
 		valid := coerced.(map[string]interface{})
-		// From here we know that the map returned from the schema coercion
-		// contains fields of the right type.
-		return newRelationFromValid(valid, v)
+		relation, err := newRelationFromValid(valid, version)
+		if err != nil {
+			return nil, errors.Annotatef(err, "relation %d", i)
+		}
+		result = append(result, relation)
 	}
+	return result, nil
+}
+
+var relationFieldsFuncs = map[int]fieldsFunc{
+	1: relationV1Fields,
+	2: relationV2Fields,
+	3: relationV3Fields,
 }
 
 func relationV1Fields() (schema.Fields, schema.Defaults) {
@@ -374,37 +365,40 @@ func importEndpoints(source map[string]interface{}) ([]*endpoint, error) {
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	importFunc, ok := endpointDeserializationFuncs[version]
+	getFields, ok := endpointFieldsFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 	endpointList := valid["endpoints"].([]interface{})
-	return importEndpointList(endpointList, importFunc)
+	return importEndpointList(endpointList, schema.FieldMap(getFields()), version)
 }
 
-func importEndpointList(sourceList []interface{}, importFunc endpointDeserializationFunc) ([]*endpoint, error) {
+func importEndpointList(sourceList []interface{}, checker schema.Checker, version int) ([]*endpoint, error) {
 	result := make([]*endpoint, 0, len(sourceList))
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for endpoint %d, %T", i, value)
 		}
-		application, err := importFunc(source)
+		coerced, err := checker.Coerce(source, nil)
+		if err != nil {
+			return nil, errors.Annotatef(err, "endpoint %d v%d schema check failed", i, version)
+		}
+		valid := coerced.(map[string]interface{})
+		endpoint, err := newEndpointFromValid(valid, version)
 		if err != nil {
 			return nil, errors.Annotatef(err, "endpoint %d", i)
 		}
-		result = append(result, application)
+		result = append(result, endpoint)
 	}
 	return result, nil
 }
 
-type endpointDeserializationFunc func(map[string]interface{}) (*endpoint, error)
-
-var endpointDeserializationFuncs = map[int]endpointDeserializationFunc{
-	1: importEndpointV1,
+var endpointFieldsFuncs = map[int]fieldsFunc{
+	1: endpointV1Fields,
 }
 
-func importEndpointV1(source map[string]interface{}) (*endpoint, error) {
+func endpointV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"application-name": schema.String(),
 		"name":             schema.String(),
@@ -415,17 +409,10 @@ func importEndpointV1(source map[string]interface{}) (*endpoint, error) {
 		"scope":            schema.String(),
 		"unit-settings":    schema.StringMap(schema.StringMap(schema.Any())),
 	}
+	return fields, nil
+}
 
-	checker := schema.FieldMap(fields, nil) // No defaults.
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "endpoint v1 schema check failed")
-	}
-	valid := coerced.(map[string]interface{})
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
-
+func newEndpointFromValid(valid map[string]interface{}, version int) (*endpoint, error) {
 	result := &endpoint{
 		ApplicationName_: valid["application-name"].(string),
 		Name_:            valid["name"].(string),
