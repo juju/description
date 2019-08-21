@@ -946,7 +946,7 @@ func (m *model) validateSubnets() error {
 	for _, subnet := range m.Subnets_.Subnets_ {
 		// space "0" is the new, in juju 2.7, default space,
 		// created with each new model.
-		if subnet.SpaceID() == "" || subnet.SpaceID() == "0"{
+		if subnet.SpaceID() == "" || subnet.SpaceID() == "0" {
 			continue
 		}
 		if !spaceIDs.Contains(subnet.SpaceID()) {

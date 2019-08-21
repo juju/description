@@ -177,14 +177,15 @@ func (s *EndpointSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalEndpointMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"application-name": "ubuntu",
-		"name":             "juju-meta",
-		"role":             "peer",
-		"interface":        "something",
-		"optional":         true,
-		"limit":            1,
-		"scope":            "container",
-		"unit-settings":    map[interface{}]interface{}{},
+		"application-name":     "ubuntu",
+		"name":                 "juju-meta",
+		"role":                 "peer",
+		"interface":            "something",
+		"optional":             true,
+		"limit":                1,
+		"scope":                "container",
+		"unit-settings":        map[interface{}]interface{}{},
+		"application-settings": map[interface{}]interface{}{},
 	}
 }
 
@@ -216,6 +217,10 @@ func endpointWithSettings() *endpoint {
 	}
 	endpoint.SetUnitSettings("ubuntu/0", u1Settings)
 	endpoint.SetUnitSettings("ubuntu/1", u2Settings)
+	appSettings := map[string]interface{}{
+		"venusian": "superbug",
+	}
+	endpoint.SetApplicationSettings(appSettings)
 	return endpoint
 }
 
@@ -248,6 +253,9 @@ func (s *EndpointSerializationSuite) TestNewEndpoint(c *gc.C) {
 			"foo":  "bar",
 		},
 	})
+	c.Assert(endpoint.ApplicationSettings(), gc.DeepEquals, map[string]interface{}{
+		"venusian": "superbug",
+	})
 }
 
 func (s *EndpointSerializationSuite) TestMinimalMatches(c *gc.C) {
@@ -262,7 +270,7 @@ func (s *EndpointSerializationSuite) TestMinimalMatches(c *gc.C) {
 
 func (s *EndpointSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := endpoints{
-		Version:    1,
+		Version:    2,
 		Endpoints_: []*endpoint{endpointWithSettings()},
 	}
 
@@ -277,4 +285,38 @@ func (s *EndpointSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 
 	c.Assert(endpoints, jc.DeepEquals, initial.Endpoints_)
+}
+
+func (s *EndpointSerializationSuite) TestParsingV1IgnoresAppSettings(c *gc.C) {
+	initial := endpoints{
+		Version:    2,
+		Endpoints_: []*endpoint{endpointWithSettings()},
+	}
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+	var data map[string]interface{}
+	err = yaml.Unmarshal(bytes, &data)
+	c.Assert(err, jc.ErrorIsNil)
+	data["version"] = 1
+
+	endpoints, err := importEndpoints(data)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(endpoints, gc.HasLen, 1)
+	// Application settings should have been ignored.
+	c.Assert(endpoints[0].ApplicationSettings(), gc.DeepEquals, map[string]interface{}{})
+}
+
+func (s *EndpointSerializationSuite) TestParsingV1NoAppSettings(c *gc.C) {
+	noAppSettingsMap := minimalEndpointMap()
+	delete(noAppSettingsMap, "application-settings")
+
+	data := map[string]interface{}{
+		"version":   1,
+		"endpoints": []interface{}{noAppSettingsMap},
+	}
+	endpoints, err := importEndpoints(data)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(endpoints, gc.HasLen, 1)
+	// No error importing, app settings empty.
+	c.Assert(endpoints[0].ApplicationSettings(), gc.DeepEquals, map[string]interface{}{})
 }

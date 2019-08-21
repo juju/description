@@ -145,7 +145,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	c.Assert(initial.Applications_.Version, gc.Equals, len(applicationDeserializationFuncs))
 	c.Assert(initial.Actions_.Version, gc.Equals, len(actionDeserializationFuncs))
 	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
-	c.Assert(initial.Relations_.Version, gc.Equals, len(relationDeserializationFuncs))
+	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
 	c.Assert(initial.RemoteApplications_.Version, gc.Equals, len(remoteApplicationFieldsFuncs))
 	c.Assert(initial.Spaces_.Version, gc.Equals, len(spaceDeserializationFuncs))
 	c.Assert(initial.Volumes_.Version, gc.Equals, len(volumeDeserializationFuncs))
@@ -1002,7 +1002,7 @@ func (s *ModelSerializationSuite) TestLinkLayerDevice(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestSubnets(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
-	initial.AddSubnet(SubnetArgs{CIDR: "10.0.20.0/24", SpaceID:"0"})
+	initial.AddSubnet(SubnetArgs{CIDR: "10.0.20.0/24", SpaceID: "0"})
 	subnet := initial.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24"})
 	c.Assert(subnet.CIDR(), gc.Equals, "10.0.0.0/24")
 	subnets := initial.Subnets()
