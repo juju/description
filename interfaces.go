@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/juju/version"
-	"gopkg.in/juju/names.v2"
+	"gopkg.in/juju/names.v3"
 )
 
 // AgentTools represent the version and related binary file
