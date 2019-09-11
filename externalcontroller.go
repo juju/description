@@ -40,7 +40,7 @@ func newExternalController(args ExternalControllerArgs) *externalController {
 	return e
 }
 
-// Id implements ExternalController
+// ID implements ExternalController
 func (e *externalController) ID() names.ControllerTag {
 	return names.NewControllerTag(e.ID_)
 }
