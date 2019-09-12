@@ -12,6 +12,7 @@ import (
 // Remote entities may be exported local entities, or imported
 // remote entities
 type RemoteEntity interface {
+	ID() string
 	Token() string
 	Macaroon() string
 }
@@ -22,22 +23,30 @@ type remoteEntities struct {
 }
 
 type remoteEntity struct {
+	ID_       string `yaml:"id"`
 	Token_    string `yaml:"token"`
 	Macaroon_ string `yaml:"macaroon"`
 }
 
 // RemoteEntityArgs is an argument struct used to add a remote entity.
 type RemoteEntityArgs struct {
+	ID       string
 	Token    string
 	Macaroon string
 }
 
 func newRemoteEntity(args RemoteEntityArgs) *remoteEntity {
 	f := &remoteEntity{
+		ID_:       args.ID,
 		Token_:    args.Token,
 		Macaroon_: args.Macaroon,
 	}
 	return f
+}
+
+// ID implements RemoteEntity
+func (f *remoteEntity) ID() string {
+	return f.ID_
 }
 
 // Token implements RemoteEntity
@@ -92,6 +101,7 @@ func newRemoteEntityFromValid(valid map[string]interface{}, version int) (*remot
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := &remoteEntity{
+		ID_:       valid["id"].(string),
 		Token_:    valid["token"].(string),
 		Macaroon_: valid["macaroon"].(string),
 	}
@@ -104,6 +114,7 @@ var remoteEntityFieldsFuncs = map[int]fieldsFunc{
 
 func remoteEntityV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
+		"id":       schema.String(),
 		"token":    schema.String(),
 		"macaroon": schema.String(),
 	}

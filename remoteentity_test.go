@@ -29,6 +29,7 @@ func (s *RemoteEntitySerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalRemoteEntityMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
+		"id":       "ctrl-uuid-3",
 		"token":    "rnd-token",
 		"macaroon": "macaroon-value",
 	}
@@ -36,6 +37,7 @@ func minimalRemoteEntityMap() map[interface{}]interface{} {
 
 func minimalRemoteEntity() *remoteEntity {
 	c := newRemoteEntity(RemoteEntityArgs{
+		ID:       "ctrl-uuid-3",
 		Token:    "rnd-token",
 		Macaroon: "macaroon-value",
 	})
@@ -44,6 +46,7 @@ func minimalRemoteEntity() *remoteEntity {
 
 func (*RemoteEntitySerializationSuite) TestNew(c *gc.C) {
 	e := minimalRemoteEntity()
+	c.Check(e.ID(), gc.Equals, "ctrl-uuid-3")
 	c.Check(e.Token(), gc.Equals, "rnd-token")
 	c.Check(e.Macaroon(), gc.Equals, "macaroon-value")
 }

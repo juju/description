@@ -8,7 +8,7 @@ import (
 
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
-	"gopkg.in/juju/names.v3"
+	names "gopkg.in/juju/names.v3"
 	"gopkg.in/yaml.v2"
 )
 
