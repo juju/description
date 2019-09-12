@@ -13,7 +13,9 @@ import (
 // other models.
 type ExternalController interface {
 	ID() names.ControllerTag
-	ControllerInfo() ExternalControllerInfo
+	Alias() string
+	Addrs() []string
+	CACert() string
 }
 
 type externalControllers struct {
@@ -22,22 +24,28 @@ type externalControllers struct {
 }
 
 type externalController struct {
-	ID_             string                  `yaml:"id"`
-	ControllerInfo_ *externalControllerInfo `yaml:"controller-info"`
+	ID_     string   `yaml:"id"`
+	Alias_  string   `yaml:"alias"`
+	Addrs_  []string `yaml:"addrs"`
+	CACert_ string   `yaml:"cacert"`
 }
 
 // ExternalControllerArgs is an argument struct used to add a external
 // controller to a model.
 type ExternalControllerArgs struct {
-	Tag names.ControllerTag
+	Tag    names.ControllerTag
+	Alias  string
+	Addrs  []string
+	CACert string
 }
 
 func newExternalController(args ExternalControllerArgs) *externalController {
-	e := &externalController{
-		ID_: args.Tag.Id(),
+	return &externalController{
+		ID_:     args.Tag.Id(),
+		Alias_:  args.Alias,
+		Addrs_:  args.Addrs,
+		CACert_: args.CACert,
 	}
-	e.setControllerInfo(nil)
-	return e
 }
 
 // ID implements ExternalController
@@ -45,22 +53,19 @@ func (e *externalController) ID() names.ControllerTag {
 	return names.NewControllerTag(e.ID_)
 }
 
-// ControllerInfo implements ExternalController
-func (e *externalController) ControllerInfo() ExternalControllerInfo {
-	if e.ControllerInfo_ == nil {
-		return nil
-	}
-	return e.ControllerInfo_
+// Alias implements ExternalController
+func (e *externalController) Alias() string {
+	return e.Alias_
 }
 
-func (e *externalController) AddControllerInfo(args ExternalControllerInfoArgs) ExternalControllerInfo {
-	info := newExternalControllerInfo(args)
-	e.ControllerInfo_ = info
-	return info
+// Addrs implements ExternalController
+func (e *externalController) Addrs() []string {
+	return e.Addrs_
 }
 
-func (e *externalController) setControllerInfo(controllerInfo *externalControllerInfo) {
-	e.ControllerInfo_ = controllerInfo
+// CACert implements ExternalController
+func (e *externalController) CACert() string {
+	return e.CACert_
 }
 
 func importExternalControllers(source interface{}) ([]*externalController, error) {
@@ -105,17 +110,12 @@ func newExternalControllerFromValid(valid map[string]interface{}, version int) (
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := &externalController{
-		ID_: valid["id"].(string),
+		ID_:     valid["id"].(string),
+		Alias_:  valid["alias"].(string),
+		Addrs_:  convertToStringSlice(valid["addrs"]),
+		CACert_: valid["cacert"].(string),
 	}
 
-	if rawControllerInfo, ok := valid["controller-info"]; ok {
-		controllerInfoMap := rawControllerInfo.(map[string]interface{})
-		controllerInfo, err := importExternalControllerInfo(controllerInfoMap)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-		result.setControllerInfo(controllerInfo)
-	}
 	return result, nil
 }
 
@@ -125,9 +125,13 @@ var externalControllerFieldsFuncs = map[int]fieldsFunc{
 
 func externalControllerV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
-		"id":              schema.String(),
-		"controller-info": schema.StringMap(schema.Any()),
+		"id":     schema.String(),
+		"alias":  schema.String(),
+		"addrs":  schema.List(schema.String()),
+		"cacert": schema.String(),
 	}
-	defaults := schema.Defaults{}
+	defaults := schema.Defaults{
+		"alias": schema.Omit,
+	}
 	return fields, defaults
 }

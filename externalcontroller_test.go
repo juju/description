@@ -30,29 +30,20 @@ func (s *ExternalControllerSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalExternalControllerMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"id": "ext-ctrl",
-		"controller-info": map[interface{}]interface{}{
-			"version": 1,
-			"controller-info": map[interface{}]interface{}{
-				"controller-tag": "ctrl-tag",
-				"alias":          "ext-ctrl-alias",
-				"addrs": []interface{}{
-					"1.2.3.4/24",
-					"0.0.0.1",
-				},
-				"cacert": "magic-cert",
-			},
+		"id":    "ext-ctrl",
+		"alias": "ext-ctrl-alias",
+		"addrs": []interface{}{
+			"1.2.3.4/24",
+			"0.0.0.1",
 		},
+		"cacert": "magic-cert",
 	}
 }
 
 func minimalExternalController() *externalController {
 	c := newExternalController(ExternalControllerArgs{
-		Tag: names.NewControllerTag("ext-ctrl"),
-	})
-	c.AddControllerInfo(ExternalControllerInfoArgs{
-		ControllerTag: names.NewControllerTag("ctrl-tag"),
-		Alias:         "ext-ctrl-alias",
+		Tag:   names.NewControllerTag("ext-ctrl"),
+		Alias: "ext-ctrl-alias",
 		Addrs: []string{
 			"1.2.3.4/24",
 			"0.0.0.1",
@@ -65,10 +56,7 @@ func minimalExternalController() *externalController {
 func (*ExternalControllerSerializationSuite) TestNew(c *gc.C) {
 	e := minimalExternalController()
 	c.Check(e.ID(), gc.Equals, names.NewControllerTag("ext-ctrl"))
-
-	info := e.ControllerInfo()
-	c.Check(info.ControllerTag(), gc.Equals, names.NewControllerTag("ctrl-tag"))
-	c.Check(info.Addrs(), gc.DeepEquals, []string{
+	c.Check(e.Addrs(), gc.DeepEquals, []string{
 		"1.2.3.4/24",
 		"0.0.0.1",
 	})
@@ -92,20 +80,6 @@ func (*ExternalControllerSerializationSuite) TestBadSchema2(c *gc.C) {
 	}
 	_, err := importExternalControllers(container)
 	c.Assert(err, gc.ErrorMatches, `external controller 0 v1 schema check failed: id: expected string, got bool\(true\)`)
-}
-
-func (s *ExternalControllerSerializationSuite) TestBadExternalControllerInfo(c *gc.C) {
-	m := minimalExternalControllerMap()
-	m["controllers"] = map[interface{}]interface{}{
-		"version": 1,
-		"bishop":  "otter-trouserpress",
-	}
-	container := map[string]interface{}{
-		"version":              1,
-		"external-controllers": []interface{}{m},
-	}
-	_, err := importExternalControllers(container)
-	c.Assert(err, gc.ErrorMatches, `external controller 0: external controller info version schema check failed: external-controller-info: expected map, got nothing`)
 }
 
 func (*ExternalControllerSerializationSuite) TestMinimalMatches(c *gc.C) {
