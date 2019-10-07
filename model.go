@@ -62,6 +62,12 @@ type Model interface {
 	Relations() []Relation
 	AddRelation(RelationArgs) Relation
 
+	RemoteEntities() []RemoteEntity
+	AddRemoteEntity(RemoteEntityArgs) RemoteEntity
+
+	RelationNetworks() []RelationNetwork
+	AddRelationNetwork(RelationNetworkArgs) RelationNetwork
+
 	Spaces() []Space
 	AddSpace(SpaceArgs) Space
 
@@ -126,7 +132,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             4,
+		Version:             5,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
@@ -142,6 +148,8 @@ func NewModel(args ModelArgs) Model {
 	m.setMachines(nil)
 	m.setApplications(nil)
 	m.setRelations(nil)
+	m.setRemoteEntities(nil)
+	m.setRelationNetworks(nil)
 	m.setSpaces(nil)
 	m.setLinkLayerDevices(nil)
 	m.setSubnets(nil)
@@ -222,6 +230,8 @@ type model struct {
 	Machines_         machines         `yaml:"machines"`
 	Applications_     applications     `yaml:"applications"`
 	Relations_        relations        `yaml:"relations"`
+	RemoteEntities_   remoteEntities   `yaml:"remote-entities"`
+	RelationNetworks_ relationNetworks `yaml:"relation-networks"`
 	Spaces_           spaces           `yaml:"spaces"`
 	LinkLayerDevices_ linklayerdevices `yaml:"link-layer-devices"`
 	IPAddresses_      ipaddresses      `yaml:"ip-addresses"`
@@ -423,6 +433,52 @@ func (m *model) setRelations(relationList []*relation) {
 	m.Relations_ = relations{
 		Version:    3,
 		Relations_: relationList,
+	}
+}
+
+// RemoteEntities implements Model.
+func (m *model) RemoteEntities() []RemoteEntity {
+	var result []RemoteEntity
+	for _, remoteEntity := range m.RemoteEntities_.RemoteEntities {
+		result = append(result, remoteEntity)
+	}
+	return result
+}
+
+// AddRemoteEntity implements Model.
+func (m *model) AddRemoteEntity(args RemoteEntityArgs) RemoteEntity {
+	remoteEntity := newRemoteEntity(args)
+	m.RemoteEntities_.RemoteEntities = append(m.RemoteEntities_.RemoteEntities, remoteEntity)
+	return remoteEntity
+}
+
+func (m *model) setRemoteEntities(remoteEntityList []*remoteEntity) {
+	m.RemoteEntities_ = remoteEntities{
+		Version:        1,
+		RemoteEntities: remoteEntityList,
+	}
+}
+
+// RelationNetworks implements Model.
+func (m *model) RelationNetworks() []RelationNetwork {
+	result := make([]RelationNetwork, len(m.RelationNetworks_.RelationNetworks))
+	for i, rn := range m.RelationNetworks_.RelationNetworks {
+		result[i] = rn
+	}
+	return result
+}
+
+// AddRelationNetwork implements Model.
+func (m *model) AddRelationNetwork(args RelationNetworkArgs) RelationNetwork {
+	network := newRelationNetwork(args)
+	m.RelationNetworks_.RelationNetworks = append(m.RelationNetworks_.RelationNetworks, network)
+	return network
+}
+
+func (m *model) setRelationNetworks(relationNetworkList []*relationNetwork) {
+	m.RelationNetworks_ = relationNetworks{
+		Version:          1,
+		RelationNetworks: relationNetworkList,
 	}
 }
 
@@ -1132,6 +1188,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	2: newModelImporter(2, schema.FieldMap(modelV2Fields())),
 	3: newModelImporter(3, schema.FieldMap(modelV3Fields())),
 	4: newModelImporter(4, schema.FieldMap(modelV4Fields())),
+	5: newModelImporter(5, schema.FieldMap(modelV5Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1203,11 +1260,18 @@ func modelV4Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV5Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV4Fields()
+	fields["remote-entities"] = schema.StringMap(schema.Any())
+	fields["relation-networks"] = schema.StringMap(schema.Any())
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
 	// We're always making a version 4 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        4,
+		Version:        5,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1392,6 +1456,24 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 			Value:   "available",
 			Updated: time.Now(),
 		})
+	}
+	if importVersion >= 5 {
+		if rawRemoteEntities, ok := valid["remote-entities"]; ok {
+			remoteEntitiesMap := rawRemoteEntities.(map[string]interface{})
+			remoteEntities, err := importRemoteEntities(remoteEntitiesMap)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.setRemoteEntities(remoteEntities)
+		}
+		if rawRelationNetworks, ok := valid["relation-networks"]; ok {
+			relationNetworksMap := rawRelationNetworks.(map[string]interface{})
+			relationNetworks, err := importRelationNetworks(relationNetworksMap)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.setRelationNetworks(relationNetworks)
+		}
 	}
 
 	return result, nil

@@ -146,6 +146,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	c.Assert(initial.Actions_.Version, gc.Equals, len(actionDeserializationFuncs))
 	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
 	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
+	c.Assert(initial.RemoteEntities_.Version, gc.Equals, len(remoteEntityFieldsFuncs))
 	c.Assert(initial.RemoteApplications_.Version, gc.Equals, len(remoteApplicationFieldsFuncs))
 	c.Assert(initial.Spaces_.Version, gc.Equals, len(spaceDeserializationFuncs))
 	c.Assert(initial.Volumes_.Version, gc.Equals, len(volumeDeserializationFuncs))
@@ -493,6 +494,57 @@ func (s *ModelSerializationSuite) TestModelSerializationWithRelations(c *gc.C) {
 	c.Assert(result, jc.DeepEquals, initial)
 }
 
+func (s *ModelSerializationSuite) TestModelSerializationWithRemoteEntities(c *gc.C) {
+	model := s.newModel(ModelArgs{
+		Owner: names.NewUserTag("owner"),
+		Config: map[string]interface{}{
+			"uuid": "some-uuid",
+		},
+		CloudRegion: "some-region",
+	})
+	model.AddRemoteEntity(RemoteEntityArgs{
+		Token: "xxx-aaa-bbb",
+	})
+	model.AddRemoteEntity(RemoteEntityArgs{
+		Token:    "zzz-ccc-yyy",
+		Macaroon: "some-macaroon-that-should-be-discharged",
+	})
+	err := model.Validate()
+	c.Assert(err, jc.ErrorIsNil)
+	bytes, err := yaml.Marshal(model)
+	c.Assert(err, jc.ErrorIsNil)
+	result, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(result, jc.DeepEquals, model)
+}
+
+func (s *ModelSerializationSuite) TestModelSerializationWithRelationNetworks(c *gc.C) {
+	model := s.newModel(ModelArgs{
+		Owner: names.NewUserTag("owner"),
+		Config: map[string]interface{}{
+			"uuid": "some-uuid",
+		},
+		CloudRegion: "some-region",
+	})
+	model.AddRelationNetwork(RelationNetworkArgs{
+		ID:          names.NewControllerTag("ctrl-uuid-3").String(),
+		RelationKey: "relation-key",
+		CIDRS:       []string{"10.0.1.0/16"},
+	})
+	model.AddRelationNetwork(RelationNetworkArgs{
+		ID:          names.NewControllerTag("ctrl-uuid-4").String(),
+		RelationKey: "relation-key",
+		CIDRS:       []string{"12.0.1.1/24"},
+	})
+	err := model.Validate()
+	c.Assert(err, jc.ErrorIsNil)
+	bytes, err := yaml.Marshal(model)
+	c.Assert(err, jc.ErrorIsNil)
+	result, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(result, jc.DeepEquals, model)
+}
+
 func (s *ModelSerializationSuite) TestModelValidationChecksSubnets(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
 	model.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24", SpaceID: "3"})
@@ -810,7 +862,7 @@ remote-applications:
   status:
     status:
       neverset: false
-      updated: 2017-05-09T12:01:00Z
+      updated: "2017-05-09T12:01:00Z"
       value: running
     version: 2
   url: other.mysql
@@ -924,7 +976,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 4)
+	c.Assert(version, gc.Equals, 5)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
