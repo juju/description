@@ -77,20 +77,6 @@ type CloudImageMetadata interface {
 	ExpireAt() *time.Time
 }
 
-// Action represents an IP action.
-type Action interface {
-	Id() string
-	Receiver() string
-	Name() string
-	Parameters() map[string]interface{}
-	Enqueued() time.Time
-	Started() time.Time
-	Completed() time.Time
-	Results() map[string]interface{}
-	Status() string
-	Message() string
-}
-
 // Volume represents a volume (disk, logical volume, etc.) in the model.
 type Volume interface {
 	HasStatus

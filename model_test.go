@@ -143,7 +143,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	}
 	initial := NewModel(args).(*model)
 	c.Assert(initial.Applications_.Version, gc.Equals, len(applicationDeserializationFuncs))
-	c.Assert(initial.Actions_.Version, gc.Equals, len(actionDeserializationFuncs))
+	c.Assert(initial.Actions_.Version, gc.Equals, 2)
 	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
 	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
 	c.Assert(initial.RemoteEntities_.Version, gc.Equals, len(remoteEntityFieldsFuncs))
