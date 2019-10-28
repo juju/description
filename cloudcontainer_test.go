@@ -41,7 +41,7 @@ func (s *CloudContainerSerializationSuite) TestAllArgs(c *gc.C) {
 	container := newCloudContainer(&args)
 
 	c.Check(container.ProviderId(), gc.Equals, args.ProviderId)
-	c.Check(container.Address(), jc.DeepEquals, &address{Version: 1, Value_: "10.0.0.1", Type_: "special"})
+	c.Check(container.Address(), jc.DeepEquals, &address{Version: 2, Value_: "10.0.0.1", Type_: "special"})
 
 	c.Check(container.Ports(), jc.DeepEquals, args.Ports)
 }

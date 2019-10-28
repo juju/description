@@ -43,8 +43,8 @@ func (s *CloudServiceSerializationSuite) TestAllArgs(c *gc.C) {
 
 	c.Check(container.ProviderId(), gc.Equals, args.ProviderId)
 	c.Check(container.Addresses(), jc.DeepEquals, []Address{
-		&address{Version: 1, Value_: "10.0.0.1", Type_: "special"},
-		&address{Version: 1, Value_: "10.0.0.2", Type_: "other"},
+		&address{Version: 2, Value_: "10.0.0.1", Type_: "special"},
+		&address{Version: 2, Value_: "10.0.0.2", Type_: "other"},
 	})
 }
 
