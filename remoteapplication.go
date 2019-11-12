@@ -44,7 +44,7 @@ type remoteApplication struct {
 	IsConsumerProxy_ bool              `yaml:"is-consumer-proxy,omitempty"`
 	Spaces_          remoteSpaces      `yaml:"spaces,omitempty"`
 	Bindings_        map[string]string `yaml:"bindings,omitempty"`
-	Status_          *status           `yaml:"status"`
+	Status_          *status           `yaml:"status,omitempty"`
 }
 
 // RemoteApplicationArgs is an argument struct used to add a remote
@@ -220,7 +220,7 @@ func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*
 		IsConsumerProxy_: valid["is-consumer-proxy"].(bool),
 	}
 
-	if rawStatus := valid["status"]; rawStatus != nil {
+	if rawStatus, ok := valid["status"]; ok && rawStatus != nil {
 		status, err := importStatus(rawStatus.(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Trace(err)
@@ -267,6 +267,7 @@ func remoteApplicationV1Fields() (schema.Fields, schema.Defaults) {
 		"endpoints":         schema.Omit,
 		"spaces":            schema.Omit,
 		"bindings":          schema.Omit,
+		"status":            schema.Omit,
 		"is-consumer-proxy": false,
 	}
 	return fields, defaults
