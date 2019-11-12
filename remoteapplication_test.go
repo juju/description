@@ -31,24 +31,29 @@ func (s *RemoteApplicationSerializationSuite) SetUpTest(c *gc.C) {
 }
 
 func minimalRemoteApplicationMap() map[interface{}]interface{} {
+	m := minimalRemoteApplicationMapWithoutStatus()
+	m["status"] = map[interface{}]interface{}{
+		"version": 2,
+		"status": map[interface{}]interface{}{
+			"value":   "running",
+			"message": "monkey & bear",
+			"data": map[interface{}]interface{}{
+				"after": "the curtain",
+			},
+			"updated":  "2016-01-28T11:50:00Z",
+			"neverset": false,
+		},
+	}
+	return m
+}
+
+func minimalRemoteApplicationMapWithoutStatus() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"name":              "civil-wars",
 		"offer-uuid":        "offer-uuid",
 		"url":               "http://a.url",
 		"source-model-uuid": "abcd-1234",
 		"is-consumer-proxy": true,
-		"status": map[interface{}]interface{}{
-			"version": 2,
-			"status": map[interface{}]interface{}{
-				"value":   "running",
-				"message": "monkey & bear",
-				"data": map[interface{}]interface{}{
-					"after": "the curtain",
-				},
-				"updated":  "2016-01-28T11:50:00Z",
-				"neverset": false,
-			},
-		},
 		"endpoints": map[interface{}]interface{}{
 			"version": 1,
 			"endpoints": []interface{}{map[interface{}]interface{}{
@@ -90,14 +95,7 @@ func minimalRemoteApplicationMap() map[interface{}]interface{} {
 }
 
 func minimalRemoteApplication() *remoteApplication {
-	a := newRemoteApplication(RemoteApplicationArgs{
-		Tag:             names.NewApplicationTag("civil-wars"),
-		OfferUUID:       "offer-uuid",
-		URL:             "http://a.url",
-		SourceModel:     names.NewModelTag("abcd-1234"),
-		IsConsumerProxy: true,
-		Bindings:        map[string]string{"lana": "private"},
-	})
+	a := minimalRemoteApplicationWithoutStatus()
 	a.SetStatus(StatusArgs{
 		Value:   "running",
 		Message: "monkey & bear",
@@ -105,6 +103,18 @@ func minimalRemoteApplication() *remoteApplication {
 			"after": "the curtain",
 		},
 		Updated: time.Date(2016, 1, 28, 11, 50, 0, 0, time.UTC),
+	})
+	return a
+}
+
+func minimalRemoteApplicationWithoutStatus() *remoteApplication {
+	a := newRemoteApplication(RemoteApplicationArgs{
+		Tag:             names.NewApplicationTag("civil-wars"),
+		OfferUUID:       "offer-uuid",
+		URL:             "http://a.url",
+		SourceModel:     names.NewModelTag("abcd-1234"),
+		IsConsumerProxy: true,
+		Bindings:        map[string]string{"lana": "private"},
 	})
 	a.AddEndpoint(RemoteEndpointArgs{
 		Name:      "lana",
@@ -137,6 +147,35 @@ func (*RemoteApplicationSerializationSuite) TestNew(c *gc.C) {
 	c.Check(r.URL(), gc.Equals, "http://a.url")
 	c.Check(r.SourceModelTag(), gc.Equals, names.NewModelTag("abcd-1234"))
 	c.Check(r.IsConsumerProxy(), jc.IsTrue)
+	c.Check(r.Status(), gc.DeepEquals, &status{
+		Version: 2,
+		StatusPoint_: StatusPoint_{
+			Value_:   "running",
+			Message_: "monkey & bear",
+			Data_: map[string]interface{}{
+				"after": "the curtain",
+			},
+			Updated_: time.Date(2016, 1, 28, 11, 50, 0, 0, time.UTC),
+		},
+	})
+	ep := r.Endpoints()
+	c.Assert(ep, gc.HasLen, 1)
+	c.Check(ep[0].Name(), gc.Equals, "lana")
+	sp := r.Spaces()
+	c.Assert(sp, gc.HasLen, 1)
+	c.Check(sp[0].Name(), gc.Equals, "private")
+	c.Check(r.Bindings(), gc.DeepEquals, map[string]string{"lana": "private"})
+}
+
+func (*RemoteApplicationSerializationSuite) TestNewWithoutStatus(c *gc.C) {
+	r := minimalRemoteApplicationWithoutStatus()
+	c.Check(r.Tag(), gc.Equals, names.NewApplicationTag("civil-wars"))
+	c.Check(r.Name(), gc.Equals, "civil-wars")
+	c.Check(r.OfferUUID(), gc.Equals, "offer-uuid")
+	c.Check(r.URL(), gc.Equals, "http://a.url")
+	c.Check(r.SourceModelTag(), gc.Equals, names.NewModelTag("abcd-1234"))
+	c.Check(r.IsConsumerProxy(), jc.IsTrue)
+	c.Check(r.Status(), gc.IsNil)
 	ep := r.Endpoints()
 	c.Assert(ep, gc.HasLen, 1)
 	c.Check(ep[0].Name(), gc.Equals, "lana")
@@ -190,8 +229,24 @@ func (*RemoteApplicationSerializationSuite) TestMinimalMatches(c *gc.C) {
 	c.Assert(source, jc.DeepEquals, minimalRemoteApplicationMap())
 }
 
+func (*RemoteApplicationSerializationSuite) TestMinimalMatchesWithoutStatus(c *gc.C) {
+	bytes, err := yaml.Marshal(minimalRemoteApplicationWithoutStatus())
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[interface{}]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(source, jc.DeepEquals, minimalRemoteApplicationMapWithoutStatus())
+}
+
 func (s *RemoteApplicationSerializationSuite) TestRoundTrip(c *gc.C) {
 	rIn := minimalRemoteApplication()
+	rOut := s.exportImport(c, rIn)
+	c.Assert(rOut, jc.DeepEquals, rIn)
+}
+
+func (s *RemoteApplicationSerializationSuite) TestRoundTripWithoutStatus(c *gc.C) {
+	rIn := minimalRemoteApplicationWithoutStatus()
 	rOut := s.exportImport(c, rIn)
 	c.Assert(rOut, jc.DeepEquals, rIn)
 }
