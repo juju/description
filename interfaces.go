@@ -211,3 +211,11 @@ type Subnet interface {
 	FanLocalUnderlay() string
 	FanOverlay() string
 }
+
+// FirewallRule represents a firewall ruleset for a known service type, with
+// whitelist CIDRs.
+type FirewallRule interface {
+	ID() string
+	WellKnownService() string
+	WhitelistCIDRs() []string
+}

@@ -95,6 +95,9 @@ type Model interface {
 	Volumes() []Volume
 	AddVolume(VolumeArgs) Volume
 
+	FirewallRules() []FirewallRule
+	AddFirewallRule(FirewallRuleArgs) FirewallRule
+
 	Filesystems() []Filesystem
 	AddFilesystem(FilesystemArgs) Filesystem
 
@@ -132,7 +135,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             5,
+		Version:             6,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
@@ -162,6 +165,8 @@ func NewModel(args ModelArgs) Model {
 	m.setStorages(nil)
 	m.setStoragePools(nil)
 	m.setRemoteApplications(nil)
+	m.setFirewallRules(nil)
+
 	return m
 }
 
@@ -260,6 +265,8 @@ type model struct {
 	Filesystems_  filesystems  `yaml:"filesystems"`
 	Storages_     storages     `yaml:"storages"`
 	StoragePools_ storagepools `yaml:"storage-pools"`
+
+	FirewallRules_ firewallRules `yaml:"firewall-rules"`
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
 
@@ -764,6 +771,27 @@ func (m *model) setFilesystems(filesystemList []*filesystem) {
 	}
 }
 
+func (m *model) FirewallRules() []FirewallRule {
+	var result []FirewallRule
+	for _, firewallRule := range m.FirewallRules_.FirewallRules {
+		result = append(result, firewallRule)
+	}
+	return result
+}
+
+func (m *model) AddFirewallRule(args FirewallRuleArgs) FirewallRule {
+	firewallRule := newFirewallRule(args)
+	m.FirewallRules_.FirewallRules = append(m.FirewallRules_.FirewallRules, firewallRule)
+	return firewallRule
+}
+
+func (m *model) setFirewallRules(firewallRulesList []*firewallRule) {
+	m.FirewallRules_ = firewallRules{
+		Version:       1,
+		FirewallRules: firewallRulesList,
+	}
+}
+
 // Storages implements Model.
 func (m *model) Storages() []Storage {
 	var result []Storage
@@ -1189,6 +1217,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	3: newModelImporter(3, schema.FieldMap(modelV3Fields())),
 	4: newModelImporter(4, schema.FieldMap(modelV4Fields())),
 	5: newModelImporter(5, schema.FieldMap(modelV5Fields())),
+	6: newModelImporter(6, schema.FieldMap(modelV6Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1267,11 +1296,17 @@ func modelV5Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV6Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV5Fields()
+	fields["firewall-rules"] = schema.StringMap(schema.Any())
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
-	// We're always making a version 4 model, no matter what we got on
+	// We're always making a version 6 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        5,
+		Version:        6,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1473,6 +1508,17 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 				return nil, errors.Trace(err)
 			}
 			result.setRelationNetworks(relationNetworks)
+		}
+	}
+
+	if importVersion >= 6 {
+		if rawFirewallRules, ok := valid["firewall-rules"]; ok {
+			firewallRulesMap := rawFirewallRules.(map[string]interface{})
+			firewallRules, err := importFirewallRules(firewallRulesMap)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.setFirewallRules(firewallRules)
 		}
 	}
 

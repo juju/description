@@ -8,14 +8,6 @@ import (
 	"github.com/juju/schema"
 )
 
-// FirewallRule represents a firewall ruleset for a known service type, with
-// whitelist CIDRs.
-type FirewallRule interface {
-	ID() string
-	WellKnownService() string
-	WhitelistCIDRs() []string
-}
-
 type firewallRules struct {
 	Version       int             `yaml:"version"`
 	FirewallRules []*firewallRule `yaml:"firewall-rules"`
