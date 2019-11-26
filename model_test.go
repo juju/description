@@ -976,7 +976,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 5)
+	c.Assert(version, gc.Equals, 6)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
@@ -1212,6 +1212,21 @@ func (s *ModelSerializationSuite) TestFilesystems(c *gc.C) {
 	model, err := Deserialize(bytes)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(model.Filesystems(), jc.DeepEquals, filesystems)
+}
+
+func (s *ModelSerializationSuite) TestFirewallRule(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	firewallRule := initial.AddFirewallRule(MinimalFireWallArgs())
+	firewallRules := initial.FirewallRules()
+	c.Assert(firewallRules, gc.HasLen, 1)
+	c.Assert(firewallRules[0], jc.DeepEquals, firewallRule)
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.FirewallRules(), jc.DeepEquals, firewallRules)
 }
 
 func (s *ModelSerializationSuite) TestStorage(c *gc.C) {

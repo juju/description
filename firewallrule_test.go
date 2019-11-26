@@ -38,15 +38,19 @@ func minimalFirewallRuleMap() map[interface{}]interface{} {
 	}
 }
 
-func minimalFirewallRule() *firewallRule {
-	c := newFirewallRule(FirewallRuleArgs{
+func MinimalFireWallArgs() FirewallRuleArgs {
+	return FirewallRuleArgs{
 		ID:               "firewall-rlz-id",
 		WellKnownService: "juju-application-offer",
 		WhitelistCIDRs: []string{
 			"1.2.3.4/24",
 			"0.0.0.1",
 		},
-	})
+	}
+}
+
+func minimalFirewallRule() *firewallRule {
+	c := newFirewallRule(MinimalFireWallArgs())
 	return c
 }
 
