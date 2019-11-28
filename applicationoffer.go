@@ -23,9 +23,18 @@ type applicationOffers struct {
 }
 
 type applicationOffer struct {
-	OfferName_ string            `yaml:"offer-name"`
-	Endpoints_ []string          `yaml:"endpoints,omitempty"`
-	ACL_       map[string]string `yaml:"acl,omitempty"`
+	OfferUUID_              string            `yaml:"offer-uuid,omitempty"`
+	OfferName_              string            `yaml:"offer-name"`
+	Endpoints_              []string          `yaml:"endpoints,omitempty"`
+	ACL_                    map[string]string `yaml:"acl,omitempty"`
+	ApplicationName_        string            `yaml:"application-name,omitempty"`
+	ApplicationDescription_ string            `yaml:"application-description,omitempty"`
+}
+
+// OfferUUID returns the underlying offer UUID.
+// The offer UUID is required when migrating a CMR model between controllers.
+func (o *applicationOffer) OfferUUID() string {
+	return o.OfferUUID_
 }
 
 // OfferName implements ApplicationOffer.
@@ -44,19 +53,35 @@ func (o *applicationOffer) ACL() map[string]string {
 	return o.ACL_
 }
 
+// ApplicationName returns the ApplicationName for CMR model migration to happen.
+func (o *applicationOffer) ApplicationName() string {
+	return o.ApplicationName_
+}
+
+// ApplicationDescription returns the ApplicationDescription for CMR model migration to happen.
+func (o *applicationOffer) ApplicationDescription() string {
+	return o.ApplicationDescription_
+}
+
 // ApplicationOfferArgs is an argument struct used to instanciate a new
 // applicationOffer instance that implements ApplicationOffer.
 type ApplicationOfferArgs struct {
-	OfferName string
-	Endpoints []string
-	ACL       map[string]string
+	OfferUUID              string
+	OfferName              string
+	Endpoints              []string
+	ACL                    map[string]string
+	ApplicationName        string
+	ApplicationDescription string
 }
 
 func newApplicationOffer(args ApplicationOfferArgs) *applicationOffer {
 	return &applicationOffer{
-		OfferName_: args.OfferName,
-		Endpoints_: args.Endpoints,
-		ACL_:       args.ACL,
+		OfferUUID_:              args.OfferUUID,
+		OfferName_:              args.OfferName,
+		Endpoints_:              args.Endpoints,
+		ACL_:                    args.ACL,
+		ApplicationName_:        args.ApplicationName,
+		ApplicationDescription_: args.ApplicationDescription,
 	}
 }
 
@@ -100,15 +125,28 @@ type applicationOfferDeserializationFunc func(interface{}) (*applicationOffer, e
 
 var applicationOfferDeserializationFuncs = map[int]applicationOfferDeserializationFunc{
 	1: importApplicationOfferV1,
+	2: importApplicationOfferV2,
 }
 
-func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
+func applicationOfferV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"offer-name": schema.String(),
 		"endpoints":  schema.List(schema.String()),
 		"acl":        schema.Map(schema.String(), schema.String()),
 	}
-	checker := schema.FieldMap(fields, nil)
+	return fields, schema.Defaults{}
+}
+
+func applicationOfferV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationOfferV1Fields()
+	fields["offer-uuid"] = schema.String()
+	fields["application-name"] = schema.String()
+	fields["application-description"] = schema.String()
+	return fields, defaults
+}
+
+func importApplicationOffer(fields schema.Fields, defaults schema.Defaults, importVersion int, source interface{}) (*applicationOffer, error) {
+	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -128,9 +166,27 @@ func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
 		aclMap[user.(string)] = access.(string)
 	}
 
-	return &applicationOffer{
+	offer := &applicationOffer{
 		OfferName_: valid["offer-name"].(string),
 		Endpoints_: endpoints,
 		ACL_:       aclMap,
-	}, nil
+	}
+
+	if importVersion >= 2 {
+		offer.OfferUUID_ = valid["offer-uuid"].(string)
+		offer.ApplicationName_ = valid["application-name"].(string)
+		offer.ApplicationDescription_ = valid["application-description"].(string)
+	}
+
+	return offer, nil
+}
+
+func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
+	fields, defaults := applicationOfferV1Fields()
+	return importApplicationOffer(fields, defaults, 1, source)
+}
+
+func importApplicationOfferV2(source interface{}) (*applicationOffer, error) {
+	fields, defaults := applicationOfferV2Fields()
+	return importApplicationOffer(fields, defaults, 2, source)
 }
