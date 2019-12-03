@@ -25,9 +25,9 @@ type externalControllers struct {
 
 type externalController struct {
 	ID_     string   `yaml:"id"`
-	Alias_  string   `yaml:"alias"`
+	Alias_  string   `yaml:"alias,omitempty"`
 	Addrs_  []string `yaml:"addrs"`
-	CACert_ string   `yaml:"cacert"`
+	CACert_ string   `yaml:"ca-cert"`
 }
 
 // ExternalControllerArgs is an argument struct used to add a external
@@ -48,22 +48,22 @@ func newExternalController(args ExternalControllerArgs) *externalController {
 	}
 }
 
-// ID implements ExternalController
+// ID returns the controller tag for the external controller.
 func (e *externalController) ID() names.ControllerTag {
 	return names.NewControllerTag(e.ID_)
 }
 
-// Alias implements ExternalController
+// Alias returns the controller name for the external controller.
 func (e *externalController) Alias() string {
 	return e.Alias_
 }
 
-// Addrs implements ExternalController
+// Addrs returns the addresses for the external controller.
 func (e *externalController) Addrs() []string {
 	return e.Addrs_
 }
 
-// CACert implements ExternalController
+// CACert returns the ca cert for the external controller.
 func (e *externalController) CACert() string {
 	return e.CACert_
 }
@@ -77,61 +77,72 @@ func importExternalControllers(source interface{}) ([]*externalController, error
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	getFields, ok := externalControllerFieldsFuncs[version]
+	importFunc, ok := externalControllerDeserializationFuncs[version]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 	sourceList := valid["external-controllers"].([]interface{})
-	return importExternalControllerList(sourceList, schema.FieldMap(getFields()), version)
+	return importExternalControllerList(sourceList, importFunc)
 }
 
-func importExternalControllerList(sourceList []interface{}, checker schema.Checker, version int) ([]*externalController, error) {
+func importExternalControllerList(sourceList []interface{}, importFunc externalControllerDeserializationFunc) ([]*externalController, error) {
 	result := make([]*externalController, len(sourceList))
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for external controller %d, %T", i, value)
 		}
-		coerced, err := checker.Coerce(source, nil)
-		if err != nil {
-			return nil, errors.Annotatef(err, "external controller %d v%d schema check failed", i, version)
-		}
-		valid := coerced.(map[string]interface{})
-		externalCtrl, err := newExternalControllerFromValid(valid, version)
+
+		externalController, err := importFunc(source)
 		if err != nil {
 			return nil, errors.Annotatef(err, "external controller %d", i)
 		}
-		result[i] = externalCtrl
+		result[i] = externalController
 	}
 	return result, nil
 }
 
-func newExternalControllerFromValid(valid map[string]interface{}, version int) (*externalController, error) {
+var externalControllerDeserializationFuncs = map[int]externalControllerDeserializationFunc{
+	1: importExternalControllerV1,
+}
+
+type externalControllerDeserializationFunc func(interface{}) (*externalController, error)
+
+func externalControllerV1Fields() (schema.Fields, schema.Defaults) {
+	fields := schema.Fields{
+		"id":      schema.String(),
+		"alias":   schema.String(),
+		"addrs":   schema.List(schema.String()),
+		"ca-cert": schema.String(),
+	}
+	defaults := schema.Defaults{
+		"alias": schema.Omit,
+	}
+	return fields, defaults
+}
+
+func importExternalController(fields schema.Fields, defaults schema.Defaults, importVersion int, source interface{}) (*externalController, error) {
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "external controller v%d schema check failed", importVersion)
+	}
+	valid := coerced.(map[string]interface{})
+
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := &externalController{
 		ID_:     valid["id"].(string),
 		Alias_:  valid["alias"].(string),
 		Addrs_:  convertToStringSlice(valid["addrs"]),
-		CACert_: valid["cacert"].(string),
+		CACert_: valid["ca-cert"].(string),
 	}
 
 	return result, nil
 }
 
-var externalControllerFieldsFuncs = map[int]fieldsFunc{
-	1: externalControllerV1Fields,
-}
-
-func externalControllerV1Fields() (schema.Fields, schema.Defaults) {
-	fields := schema.Fields{
-		"id":     schema.String(),
-		"alias":  schema.String(),
-		"addrs":  schema.List(schema.String()),
-		"cacert": schema.String(),
-	}
-	defaults := schema.Defaults{
-		"alias": schema.Omit,
-	}
-	return fields, defaults
+func importExternalControllerV1(source interface{}) (*externalController, error) {
+	fields, defaults := externalControllerV1Fields()
+	return importExternalController(fields, defaults, 1, source)
 }

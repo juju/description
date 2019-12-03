@@ -102,7 +102,7 @@ func importOfferConnections(source interface{}) ([]*offerConnection, error) {
 type offerConnectionDeserializationFunc func(interface{}) (*offerConnection, error)
 
 func importOfferConnectionList(sourceList []interface{}, importFunc offerConnectionDeserializationFunc) ([]*offerConnection, error) {
-	result := make([]*offerConnection, 0, len(sourceList))
+	result := make([]*offerConnection, len(sourceList))
 
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
@@ -114,7 +114,7 @@ func importOfferConnectionList(sourceList []interface{}, importFunc offerConnect
 		if err != nil {
 			return nil, errors.Annotatef(err, "offer connection %d", i)
 		}
-		result = append(result, offerConnection)
+		result[i] = offerConnection
 	}
 	return result, nil
 }

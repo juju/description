@@ -152,6 +152,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	c.Assert(initial.Volumes_.Version, gc.Equals, len(volumeDeserializationFuncs))
 	c.Assert(initial.FirewallRules_.Version, gc.Equals, len(firewallRuleFieldsFuncs))
 	c.Assert(initial.OfferConnections_.Version, gc.Equals, len(offerConnectionDeserializationFuncs))
+	c.Assert(initial.ExternalControllers_.Version, gc.Equals, len(externalControllerDeserializationFuncs))
 }
 
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
@@ -976,6 +977,67 @@ func (s *ModelSerializationSuite) TestOfferConnectionsGetter(c *gc.C) {
 		UserName:        "fred",
 	})
 	result := model.OfferConnections()
+	c.Assert(result, gc.HasLen, 1)
+}
+
+func (s *ModelSerializationSuite) TestSerializesExternalControllers(c *gc.C) {
+	model := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model.AddExternalController(ExternalControllerArgs{
+		Tag:    names.NewControllerTag("controller-name"),
+		Alias:  "moon-ball",
+		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
+		CACert: "magic-cert",
+	})
+	data := asStringMap(c, model)
+	ctrlSection, ok := data["external-controllers"]
+	c.Assert(ok, jc.IsTrue)
+
+	// Re-serialize just that bit so we can check it.
+	bytes, err := yaml.Marshal(ctrlSection)
+	c.Assert(err, jc.ErrorIsNil)
+
+	expected := `
+external-controllers:
+- addrs:
+  - 1.2.3.4
+  - 10.12.11.243
+  alias: moon-ball
+  ca-cert: magic-cert
+  id: controller-name
+version: 1
+`[1:]
+	c.Assert(string(bytes), gc.Equals, expected)
+}
+
+func (s *ModelSerializationSuite) TestImportingWithExternalControllers(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	initial.AddExternalController(ExternalControllerArgs{
+		Tag:    names.NewControllerTag("controller-name"),
+		Alias:  "moon-ball",
+		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
+		CACert: "magic-cert",
+	})
+	offerConnections := initial.ExternalControllers()
+
+	bytes, err := Serialize(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	result, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	offers := result.ExternalControllers()
+	c.Assert(offers, gc.HasLen, 1)
+	c.Assert(offers[0], gc.DeepEquals, offerConnections[0])
+}
+
+func (s *ModelSerializationSuite) TestExternalControllersGetter(c *gc.C) {
+	model := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model.AddExternalController(ExternalControllerArgs{
+		Tag:    names.NewControllerTag("controller-name"),
+		Alias:  "moon-ball",
+		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
+		CACert: "magic-cert",
+	})
+	result := model.ExternalControllers()
 	c.Assert(result, gc.HasLen, 1)
 }
 

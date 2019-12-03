@@ -36,7 +36,7 @@ func minimalExternalControllerMap() map[interface{}]interface{} {
 			"1.2.3.4/24",
 			"0.0.0.1",
 		},
-		"cacert": "magic-cert",
+		"ca-cert": "magic-cert",
 	}
 }
 
@@ -79,7 +79,7 @@ func (*ExternalControllerSerializationSuite) TestBadSchema2(c *gc.C) {
 		"external-controllers": []interface{}{m},
 	}
 	_, err := importExternalControllers(container)
-	c.Assert(err, gc.ErrorMatches, `external controller 0 v1 schema check failed: id: expected string, got bool\(true\)`)
+	c.Assert(err, gc.ErrorMatches, `.*external controller v1 schema check failed: id: expected string, got bool\(true\)`)
 }
 
 func (*ExternalControllerSerializationSuite) TestMinimalMatches(c *gc.C) {

@@ -113,6 +113,9 @@ type Model interface {
 	OfferConnections() []OfferConnection
 	AddOfferConnection(OfferConnectionArgs) OfferConnection
 
+	ExternalControllers() []ExternalController
+	AddExternalController(ExternalControllerArgs) ExternalController
+
 	Validate() error
 
 	SetSLA(level, owner, credentials string) SLA
@@ -170,6 +173,7 @@ func NewModel(args ModelArgs) Model {
 	m.setRemoteApplications(nil)
 	m.setFirewallRules(nil)
 	m.setOfferConnections(nil)
+	m.setExternalControllers(nil)
 
 	return m
 }
@@ -235,17 +239,18 @@ type model struct {
 	LatestToolsVersion_ version.Number `yaml:"latest-tools,omitempty"`
 	EnvironVersion_     int            `yaml:"environ-version"`
 
-	Users_            users            `yaml:"users"`
-	Machines_         machines         `yaml:"machines"`
-	Applications_     applications     `yaml:"applications"`
-	Relations_        relations        `yaml:"relations"`
-	RemoteEntities_   remoteEntities   `yaml:"remote-entities"`
-	RelationNetworks_ relationNetworks `yaml:"relation-networks"`
-	OfferConnections_ offerConnections `yaml:"offer-connections"`
-	Spaces_           spaces           `yaml:"spaces"`
-	LinkLayerDevices_ linklayerdevices `yaml:"link-layer-devices"`
-	IPAddresses_      ipaddresses      `yaml:"ip-addresses"`
-	Subnets_          subnets          `yaml:"subnets"`
+	Users_               users               `yaml:"users"`
+	Machines_            machines            `yaml:"machines"`
+	Applications_        applications        `yaml:"applications"`
+	Relations_           relations           `yaml:"relations"`
+	RemoteEntities_      remoteEntities      `yaml:"remote-entities"`
+	RelationNetworks_    relationNetworks    `yaml:"relation-networks"`
+	OfferConnections_    offerConnections    `yaml:"offer-connections"`
+	ExternalControllers_ externalControllers `yaml:"external-controllers"`
+	Spaces_              spaces              `yaml:"spaces"`
+	LinkLayerDevices_    linklayerdevices    `yaml:"link-layer-devices"`
+	IPAddresses_         ipaddresses         `yaml:"ip-addresses"`
+	Subnets_             subnets             `yaml:"subnets"`
 
 	CloudImageMetadata_ cloudimagemetadataset `yaml:"cloud-image-metadata"`
 
@@ -327,7 +332,8 @@ func (m *model) Blocks() map[string]string {
 	return m.Blocks_
 }
 
-// Implement length-based sort with ByLen type.
+// ByName is a sorting implementation over the UserTag lexicographically, which
+// aligns to  sort.Interface
 type ByName []User
 
 func (a ByName) Len() int           { return len(a) }
@@ -901,6 +907,32 @@ func (m *model) setOfferConnections(offersList []*offerConnection) {
 	}
 }
 
+// ExternalControllers returns the offer connections for the Model.
+// Ensuring the uniqueness for each connection is advised.
+func (m *model) ExternalControllers() []ExternalController {
+	result := make([]ExternalController, len(m.ExternalControllers_.ExternalControllers))
+	for k, v := range m.ExternalControllers_.ExternalControllers {
+		result[k] = v
+	}
+	return result
+}
+
+// AddExternalController adds a new offer connections to model
+// Adding the same offer connection multiple times will not de-dupe, uniquely
+// sorting them when getting them will be required.
+func (m *model) AddExternalController(args ExternalControllerArgs) ExternalController {
+	ctrl := newExternalController(args)
+	m.ExternalControllers_.ExternalControllers = append(m.ExternalControllers_.ExternalControllers, ctrl)
+	return ctrl
+}
+
+func (m *model) setExternalControllers(ctrlList []*externalController) {
+	m.ExternalControllers_ = externalControllers{
+		Version:             1,
+		ExternalControllers: ctrlList,
+	}
+}
+
 func (m *model) setSLA(sla sla) {
 	m.SLA_ = sla
 }
@@ -1331,6 +1363,7 @@ func modelV6Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := modelV5Fields()
 	fields["firewall-rules"] = schema.StringMap(schema.Any())
 	fields["offer-connections"] = schema.StringMap(schema.Any())
+	fields["external-controllers"] = schema.StringMap(schema.Any())
 	return fields, defaults
 }
 
@@ -1559,6 +1592,14 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 				return nil, errors.Trace(err)
 			}
 			result.setOfferConnections(offerConnections)
+		}
+		if rawExternalControllers, ok := valid["external-controllers"]; ok {
+			externalControllersMap := rawExternalControllers.(map[string]interface{})
+			externalControllers, err := importExternalControllers(externalControllersMap)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.setExternalControllers(externalControllers)
 		}
 	}
 
