@@ -108,7 +108,7 @@ func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV1(c *gc.C
 			"bar":   "consume",
 		},
 	})
-	offer := s.exportImportLatestV1(c, initial)
+	offer := s.exportImportV1(c, initial)
 	c.Assert(offer, jc.DeepEquals, initial)
 }
 
@@ -125,15 +125,15 @@ func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV2(c *gc.C
 		ApplicationName:        "foo",
 		ApplicationDescription: "foo description",
 	})
-	offer := s.exportImportLatestV2(c, initial)
+	offer := s.exportImportV2(c, initial)
 	c.Assert(offer, jc.DeepEquals, initial)
 }
 
-func (s *ApplicationOfferSerializationSuite) exportImportLatestV1(c *gc.C, offer *applicationOffer) *applicationOffer {
+func (s *ApplicationOfferSerializationSuite) exportImportV1(c *gc.C, offer *applicationOffer) *applicationOffer {
 	return s.exportImportVersion(c, offer, 1)
 }
 
-func (s *ApplicationOfferSerializationSuite) exportImportLatestV2(c *gc.C, offer *applicationOffer) *applicationOffer {
+func (s *ApplicationOfferSerializationSuite) exportImportV2(c *gc.C, offer *applicationOffer) *applicationOffer {
 	return s.exportImportVersion(c, offer, 2)
 }
 

@@ -269,6 +269,7 @@ type model struct {
 	FirewallRules_ firewallRules `yaml:"firewall-rules"`
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
+	OfferConnections_   offerConnections   `yaml:"offer-connections,omitempty"`
 
 	SLA_         sla         `yaml:"sla"`
 	MeterStatus_ meterStatus `yaml:"meter-status"`

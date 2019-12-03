@@ -153,7 +153,7 @@ func importApplicationOffer(fields schema.Fields, defaults schema.Defaults, impo
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "application offer v1 schema check failed")
+		return nil, errors.Annotatef(err, "application offer v%d schema check failed", importVersion)
 	}
 	valid := coerced.(map[string]interface{})
 
