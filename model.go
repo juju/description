@@ -885,7 +885,7 @@ func (m *model) OfferConnections() []OfferConnection {
 	return result
 }
 
-// AddOfferConnection adds new offer connections to model
+// AddOfferConnection adds a new offer connections to model
 // Adding the same offer connection multiple times will not de-dupe, uniquely
 // sorting them when getting them will be required.
 func (m *model) AddOfferConnection(args OfferConnectionArgs) OfferConnection {

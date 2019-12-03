@@ -53,27 +53,27 @@ func newOfferConnection(args OfferConnectionArgs) *offerConnection {
 	}
 }
 
-// OfferUUID returns the associated offer uuid for the given connection.
+// OfferUUID returns the offer uuid for the connection.
 func (c *offerConnection) OfferUUID() string {
 	return c.OfferUUID_
 }
 
-// RelationID returns the associated relation id for the given connection.
+// RelationID returns the relation id for the connection.
 func (c *offerConnection) RelationID() int {
 	return c.RelationID_
 }
 
-// RelationKey returns the associated relation key for the given connection.
+// RelationKey returns the relation key for the connection.
 func (c *offerConnection) RelationKey() string {
 	return c.RelationKey_
 }
 
-// UserName returns the associated user name for the given connection.
+// UserName returns the user name for the connection.
 func (c *offerConnection) UserName() string {
 	return c.UserName_
 }
 
-// SourceModelUUID returns the associated user name for the given connection.
+// SourceModelUUID returns the user name for the connection.
 func (c *offerConnection) SourceModelUUID() string {
 	return c.SourceModelUUID_
 }
