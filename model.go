@@ -110,6 +110,9 @@ type Model interface {
 	RemoteApplications() []RemoteApplication
 	AddRemoteApplication(RemoteApplicationArgs) RemoteApplication
 
+	OfferConnections() []OfferConnection
+	AddOfferConnection(OfferConnectionArgs) OfferConnection
+
 	Validate() error
 
 	SetSLA(level, owner, credentials string) SLA
@@ -166,6 +169,7 @@ func NewModel(args ModelArgs) Model {
 	m.setStoragePools(nil)
 	m.setRemoteApplications(nil)
 	m.setFirewallRules(nil)
+	m.setOfferConnections(nil)
 
 	return m
 }
@@ -237,6 +241,7 @@ type model struct {
 	Relations_        relations        `yaml:"relations"`
 	RemoteEntities_   remoteEntities   `yaml:"remote-entities"`
 	RelationNetworks_ relationNetworks `yaml:"relation-networks"`
+	OfferConnections_ offerConnections `yaml:"offer-connections"`
 	Spaces_           spaces           `yaml:"spaces"`
 	LinkLayerDevices_ linklayerdevices `yaml:"link-layer-devices"`
 	IPAddresses_      ipaddresses      `yaml:"ip-addresses"`
@@ -269,7 +274,6 @@ type model struct {
 	FirewallRules_ firewallRules `yaml:"firewall-rules"`
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
-	OfferConnections_   offerConnections   `yaml:"offer-connections,omitempty"`
 
 	SLA_         sla         `yaml:"sla"`
 	MeterStatus_ meterStatus `yaml:"meter-status"`
@@ -871,6 +875,32 @@ func (m *model) setRemoteApplications(appList []*remoteApplication) {
 	}
 }
 
+// OfferConnections returns the offer connections for the Model.
+// Ensuring the uniqueness for each connection is advised.
+func (m *model) OfferConnections() []OfferConnection {
+	result := make([]OfferConnection, len(m.OfferConnections_.OfferConnections))
+	for k, v := range m.OfferConnections_.OfferConnections {
+		result[k] = v
+	}
+	return result
+}
+
+// AddOfferConnection adds new offer connections to model
+// Adding the same offer connection multiple times will not de-dupe, uniquely
+// sorting them when getting them will be required.
+func (m *model) AddOfferConnection(args OfferConnectionArgs) OfferConnection {
+	offer := newOfferConnection(args)
+	m.OfferConnections_.OfferConnections = append(m.OfferConnections_.OfferConnections, offer)
+	return offer
+}
+
+func (m *model) setOfferConnections(offersList []*offerConnection) {
+	m.OfferConnections_ = offerConnections{
+		Version:          1,
+		OfferConnections: offersList,
+	}
+}
+
 func (m *model) setSLA(sla sla) {
 	m.SLA_ = sla
 }
@@ -1300,6 +1330,7 @@ func modelV5Fields() (schema.Fields, schema.Defaults) {
 func modelV6Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := modelV5Fields()
 	fields["firewall-rules"] = schema.StringMap(schema.Any())
+	fields["offer-connections"] = schema.StringMap(schema.Any())
 	return fields, defaults
 }
 
@@ -1520,6 +1551,14 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 				return nil, errors.Trace(err)
 			}
 			result.setFirewallRules(firewallRules)
+		}
+		if rawOfferConnections, ok := valid["offer-connections"]; ok {
+			offerConnectionsMap := rawOfferConnections.(map[string]interface{})
+			offerConnections, err := importOfferConnections(offerConnectionsMap)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.setOfferConnections(offerConnections)
 		}
 	}
 

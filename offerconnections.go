@@ -6,6 +6,7 @@ package description
 import (
 	"github.com/juju/errors"
 	"github.com/juju/schema"
+	"gopkg.in/juju/names.v3"
 )
 
 // OfferConnection represents an offer connection for a an application's endpoints.
@@ -21,7 +22,7 @@ var _ OfferConnection = (*offerConnection)(nil)
 
 type offerConnections struct {
 	Version          int                `yaml:"version"`
-	OfferConnections []*offerConnection `yaml:"offer-connections,omitempty"`
+	OfferConnections []*offerConnection `yaml:"offer-connections"`
 }
 
 type offerConnection struct {
@@ -35,11 +36,11 @@ type offerConnection struct {
 // OfferConnectionArgs is an argument struct used to add a offer connection to
 // the model.
 type OfferConnectionArgs struct {
-	OfferUUID       string
-	RelationID      int
-	RelationKey     string
-	UserName        string
-	SourceModelUUID string
+	OfferUUID   string
+	RelationID  int
+	RelationKey string
+	User        names.UserTag
+	SourceModel names.ModelTag
 }
 
 func newOfferConnection(args OfferConnectionArgs) *offerConnection {
@@ -47,8 +48,8 @@ func newOfferConnection(args OfferConnectionArgs) *offerConnection {
 		OfferUUID_:       args.OfferUUID,
 		RelationID_:      args.RelationID,
 		RelationKey_:     args.RelationKey,
-		UserName_:        args.UserName,
-		SourceModelUUID_: args.SourceModelUUID,
+		UserName_:        args.User.Id(),
+		SourceModelUUID_: args.SourceModel.Id(),
 	}
 }
 
