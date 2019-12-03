@@ -27,7 +27,7 @@ func (s *ApplicationOfferSerializationSuite) SetUpTest(c *gc.C) {
 	}
 }
 
-func (s *ApplicationOfferSerializationSuite) TestNewApplicationOffer(c *gc.C) {
+func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV1(c *gc.C) {
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferName: "my-offer",
 		Endpoints: []string{"endpoint-1", "endpoint-2"},
@@ -47,7 +47,58 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOffer(c *gc.C) {
 	})
 }
 
-func (s *ApplicationOfferSerializationSuite) TestParsingSerializedData(c *gc.C) {
+func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2(c *gc.C) {
+	offer := newApplicationOffer(ApplicationOfferArgs{
+		OfferUUID: "offer-uuid",
+		OfferName: "my-offer",
+		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		ACL: map[string]string{
+			"admin": "admin",
+			"foo":   "read",
+			"bar":   "consume",
+		},
+		ApplicationName:        "foo",
+		ApplicationDescription: "foo description",
+	})
+
+	c.Check(offer.OfferUUID(), gc.Equals, "offer-uuid")
+	c.Check(offer.OfferName(), gc.Equals, "my-offer")
+	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
+	c.Check(offer.ACL(), gc.DeepEquals, map[string]string{
+		"admin": "admin",
+		"foo":   "read",
+		"bar":   "consume",
+	})
+	c.Check(offer.ApplicationName(), gc.Equals, "foo")
+	c.Check(offer.ApplicationDescription(), gc.Equals, "foo description")
+}
+
+func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2WithOptionalFields(c *gc.C) {
+	offer := newApplicationOffer(ApplicationOfferArgs{
+		OfferUUID: "offer-uuid",
+		OfferName: "my-offer",
+		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		ACL: map[string]string{
+			"admin": "admin",
+			"foo":   "read",
+			"bar":   "consume",
+		},
+		ApplicationName: "foo",
+	})
+
+	c.Check(offer.OfferUUID(), gc.Equals, "offer-uuid")
+	c.Check(offer.OfferName(), gc.Equals, "my-offer")
+	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
+	c.Check(offer.ACL(), gc.DeepEquals, map[string]string{
+		"admin": "admin",
+		"foo":   "read",
+		"bar":   "consume",
+	})
+	c.Check(offer.ApplicationName(), gc.Equals, "foo")
+	c.Check(offer.ApplicationDescription(), gc.Equals, "")
+}
+
+func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
 	initial := newApplicationOffer(ApplicationOfferArgs{
 		OfferName: "my-offer",
 		Endpoints: []string{"endpoint-1", "endpoint-2"},
@@ -57,12 +108,33 @@ func (s *ApplicationOfferSerializationSuite) TestParsingSerializedData(c *gc.C) 
 			"bar":   "consume",
 		},
 	})
-	offer := s.exportImportLatest(c, initial)
+	offer := s.exportImportLatestV1(c, initial)
 	c.Assert(offer, jc.DeepEquals, initial)
 }
 
-func (s *ApplicationOfferSerializationSuite) exportImportLatest(c *gc.C, offer *applicationOffer) *applicationOffer {
+func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
+	initial := newApplicationOffer(ApplicationOfferArgs{
+		OfferUUID: "offer-uuid",
+		OfferName: "my-offer",
+		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		ACL: map[string]string{
+			"admin": "admin",
+			"foo":   "read",
+			"bar":   "consume",
+		},
+		ApplicationName:        "foo",
+		ApplicationDescription: "foo description",
+	})
+	offer := s.exportImportLatestV2(c, initial)
+	c.Assert(offer, jc.DeepEquals, initial)
+}
+
+func (s *ApplicationOfferSerializationSuite) exportImportLatestV1(c *gc.C, offer *applicationOffer) *applicationOffer {
 	return s.exportImportVersion(c, offer, 1)
+}
+
+func (s *ApplicationOfferSerializationSuite) exportImportLatestV2(c *gc.C, offer *applicationOffer) *applicationOffer {
+	return s.exportImportVersion(c, offer, 2)
 }
 
 func (s *ApplicationOfferSerializationSuite) exportImportVersion(c *gc.C, offer_ *applicationOffer, version int) *applicationOffer {
@@ -86,6 +158,7 @@ func (s *ApplicationOfferSerializationSuite) exportImportVersion(c *gc.C, offer_
 
 func minimalApplicationOfferMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
+		"offer-uuid": "offer-uuid",
 		"offer-name": "my-offer",
 		"endpoints":  []interface{}{"endpoint-1", "endpoint-2"},
 		"acl": map[interface{}]interface{}{
@@ -93,5 +166,7 @@ func minimalApplicationOfferMap() map[interface{}]interface{} {
 			"foo":   "read",
 			"bar":   "consume",
 		},
+		"application-name":        "foo",
+		"application-description": "foo description",
 	}
 }

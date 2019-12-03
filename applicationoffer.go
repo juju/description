@@ -142,6 +142,9 @@ func applicationOfferV2Fields() (schema.Fields, schema.Defaults) {
 	fields["offer-uuid"] = schema.String()
 	fields["application-name"] = schema.String()
 	fields["application-description"] = schema.String()
+
+	defaults["application-description"] = schema.Omit
+
 	return fields, defaults
 }
 
