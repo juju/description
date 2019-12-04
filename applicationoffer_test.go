@@ -30,7 +30,10 @@ func (s *ApplicationOfferSerializationSuite) SetUpTest(c *gc.C) {
 func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV1(c *gc.C) {
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferName: "my-offer",
-		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		EndpointsMap: map[string]string{
+			"endpoint-1-x": "endpoint-1",
+			"endpoint-2":   "endpoint-2",
+		},
 		ACL: map[string]string{
 			"admin": "admin",
 			"foo":   "read",
@@ -51,7 +54,10 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2(c *gc.C) 
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferUUID: "offer-uuid",
 		OfferName: "my-offer",
-		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		EndpointsMap: map[string]string{
+			"endpoint-1-x": "endpoint-1",
+			"endpoint-2":   "endpoint-2",
+		},
 		ACL: map[string]string{
 			"admin": "admin",
 			"foo":   "read",
@@ -64,6 +70,10 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2(c *gc.C) 
 	c.Check(offer.OfferUUID(), gc.Equals, "offer-uuid")
 	c.Check(offer.OfferName(), gc.Equals, "my-offer")
 	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
+	c.Check(offer.EndpointsMap(), gc.DeepEquals, map[string]string{
+		"endpoint-1-x": "endpoint-1",
+		"endpoint-2":   "endpoint-2",
+	})
 	c.Check(offer.ACL(), gc.DeepEquals, map[string]string{
 		"admin": "admin",
 		"foo":   "read",
@@ -77,7 +87,10 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2WithOption
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferUUID: "offer-uuid",
 		OfferName: "my-offer",
-		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		EndpointsMap: map[string]string{
+			"endpoint-1-x": "endpoint-1",
+			"endpoint-2":   "endpoint-2",
+		},
 		ACL: map[string]string{
 			"admin": "admin",
 			"foo":   "read",
@@ -89,6 +102,10 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2WithOption
 	c.Check(offer.OfferUUID(), gc.Equals, "offer-uuid")
 	c.Check(offer.OfferName(), gc.Equals, "my-offer")
 	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
+	c.Check(offer.EndpointsMap(), gc.DeepEquals, map[string]string{
+		"endpoint-1-x": "endpoint-1",
+		"endpoint-2":   "endpoint-2",
+	})
 	c.Check(offer.ACL(), gc.DeepEquals, map[string]string{
 		"admin": "admin",
 		"foo":   "read",
@@ -101,7 +118,10 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2WithOption
 func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
 	initial := newApplicationOffer(ApplicationOfferArgs{
 		OfferName: "my-offer",
-		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		EndpointsMap: map[string]string{
+			"endpoint-1": "endpoint-1",
+			"endpoint-2": "endpoint-2",
+		},
 		ACL: map[string]string{
 			"admin": "admin",
 			"foo":   "read",
@@ -109,14 +129,25 @@ func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV1(c *gc.C
 		},
 	})
 	offer := s.exportImportV1(c, initial)
-	c.Assert(offer, jc.DeepEquals, initial)
+	c.Assert(offer, jc.DeepEquals, &applicationOffer{
+		OfferName_: "my-offer",
+		Endpoints_: []string{"endpoint-1", "endpoint-2"},
+		ACL_: map[string]string{
+			"admin": "admin",
+			"foo":   "read",
+			"bar":   "consume",
+		},
+	})
 }
 
 func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 	initial := newApplicationOffer(ApplicationOfferArgs{
 		OfferUUID: "offer-uuid",
 		OfferName: "my-offer",
-		Endpoints: []string{"endpoint-1", "endpoint-2"},
+		EndpointsMap: map[string]string{
+			"endpoint-1": "endpoint-1",
+			"endpoint-2": "endpoint-2",
+		},
 		ACL: map[string]string{
 			"admin": "admin",
 			"foo":   "read",
@@ -161,6 +192,10 @@ func minimalApplicationOfferMap() map[interface{}]interface{} {
 		"offer-uuid": "offer-uuid",
 		"offer-name": "my-offer",
 		"endpoints":  []interface{}{"endpoint-1", "endpoint-2"},
+		"endpoints-map": map[interface{}]interface{}{
+			"endpoint-1": "endpoint-1",
+			"endpoint-2": "endpoint-2",
+		},
 		"acl": map[interface{}]interface{}{
 			"admin": "admin",
 			"foo":   "read",

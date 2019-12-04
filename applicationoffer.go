@@ -4,6 +4,8 @@
 package description
 
 import (
+	"sort"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 )
@@ -13,6 +15,7 @@ type ApplicationOffer interface {
 	OfferUUID() string
 	OfferName() string
 	Endpoints() []string
+	EndpointsMap() map[string]string
 	ACL() map[string]string
 	ApplicationName() string
 	ApplicationDescription() string
@@ -29,6 +32,7 @@ type applicationOffer struct {
 	OfferUUID_              string            `yaml:"offer-uuid,omitempty"`
 	OfferName_              string            `yaml:"offer-name"`
 	Endpoints_              []string          `yaml:"endpoints,omitempty"`
+	EndpointsMap_           map[string]string `yaml:"endpoints-map,omitempty"`
 	ACL_                    map[string]string `yaml:"acl,omitempty"`
 	ApplicationName_        string            `yaml:"application-name,omitempty"`
 	ApplicationDescription_ string            `yaml:"application-description,omitempty"`
@@ -48,6 +52,13 @@ func (o *applicationOffer) OfferName() string {
 // Endpoints implements ApplicationOffer.
 func (o *applicationOffer) Endpoints() []string {
 	return o.Endpoints_
+}
+
+// EndpointsMap returns the representation of both the internal and external
+// endpoints. This is useful for CMR migration, where we need to match internal
+// offers when importing.
+func (o *applicationOffer) EndpointsMap() map[string]string {
+	return o.EndpointsMap_
 }
 
 // ACL implements ApplicationOffer. It returns a map were keys are users and
@@ -71,17 +82,22 @@ func (o *applicationOffer) ApplicationDescription() string {
 type ApplicationOfferArgs struct {
 	OfferUUID              string
 	OfferName              string
-	Endpoints              []string
+	EndpointsMap           map[string]string
 	ACL                    map[string]string
 	ApplicationName        string
 	ApplicationDescription string
 }
 
 func newApplicationOffer(args ApplicationOfferArgs) *applicationOffer {
+	// To ensure that there isn't a split brain scenario for Endpoints and
+	// EndpointsMap, we populate the Endpoints from the Endpoints, to be
+	// backwards compatible.
+	endpoints := mapValuesToSlice(args.EndpointsMap)
 	return &applicationOffer{
 		OfferUUID_:              args.OfferUUID,
 		OfferName_:              args.OfferName,
-		Endpoints_:              args.Endpoints,
+		Endpoints_:              endpoints,
+		EndpointsMap_:           args.EndpointsMap,
 		ACL_:                    args.ACL,
 		ApplicationName_:        args.ApplicationName,
 		ApplicationDescription_: args.ApplicationDescription,
@@ -145,8 +161,10 @@ func applicationOfferV2Fields() (schema.Fields, schema.Defaults) {
 	fields["offer-uuid"] = schema.String()
 	fields["application-name"] = schema.String()
 	fields["application-description"] = schema.String()
+	fields["endpoints-map"] = schema.Map(schema.String(), schema.String())
 
 	defaults["application-description"] = schema.Omit
+	defaults["endpoints"] = schema.Omit
 
 	return fields, defaults
 }
@@ -160,12 +178,6 @@ func importApplicationOffer(fields schema.Fields, defaults schema.Defaults, impo
 	}
 	valid := coerced.(map[string]interface{})
 
-	validEndpoints := valid["endpoints"].([]interface{})
-	endpoints := make([]string, len(validEndpoints))
-	for i, ep := range validEndpoints {
-		endpoints[i] = ep.(string)
-	}
-
 	validACL := valid["acl"].(map[interface{}]interface{})
 	aclMap := make(map[string]string, len(validACL))
 	for user, access := range validACL {
@@ -174,14 +186,37 @@ func importApplicationOffer(fields schema.Fields, defaults schema.Defaults, impo
 
 	offer := &applicationOffer{
 		OfferName_: valid["offer-name"].(string),
-		Endpoints_: endpoints,
 		ACL_:       aclMap,
+	}
+
+	// Manage how we handle endpoints.
+	if importVersion == 1 {
+		// When importing version 1 of the description, we should just treat
+		// endpoints as a slice string.
+		validEndpoints := valid["endpoints"].([]interface{})
+		endpoints := make([]string, len(validEndpoints))
+		for i, ep := range validEndpoints {
+			endpoints[i] = ep.(string)
+		}
+		offer.Endpoints_ = endpoints
 	}
 
 	if importVersion >= 2 {
 		offer.OfferUUID_ = valid["offer-uuid"].(string)
 		offer.ApplicationName_ = valid["application-name"].(string)
 		offer.ApplicationDescription_ = valid["application-description"].(string)
+
+		// When importing version 2 or greater of the description, we should
+		// ensure that we use EndpointsMap is used, then also populate endpoints
+		// as well, so that we remain consistent.
+		validEndpointsMap := valid["endpoints-map"].(map[interface{}]interface{})
+		endpointsMap := make(map[string]string, len(validEndpointsMap))
+		for k, ep := range validEndpointsMap {
+			endpointsMap[k.(string)] = ep.(string)
+		}
+		offer.EndpointsMap_ = endpointsMap
+		// Backfill the endpoints from the EndpointsMap
+		offer.Endpoints_ = mapValuesToSlice(endpointsMap)
 	}
 
 	return offer, nil
@@ -195,4 +230,13 @@ func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
 func importApplicationOfferV2(source interface{}) (*applicationOffer, error) {
 	fields, defaults := applicationOfferV2Fields()
 	return importApplicationOffer(fields, defaults, 2, source)
+}
+
+func mapValuesToSlice(m map[string]string) []string {
+	result := make([]string, 0, len(m))
+	for _, ep := range m {
+		result = append(result, ep)
+	}
+	sort.Strings(result)
+	return result
 }
