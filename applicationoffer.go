@@ -10,9 +10,12 @@ import (
 
 // ApplicationOffer represents an offer for a an application's endpoints.
 type ApplicationOffer interface {
+	OfferUUID() string
 	OfferName() string
 	Endpoints() []string
 	ACL() map[string]string
+	ApplicationName() string
+	ApplicationDescription() string
 }
 
 var _ ApplicationOffer = (*applicationOffer)(nil)

@@ -6,7 +6,6 @@ package description
 import (
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
-	"gopkg.in/juju/names.v3"
 	"gopkg.in/yaml.v2"
 )
 
@@ -30,11 +29,11 @@ func (s *OfferConnectionSerializationSuite) SetUpTest(c *gc.C) {
 
 func (s *OfferConnectionSerializationSuite) TestNewOfferConnection(c *gc.C) {
 	offer := newOfferConnection(OfferConnectionArgs{
-		OfferUUID:   "offer-uuid",
-		RelationID:  1,
-		RelationKey: "relation-key",
-		SourceModel: names.NewModelTag("source-model-uuid"),
-		User:        names.NewUserTag("fred"),
+		OfferUUID:       "offer-uuid",
+		RelationID:      1,
+		RelationKey:     "relation-key",
+		SourceModelUUID: "source-model-uuid",
+		UserName:        "fred",
 	})
 
 	c.Check(offer.OfferUUID(), gc.Equals, "offer-uuid")
@@ -46,11 +45,11 @@ func (s *OfferConnectionSerializationSuite) TestNewOfferConnection(c *gc.C) {
 
 func (s *OfferConnectionSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := newOfferConnection(OfferConnectionArgs{
-		OfferUUID:   "offer-uuid",
-		RelationID:  1,
-		RelationKey: "relation-key",
-		SourceModel: names.NewModelTag("source-model-uuid"),
-		User:        names.NewUserTag("fred"),
+		OfferUUID:       "offer-uuid",
+		RelationID:      1,
+		RelationKey:     "relation-key",
+		SourceModelUUID: "source-model-uuid",
+		UserName:        "fred",
 	})
 
 	offer := s.exportImportLatest(c, initial)

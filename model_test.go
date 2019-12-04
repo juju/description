@@ -919,11 +919,11 @@ func (s *ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
 func (s *ModelSerializationSuite) TestSerializesOfferConnections(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	model.AddOfferConnection(OfferConnectionArgs{
-		OfferUUID:   "offer-uuid",
-		RelationID:  1,
-		RelationKey: "relation-key",
-		SourceModel: names.NewModelTag("some-model"),
-		User:        names.NewUserTag("fred"),
+		OfferUUID:       "offer-uuid",
+		RelationID:      1,
+		RelationKey:     "relation-key",
+		SourceModelUUID: "some-model-uuid",
+		UserName:        "fred",
 	})
 	data := asStringMap(c, model)
 	offerSection, ok := data["offer-connections"]
@@ -938,7 +938,7 @@ offer-connections:
 - offer-uuid: offer-uuid
   relation-id: 1
   relation-key: relation-key
-  source-model-uuid: some-model
+  source-model-uuid: some-model-uuid
   user-name: fred
 version: 1
 `[1:]
@@ -948,11 +948,11 @@ version: 1
 func (s *ModelSerializationSuite) TestImportingWithOfferConnections(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	initial.AddOfferConnection(OfferConnectionArgs{
-		OfferUUID:   "offer-uuid",
-		RelationID:  1,
-		RelationKey: "relation-key",
-		SourceModel: names.NewModelTag("some-model"),
-		User:        names.NewUserTag("fred"),
+		OfferUUID:       "offer-uuid",
+		RelationID:      1,
+		RelationKey:     "relation-key",
+		SourceModelUUID: "some-model-uuid",
+		UserName:        "fred",
 	})
 	offerConnections := initial.OfferConnections()
 
@@ -969,11 +969,11 @@ func (s *ModelSerializationSuite) TestImportingWithOfferConnections(c *gc.C) {
 func (s *ModelSerializationSuite) TestOfferConnectionsGetter(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("veils")})
 	model.AddOfferConnection(OfferConnectionArgs{
-		OfferUUID:   "offer-uuid",
-		RelationID:  1,
-		RelationKey: "relation-key",
-		SourceModel: names.NewModelTag("some-model"),
-		User:        names.NewUserTag("fred"),
+		OfferUUID:       "offer-uuid",
+		RelationID:      1,
+		RelationKey:     "relation-key",
+		SourceModelUUID: "some-model-uuid",
+		UserName:        "fred",
 	})
 	result := model.OfferConnections()
 	c.Assert(result, gc.HasLen, 1)
