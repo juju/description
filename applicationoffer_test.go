@@ -30,7 +30,7 @@ func (s *ApplicationOfferSerializationSuite) SetUpTest(c *gc.C) {
 func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV1(c *gc.C) {
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferName: "my-offer",
-		EndpointsMap: map[string]string{
+		Endpoints: map[string]string{
 			"endpoint-1-x": "endpoint-1",
 			"endpoint-2":   "endpoint-2",
 		},
@@ -42,7 +42,10 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV1(c *gc.C) 
 	})
 
 	c.Check(offer.OfferName(), gc.Equals, "my-offer")
-	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
+	c.Check(offer.Endpoints(), gc.DeepEquals, map[string]string{
+		"endpoint-1-x": "endpoint-1",
+		"endpoint-2":   "endpoint-2",
+	})
 	c.Check(offer.ACL(), gc.DeepEquals, map[string]string{
 		"admin": "admin",
 		"foo":   "read",
@@ -54,7 +57,7 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2(c *gc.C) 
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferUUID: "offer-uuid",
 		OfferName: "my-offer",
-		EndpointsMap: map[string]string{
+		Endpoints: map[string]string{
 			"endpoint-1-x": "endpoint-1",
 			"endpoint-2":   "endpoint-2",
 		},
@@ -69,8 +72,7 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2(c *gc.C) 
 
 	c.Check(offer.OfferUUID(), gc.Equals, "offer-uuid")
 	c.Check(offer.OfferName(), gc.Equals, "my-offer")
-	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
-	c.Check(offer.EndpointsMap(), gc.DeepEquals, map[string]string{
+	c.Check(offer.Endpoints(), gc.DeepEquals, map[string]string{
 		"endpoint-1-x": "endpoint-1",
 		"endpoint-2":   "endpoint-2",
 	})
@@ -87,7 +89,7 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2WithOption
 	offer := newApplicationOffer(ApplicationOfferArgs{
 		OfferUUID: "offer-uuid",
 		OfferName: "my-offer",
-		EndpointsMap: map[string]string{
+		Endpoints: map[string]string{
 			"endpoint-1-x": "endpoint-1",
 			"endpoint-2":   "endpoint-2",
 		},
@@ -101,8 +103,7 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2WithOption
 
 	c.Check(offer.OfferUUID(), gc.Equals, "offer-uuid")
 	c.Check(offer.OfferName(), gc.Equals, "my-offer")
-	c.Check(offer.Endpoints(), gc.DeepEquals, []string{"endpoint-1", "endpoint-2"})
-	c.Check(offer.EndpointsMap(), gc.DeepEquals, map[string]string{
+	c.Check(offer.Endpoints(), gc.DeepEquals, map[string]string{
 		"endpoint-1-x": "endpoint-1",
 		"endpoint-2":   "endpoint-2",
 	})
@@ -116,22 +117,23 @@ func (s *ApplicationOfferSerializationSuite) TestNewApplicationOfferV2WithOption
 }
 
 func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
-	initial := newApplicationOffer(ApplicationOfferArgs{
-		OfferName: "my-offer",
-		EndpointsMap: map[string]string{
+	initial := minimalApplicationOfferV1Root()
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	offers, err := importApplicationOffers(source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(offers, gc.HasLen, 1)
+	c.Assert(offers[0], jc.DeepEquals, &applicationOffer{
+		OfferName_: "my-offer",
+		Endpoints_: map[string]string{
 			"endpoint-1": "endpoint-1",
 			"endpoint-2": "endpoint-2",
 		},
-		ACL: map[string]string{
-			"admin": "admin",
-			"foo":   "read",
-			"bar":   "consume",
-		},
-	})
-	offer := s.exportImportV1(c, initial)
-	c.Assert(offer, jc.DeepEquals, &applicationOffer{
-		OfferName_: "my-offer",
-		Endpoints_: []string{"endpoint-1", "endpoint-2"},
 		ACL_: map[string]string{
 			"admin": "admin",
 			"foo":   "read",
@@ -144,7 +146,7 @@ func (s *ApplicationOfferSerializationSuite) TestParsingSerializedDataV2(c *gc.C
 	initial := newApplicationOffer(ApplicationOfferArgs{
 		OfferUUID: "offer-uuid",
 		OfferName: "my-offer",
-		EndpointsMap: map[string]string{
+		Endpoints: map[string]string{
 			"endpoint-1": "endpoint-1",
 			"endpoint-2": "endpoint-2",
 		},
@@ -187,12 +189,34 @@ func (s *ApplicationOfferSerializationSuite) exportImportVersion(c *gc.C, offer_
 	return offers[0]
 }
 
-func minimalApplicationOfferMap() map[interface{}]interface{} {
+func minimalApplicationOfferV1Root() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		"version": "1",
+		"offers": []interface{}{
+			map[interface{}]interface{}{
+				"offer-uuid": "offer-uuid",
+				"offer-name": "my-offer",
+				"endpoints": []interface{}{
+					"endpoint-1",
+					"endpoint-2",
+				},
+				"acl": map[interface{}]interface{}{
+					"admin": "admin",
+					"foo":   "read",
+					"bar":   "consume",
+				},
+				"application-name":        "foo",
+				"application-description": "foo description",
+			},
+		},
+	}
+}
+
+func minimalApplicationOfferV2Map() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"offer-uuid": "offer-uuid",
 		"offer-name": "my-offer",
-		"endpoints":  []interface{}{"endpoint-1", "endpoint-2"},
-		"endpoints-map": map[interface{}]interface{}{
+		"endpoints": map[interface{}]interface{}{
 			"endpoint-1": "endpoint-1",
 			"endpoint-2": "endpoint-2",
 		},

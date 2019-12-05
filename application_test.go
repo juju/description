@@ -73,7 +73,7 @@ func minimalApplicationWithOfferMap() map[interface{}]interface{} {
 	result["offers"] = map[interface{}]interface{}{
 		"version": 2,
 		"offers": []interface{}{
-			minimalApplicationOfferMap(),
+			minimalApplicationOfferV2Map(),
 		},
 	}
 	return result
@@ -131,8 +131,7 @@ func minimalApplicationWithOffer(args ...ApplicationArgs) *application {
 			{
 				OfferUUID_: "offer-uuid",
 				OfferName_: "my-offer",
-				Endpoints_: []string{"endpoint-1", "endpoint-2"},
-				EndpointsMap_: map[string]string{
+				Endpoints_: map[string]string{
 					"endpoint-1": "endpoint-1",
 					"endpoint-2": "endpoint-2",
 				},
