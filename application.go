@@ -443,7 +443,7 @@ func (a *application) Offers() []ApplicationOffer {
 func (a *application) AddOffer(args ApplicationOfferArgs) ApplicationOffer {
 	if a.Offers_ == nil {
 		a.Offers_ = &applicationOffers{
-			Version: 1,
+			Version: 2,
 		}
 	}
 
@@ -454,7 +454,7 @@ func (a *application) AddOffer(args ApplicationOfferArgs) ApplicationOffer {
 
 func (a *application) setOffers(offers []*applicationOffer) {
 	a.Offers_ = &applicationOffers{
-		Version: 1,
+		Version: 2,
 		Offers:  offers,
 	}
 }

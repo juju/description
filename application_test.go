@@ -71,9 +71,9 @@ func minimalApplicationMap() map[interface{}]interface{} {
 func minimalApplicationWithOfferMap() map[interface{}]interface{} {
 	result := minimalApplicationMap()
 	result["offers"] = map[interface{}]interface{}{
-		"version": 1,
+		"version": 2,
 		"offers": []interface{}{
-			minimalApplicationOfferMap(),
+			minimalApplicationOfferV2Map(),
 		},
 	}
 	return result
@@ -129,13 +129,19 @@ func minimalApplicationWithOffer(args ...ApplicationArgs) *application {
 	if a.Type_ != CAAS {
 		a.setOffers([]*applicationOffer{
 			{
+				OfferUUID_: "offer-uuid",
 				OfferName_: "my-offer",
-				Endpoints_: []string{"endpoint-1", "endpoint-2"},
+				Endpoints_: map[string]string{
+					"endpoint-1": "endpoint-1",
+					"endpoint-2": "endpoint-2",
+				},
 				ACL_: map[string]string{
 					"admin": "admin",
 					"foo":   "read",
 					"bar":   "consume",
 				},
+				ApplicationName_:        "foo",
+				ApplicationDescription_: "foo description",
 			},
 		})
 	}

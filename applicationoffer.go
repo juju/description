@@ -10,9 +10,12 @@ import (
 
 // ApplicationOffer represents an offer for a an application's endpoints.
 type ApplicationOffer interface {
+	OfferUUID() string
 	OfferName() string
-	Endpoints() []string
+	Endpoints() map[string]string
 	ACL() map[string]string
+	ApplicationName() string
+	ApplicationDescription() string
 }
 
 var _ ApplicationOffer = (*applicationOffer)(nil)
@@ -23,9 +26,18 @@ type applicationOffers struct {
 }
 
 type applicationOffer struct {
-	OfferName_ string            `yaml:"offer-name"`
-	Endpoints_ []string          `yaml:"endpoints,omitempty"`
-	ACL_       map[string]string `yaml:"acl,omitempty"`
+	OfferUUID_              string            `yaml:"offer-uuid,omitempty"`
+	OfferName_              string            `yaml:"offer-name"`
+	Endpoints_              map[string]string `yaml:"endpoints,omitempty"`
+	ACL_                    map[string]string `yaml:"acl,omitempty"`
+	ApplicationName_        string            `yaml:"application-name,omitempty"`
+	ApplicationDescription_ string            `yaml:"application-description,omitempty"`
+}
+
+// OfferUUID returns the underlying offer UUID.
+// The offer UUID is required when migrating a CMR model between controllers.
+func (o *applicationOffer) OfferUUID() string {
+	return o.OfferUUID_
 }
 
 // OfferName implements ApplicationOffer.
@@ -33,8 +45,10 @@ func (o *applicationOffer) OfferName() string {
 	return o.OfferName_
 }
 
-// Endpoints implements ApplicationOffer.
-func (o *applicationOffer) Endpoints() []string {
+// Endpoints returns the representation of both the internal and external
+// endpoints. This is useful for CMR migration, where we need to match internal
+// offers when importing.
+func (o *applicationOffer) Endpoints() map[string]string {
 	return o.Endpoints_
 }
 
@@ -44,19 +58,35 @@ func (o *applicationOffer) ACL() map[string]string {
 	return o.ACL_
 }
 
+// ApplicationName returns the ApplicationName for CMR model migration to happen.
+func (o *applicationOffer) ApplicationName() string {
+	return o.ApplicationName_
+}
+
+// ApplicationDescription returns the ApplicationDescription for CMR model migration to happen.
+func (o *applicationOffer) ApplicationDescription() string {
+	return o.ApplicationDescription_
+}
+
 // ApplicationOfferArgs is an argument struct used to instanciate a new
 // applicationOffer instance that implements ApplicationOffer.
 type ApplicationOfferArgs struct {
-	OfferName string
-	Endpoints []string
-	ACL       map[string]string
+	OfferUUID              string
+	OfferName              string
+	Endpoints              map[string]string
+	ACL                    map[string]string
+	ApplicationName        string
+	ApplicationDescription string
 }
 
 func newApplicationOffer(args ApplicationOfferArgs) *applicationOffer {
 	return &applicationOffer{
-		OfferName_: args.OfferName,
-		Endpoints_: args.Endpoints,
-		ACL_:       args.ACL,
+		OfferUUID_:              args.OfferUUID,
+		OfferName_:              args.OfferName,
+		Endpoints_:              args.Endpoints,
+		ACL_:                    args.ACL,
+		ApplicationName_:        args.ApplicationName,
+		ApplicationDescription_: args.ApplicationDescription,
 	}
 }
 
@@ -100,27 +130,38 @@ type applicationOfferDeserializationFunc func(interface{}) (*applicationOffer, e
 
 var applicationOfferDeserializationFuncs = map[int]applicationOfferDeserializationFunc{
 	1: importApplicationOfferV1,
+	2: importApplicationOfferV2,
 }
 
-func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
+func applicationOfferV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"offer-name": schema.String(),
 		"endpoints":  schema.List(schema.String()),
 		"acl":        schema.Map(schema.String(), schema.String()),
 	}
-	checker := schema.FieldMap(fields, nil)
+	return fields, schema.Defaults{}
+}
+
+func applicationOfferV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationOfferV1Fields()
+	fields["offer-uuid"] = schema.String()
+	fields["application-name"] = schema.String()
+	fields["application-description"] = schema.String()
+	fields["endpoints"] = schema.Map(schema.String(), schema.String())
+
+	defaults["application-description"] = schema.Omit
+
+	return fields, defaults
+}
+
+func importApplicationOffer(fields schema.Fields, defaults schema.Defaults, importVersion int, source interface{}) (*applicationOffer, error) {
+	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "application offer v1 schema check failed")
+		return nil, errors.Annotatef(err, "application offer v%d schema check failed", importVersion)
 	}
 	valid := coerced.(map[string]interface{})
-
-	validEndpoints := valid["endpoints"].([]interface{})
-	endpoints := make([]string, len(validEndpoints))
-	for i, ep := range validEndpoints {
-		endpoints[i] = ep.(string)
-	}
 
 	validACL := valid["acl"].(map[interface{}]interface{})
 	aclMap := make(map[string]string, len(validACL))
@@ -128,9 +169,47 @@ func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
 		aclMap[user.(string)] = access.(string)
 	}
 
-	return &applicationOffer{
+	offer := &applicationOffer{
 		OfferName_: valid["offer-name"].(string),
-		Endpoints_: endpoints,
 		ACL_:       aclMap,
-	}, nil
+	}
+
+	// Manage how we handle endpoints.
+	if importVersion == 1 {
+		// When importing version 1 of the description, we should just treat
+		// endpoints as a slice string.
+		validEndpoints := valid["endpoints"].([]interface{})
+		endpoints := make(map[string]string, len(validEndpoints))
+		for _, ep := range validEndpoints {
+			endpoints[ep.(string)] = ep.(string)
+		}
+		offer.Endpoints_ = endpoints
+	}
+
+	if importVersion >= 2 {
+		offer.OfferUUID_ = valid["offer-uuid"].(string)
+		offer.ApplicationName_ = valid["application-name"].(string)
+		offer.ApplicationDescription_ = valid["application-description"].(string)
+
+		// When importing version 2 or greater of the description, we should
+		// ensure that we use Endpoints as a map.
+		validEndpoints := valid["endpoints"].(map[interface{}]interface{})
+		endpoints := make(map[string]string, len(validEndpoints))
+		for k, ep := range validEndpoints {
+			endpoints[k.(string)] = ep.(string)
+		}
+		offer.Endpoints_ = endpoints
+	}
+
+	return offer, nil
+}
+
+func importApplicationOfferV1(source interface{}) (*applicationOffer, error) {
+	fields, defaults := applicationOfferV1Fields()
+	return importApplicationOffer(fields, defaults, 1, source)
+}
+
+func importApplicationOfferV2(source interface{}) (*applicationOffer, error) {
+	fields, defaults := applicationOfferV2Fields()
+	return importApplicationOffer(fields, defaults, 2, source)
 }
