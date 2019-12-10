@@ -37,6 +37,9 @@ func minimalExternalControllerMap() map[interface{}]interface{} {
 			"0.0.0.1",
 		},
 		"ca-cert": "magic-cert",
+		"models": []interface{}{
+			"aaaa-bbbb",
+		},
 	}
 }
 
@@ -49,6 +52,9 @@ func minimalExternalController() *externalController {
 			"0.0.0.1",
 		},
 		CACert: "magic-cert",
+		Models: []string{
+			"aaaa-bbbb",
+		},
 	})
 	return c
 }
@@ -60,6 +66,9 @@ func (*ExternalControllerSerializationSuite) TestNew(c *gc.C) {
 		"1.2.3.4/24",
 		"0.0.0.1",
 	})
+	c.Check(e.Alias(), gc.Equals, "ext-ctrl-alias")
+	c.Check(e.CACert(), gc.Equals, "magic-cert")
+	c.Check(e.Models(), gc.DeepEquals, []string{"aaaa-bbbb"})
 }
 
 func (*ExternalControllerSerializationSuite) TestBadSchema1(c *gc.C) {

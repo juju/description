@@ -16,6 +16,7 @@ type ExternalController interface {
 	Alias() string
 	Addrs() []string
 	CACert() string
+	Models() []string
 }
 
 type externalControllers struct {
@@ -28,6 +29,7 @@ type externalController struct {
 	Alias_  string   `yaml:"alias,omitempty"`
 	Addrs_  []string `yaml:"addrs"`
 	CACert_ string   `yaml:"ca-cert"`
+	Models_ []string `yaml:"models"`
 }
 
 // ExternalControllerArgs is an argument struct used to add a external
@@ -37,6 +39,7 @@ type ExternalControllerArgs struct {
 	Alias  string
 	Addrs  []string
 	CACert string
+	Models []string
 }
 
 func newExternalController(args ExternalControllerArgs) *externalController {
@@ -45,6 +48,7 @@ func newExternalController(args ExternalControllerArgs) *externalController {
 		Alias_:  args.Alias,
 		Addrs_:  args.Addrs,
 		CACert_: args.CACert,
+		Models_: args.Models,
 	}
 }
 
@@ -66,6 +70,11 @@ func (e *externalController) Addrs() []string {
 // CACert returns the ca cert for the external controller.
 func (e *externalController) CACert() string {
 	return e.CACert_
+}
+
+// Models returns the list of models for the external controller.
+func (e *externalController) Models() []string {
+	return e.Models_
 }
 
 func importExternalControllers(source interface{}) ([]*externalController, error) {
@@ -114,6 +123,7 @@ func externalControllerV1Fields() (schema.Fields, schema.Defaults) {
 		"alias":   schema.String(),
 		"addrs":   schema.List(schema.String()),
 		"ca-cert": schema.String(),
+		"models":  schema.List(schema.String()),
 	}
 	defaults := schema.Defaults{
 		"alias": schema.Omit,
@@ -137,6 +147,7 @@ func importExternalController(fields schema.Fields, defaults schema.Defaults, im
 		Alias_:  valid["alias"].(string),
 		Addrs_:  convertToStringSlice(valid["addrs"]),
 		CACert_: valid["ca-cert"].(string),
+		Models_: convertToStringSlice(valid["models"]),
 	}
 
 	return result, nil

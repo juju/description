@@ -987,6 +987,7 @@ func (s *ModelSerializationSuite) TestSerializesExternalControllers(c *gc.C) {
 		Alias:  "moon-ball",
 		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
 		CACert: "magic-cert",
+		Models: []string{"aaaa-bbbb"},
 	})
 	data := asStringMap(c, model)
 	ctrlSection, ok := data["external-controllers"]
@@ -1004,6 +1005,8 @@ external-controllers:
   alias: moon-ball
   ca-cert: magic-cert
   id: controller-name
+  models:
+  - aaaa-bbbb
 version: 1
 `[1:]
 	c.Assert(string(bytes), gc.Equals, expected)
@@ -1016,6 +1019,7 @@ func (s *ModelSerializationSuite) TestImportingWithExternalControllers(c *gc.C) 
 		Alias:  "moon-ball",
 		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
 		CACert: "magic-cert",
+		Models: []string{"aaaa-bbbb"},
 	})
 	offerConnections := initial.ExternalControllers()
 
