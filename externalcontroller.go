@@ -144,10 +144,15 @@ func importExternalController(fields schema.Fields, defaults schema.Defaults, im
 	// contains fields of the right type.
 	result := &externalController{
 		ID_:     valid["id"].(string),
-		Alias_:  valid["alias"].(string),
 		Addrs_:  convertToStringSlice(valid["addrs"]),
 		CACert_: valid["ca-cert"].(string),
 		Models_: convertToStringSlice(valid["models"]),
+	}
+
+	// Alias is optional through out juju and because of that, it isn't a
+	// requirement of external controller migrations.
+	if alias, ok := valid["alias"]; ok {
+		result.Alias_ = alias.(string)
 	}
 
 	return result, nil

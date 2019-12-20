@@ -101,6 +101,19 @@ func (*ExternalControllerSerializationSuite) TestMinimalMatches(c *gc.C) {
 	c.Assert(source, jc.DeepEquals, minimalExternalControllerMap())
 }
 
+func (*ExternalControllerSerializationSuite) TestMinimalMatchesWithoutAlias(c *gc.C) {
+	m := minimalExternalControllerMap()
+	delete(m, "alias")
+
+	bytes, err := yaml.Marshal(m)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[interface{}]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(source, jc.DeepEquals, m)
+}
+
 func (s *ExternalControllerSerializationSuite) TestRoundTrip(c *gc.C) {
 	rIn := minimalExternalController()
 	rOut := s.exportImport(c, rIn)
