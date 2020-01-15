@@ -20,6 +20,7 @@ type RemoteApplication interface {
 	URL() string
 	SourceModelTag() names.ModelTag
 	IsConsumerProxy() bool
+	Macaroon() string
 
 	Endpoints() []RemoteEndpoint
 	AddEndpoint(RemoteEndpointArgs) RemoteEndpoint
@@ -40,6 +41,7 @@ type remoteApplication struct {
 	OfferUUID_       string            `yaml:"offer-uuid"`
 	URL_             string            `yaml:"url"`
 	SourceModelUUID_ string            `yaml:"source-model-uuid"`
+	Macaroon_        string            `yaml:"macaroon,omitempty"`
 	Endpoints_       remoteEndpoints   `yaml:"endpoints,omitempty"`
 	IsConsumerProxy_ bool              `yaml:"is-consumer-proxy,omitempty"`
 	Spaces_          remoteSpaces      `yaml:"spaces,omitempty"`
@@ -55,6 +57,7 @@ type RemoteApplicationArgs struct {
 	URL             string
 	SourceModel     names.ModelTag
 	IsConsumerProxy bool
+	Macaroon        string
 	Bindings        map[string]string
 }
 
@@ -65,6 +68,7 @@ func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
 		URL_:             args.URL,
 		SourceModelUUID_: args.SourceModel.Id(),
 		IsConsumerProxy_: args.IsConsumerProxy,
+		Macaroon_:        args.Macaroon,
 		Bindings_:        args.Bindings,
 	}
 	a.setEndpoints(nil)
@@ -100,6 +104,12 @@ func (a *remoteApplication) SourceModelTag() names.ModelTag {
 // IsConsumerProxy implements RemoteApplication.
 func (a *remoteApplication) IsConsumerProxy() bool {
 	return a.IsConsumerProxy_
+}
+
+// Macaroon (RemoteApplication) returns the macaroon
+// that authorises access to the remote application.
+func (a *remoteApplication) Macaroon() string {
+	return a.Macaroon_
 }
 
 // Bindings implements RemoteApplication.
@@ -207,6 +217,7 @@ func importRemoteApplicationList(sourceList []interface{}, checker schema.Checke
 
 var remoteApplicationFieldsFuncs = map[int]fieldsFunc{
 	1: remoteApplicationV1Fields,
+	2: remoteApplicationV2Fields,
 }
 
 func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*remoteApplication, error) {
@@ -218,6 +229,10 @@ func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*
 		URL_:             valid["url"].(string),
 		SourceModelUUID_: valid["source-model-uuid"].(string),
 		IsConsumerProxy_: valid["is-consumer-proxy"].(bool),
+	}
+
+	if mac, ok := valid["macaroon"]; ok {
+		result.Macaroon_ = mac.(string)
 	}
 
 	if rawStatus, ok := valid["status"]; ok && rawStatus != nil {
@@ -270,5 +285,12 @@ func remoteApplicationV1Fields() (schema.Fields, schema.Defaults) {
 		"status":            schema.Omit,
 		"is-consumer-proxy": false,
 	}
+	return fields, defaults
+}
+
+func remoteApplicationV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := remoteApplicationV1Fields()
+	fields["macaroon"] = schema.String()
+	defaults["macaroon"] = schema.Omit
 	return fields, defaults
 }

@@ -869,7 +869,7 @@ remote-applications:
       value: running
     version: 2
   url: other.mysql
-version: 1
+version: 2
 `[1:]
 	c.Assert(string(bytes), gc.Equals, expected)
 }
