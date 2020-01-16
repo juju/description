@@ -8,7 +8,7 @@ import (
 
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
-	names "gopkg.in/juju/names.v3"
+	"gopkg.in/juju/names.v3"
 	"gopkg.in/yaml.v2"
 )
 
@@ -239,22 +239,31 @@ func (*RemoteApplicationSerializationSuite) TestMinimalMatchesWithoutStatus(c *g
 	c.Assert(source, jc.DeepEquals, minimalRemoteApplicationMapWithoutStatus())
 }
 
-func (s *RemoteApplicationSerializationSuite) TestRoundTrip(c *gc.C) {
+func (s *RemoteApplicationSerializationSuite) TestRoundTripVersion1(c *gc.C) {
 	rIn := minimalRemoteApplication()
-	rOut := s.exportImport(c, rIn)
+	rOut := s.exportImport(c, 1, rIn)
+	c.Assert(rOut, jc.DeepEquals, rIn)
+}
+
+func (s *RemoteApplicationSerializationSuite) TestRoundTripVersion2(c *gc.C) {
+	rIn := minimalRemoteApplication()
+	rIn.Macaroon_ = "mac"
+	rOut := s.exportImport(c, 2, rIn)
 	c.Assert(rOut, jc.DeepEquals, rIn)
 }
 
 func (s *RemoteApplicationSerializationSuite) TestRoundTripWithoutStatus(c *gc.C) {
 	rIn := minimalRemoteApplicationWithoutStatus()
-	rOut := s.exportImport(c, rIn)
+	rOut := s.exportImport(c, 1, rIn)
 	c.Assert(rOut, jc.DeepEquals, rIn)
 }
 
-func (s *RemoteApplicationSerializationSuite) exportImport(c *gc.C, applicationIn *remoteApplication) *remoteApplication {
+func (s *RemoteApplicationSerializationSuite) exportImport(
+	c *gc.C, version int, app *remoteApplication,
+) *remoteApplication {
 	applicationsIn := &remoteApplications{
-		Version:            1,
-		RemoteApplications: []*remoteApplication{applicationIn},
+		Version:            version,
+		RemoteApplications: []*remoteApplication{app},
 	}
 	bytes, err := yaml.Marshal(applicationsIn)
 	c.Assert(err, jc.ErrorIsNil)
