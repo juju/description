@@ -122,6 +122,9 @@ func (s *UnitSerializationSuite) completeUnit() *unit {
 	unit.SetWorkloadStatus(minimalStatusArgs())
 	unit.SetTools(minimalAgentToolsArgs())
 	unit.SetCloudContainer(minimalCloudContainerArgs())
+	unit.SetState(map[string]string{
+		"charm-state": "0xbadc0ffee",
+	})
 	return unit
 }
 
@@ -144,6 +147,9 @@ func (s *UnitSerializationSuite) TestNewUnit(c *gc.C) {
 	c.Assert(unit.WorkloadStatus(), gc.NotNil)
 	c.Assert(unit.AgentStatus(), gc.NotNil)
 	c.Assert(unit.CloudContainer(), gc.NotNil)
+	c.Assert(unit.State(), gc.DeepEquals, map[string]string{
+		"charm-state": "0xbadc0ffee",
+	})
 }
 
 func (s *UnitSerializationSuite) TestMinimalUnitValid(c *gc.C) {
@@ -185,8 +191,12 @@ func (s *UnitSerializationSuite) exportImportVersion(c *gc.C, unit_ *unit, versi
 	return units[0]
 }
 
-func (s *UnitSerializationSuite) exportImportLatest(c *gc.C, unit *unit) *unit {
+func (s *UnitSerializationSuite) exportImportV2(c *gc.C, unit *unit) *unit {
 	return s.exportImportVersion(c, unit, 2)
+}
+
+func (s *UnitSerializationSuite) exportImportLatest(c *gc.C, unit *unit) *unit {
+	return s.exportImportVersion(c, unit, 3)
 }
 
 func (s *UnitSerializationSuite) TestParsingSerializedData(c *gc.C) {
@@ -204,6 +214,17 @@ func (s *UnitSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	unitLatest.Type_ = ""
 
 	unitResult := s.exportImportVersion(c, unitV1, 1)
+	c.Assert(unitResult, jc.DeepEquals, unitLatest)
+}
+
+func (s *UnitSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
+	unitV2 := s.completeUnit()
+
+	// Make a unit with fields not in v2 removed.
+	unitLatest := s.completeUnit()
+	unitLatest.State_ = nil
+
+	unitResult := s.exportImportVersion(c, unitV2, 2)
 	c.Assert(unitResult, jc.DeepEquals, unitLatest)
 }
 
@@ -243,6 +264,16 @@ func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
 
 	unit := s.exportImportLatest(c, initial)
 	c.Assert(unit.CloudContainer(), jc.DeepEquals, newCloudContainer(&args))
+}
+
+func (s *UnitSerializationSuite) TestState(c *gc.C) {
+	initial := minimalUnit()
+	initial.SetState(map[string]string{
+		"foo": "bar",
+	})
+
+	unit := s.exportImportLatest(c, initial)
+	c.Assert(unit.State(), jc.DeepEquals, initial.State())
 }
 
 func (s *UnitSerializationSuite) TestCAASUnitNoTools(c *gc.C) {

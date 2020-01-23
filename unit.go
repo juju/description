@@ -56,6 +56,9 @@ type Unit interface {
 	CloudContainer() CloudContainer
 	SetCloudContainer(CloudContainerArgs)
 
+	State() map[string]string
+	SetState(map[string]string)
+
 	Validate() error
 }
 
@@ -98,6 +101,8 @@ type unit struct {
 	Payloads_ payloads `yaml:"payloads"`
 
 	CloudContainer_ *cloudContainer `yaml:"cloud-container,omitempty"`
+
+	State_ map[string]string `yaml:"state,omitempty"`
 }
 
 // UnitArgs is an argument struct used to add a Unit to a Application in the Model.
@@ -114,6 +119,8 @@ type UnitArgs struct {
 	MeterStatusInfo string
 
 	CloudContainer *CloudContainerArgs
+
+	State map[string]string
 
 	// TODO: storage attachment count
 }
@@ -137,6 +144,7 @@ func newUnit(args UnitArgs) *unit {
 		WorkloadStatusHistory_:  newStatusHistory(),
 		WorkloadVersionHistory_: newStatusHistory(),
 		AgentStatusHistory_:     newStatusHistory(),
+		State_:                  args.State,
 	}
 	u.setResources(nil)
 	u.setPayloads(nil)
@@ -344,6 +352,16 @@ func (u *unit) setPayloads(payloadList []*payload) {
 	}
 }
 
+// State implements Unit.
+func (u *unit) State() map[string]string {
+	return u.State_
+}
+
+// SetState implements Unit.
+func (u *unit) SetState(st map[string]string) {
+	u.State_ = st
+}
+
 // Validate implements Unit.
 func (u *unit) Validate() error {
 	if u.Name_ == "" {
@@ -399,6 +417,7 @@ type unitDeserializationFunc func(map[string]interface{}) (*unit, error)
 var unitDeserializationFuncs = map[int]unitDeserializationFunc{
 	1: importUnitV1,
 	2: importUnitV2,
+	3: importUnitV3,
 }
 
 func unitV1Fields() (schema.Fields, schema.Defaults) {
@@ -445,6 +464,13 @@ func unitV2Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func unitV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := unitV2Fields()
+	fields["state"] = schema.StringMap(schema.String())
+	defaults["state"] = schema.Omit
+	return fields, defaults
+}
+
 func importUnitV1(source map[string]interface{}) (*unit, error) {
 	fields, defaults := unitV1Fields()
 	return importUnit(fields, defaults, 1, source)
@@ -453,6 +479,11 @@ func importUnitV1(source map[string]interface{}) (*unit, error) {
 func importUnitV2(source map[string]interface{}) (*unit, error) {
 	fields, defaults := unitV2Fields()
 	return importUnit(fields, defaults, 2, source)
+}
+
+func importUnitV3(source map[string]interface{}) (*unit, error) {
+	fields, defaults := unitV3Fields()
+	return importUnit(fields, defaults, 3, source)
 }
 
 func importUnit(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*unit, error) {
@@ -548,6 +579,14 @@ func importUnit(fields schema.Fields, defaults schema.Defaults, importVersion in
 		return nil, errors.Annotate(err, "payloads")
 	}
 	result.setPayloads(payloads)
+
+	if stateCoercedMap, ok := valid["state"].(map[string]interface{}); ok {
+		stateMap := make(map[string]string, len(stateCoercedMap))
+		for k, v := range stateCoercedMap {
+			stateMap[k] = v.(string)
+		}
+		result.SetState(stateMap)
+	}
 
 	return result, nil
 }
