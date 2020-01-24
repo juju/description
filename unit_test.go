@@ -47,6 +47,9 @@ func minimalUnitMap() map[interface{}]interface{} {
 			"version":  1,
 			"payloads": []interface{}{},
 		},
+		"state": map[interface{}]interface{}{
+			"charm-state": "0xbadc0ffee",
+		},
 	}
 }
 
@@ -89,6 +92,9 @@ func minimalUnitArgs(modelType string) UnitArgs {
 		Type:         modelType,
 		Machine:      names.NewMachineTag("0"),
 		PasswordHash: "secure-hash",
+		State: map[string]string{
+			"charm-state": "0xbadc0ffee",
+		},
 	}
 	if modelType == CAAS {
 		result.CloudContainer = &CloudContainerArgs{
@@ -212,6 +218,7 @@ func (s *UnitSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	unitLatest := minimalUnit()
 	unitLatest.CloudContainer_ = nil
 	unitLatest.Type_ = ""
+	unitLatest.State_ = nil
 
 	unitResult := s.exportImportVersion(c, unitV1, 1)
 	c.Assert(unitResult, jc.DeepEquals, unitLatest)

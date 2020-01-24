@@ -357,7 +357,7 @@ func (a *application) AddUnit(args UnitArgs) Unit {
 
 func (a *application) setUnits(unitList []*unit) {
 	a.Units_ = units{
-		Version: 2,
+		Version: 3,
 		Units_:  unitList,
 	}
 }

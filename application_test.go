@@ -60,7 +60,7 @@ func minimalApplicationMap() map[interface{}]interface{} {
 			},
 		},
 		"units": map[interface{}]interface{}{
-			"version": 2,
+			"version": 3,
 			"units": []interface{}{
 				minimalUnitMap(),
 			},
@@ -95,7 +95,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 		},
 	}
 	result["units"] = map[interface{}]interface{}{
-		"version": 2,
+		"version": 3,
 		"units": []interface{}{
 			minimalUnitMapCAAS(),
 		},
