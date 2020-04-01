@@ -15,6 +15,7 @@ type Action interface {
 	Id() string
 	Receiver() string
 	Name() string
+	Operation() string
 	Parameters() map[string]interface{}
 	Enqueued() time.Time
 	Started() time.Time
@@ -60,6 +61,7 @@ type action struct {
 	Id_         string                 `yaml:"id"`
 	Receiver_   string                 `yaml:"receiver"`
 	Name_       string                 `yaml:"name"`
+	Operation_  string                 `yaml:"operation"`
 	Parameters_ map[string]interface{} `yaml:"parameters"`
 	Enqueued_   time.Time              `yaml:"enqueued"`
 	// Can't use omitempty with time.Time, it just doesn't work
@@ -85,6 +87,11 @@ func (i *action) Receiver() string {
 // Name implements Action.
 func (i *action) Name() string {
 	return i.Name_
+}
+
+// Operation implements Action.
+func (i *action) Operation() string {
+	return i.Operation_
 }
 
 // Parameters implements Action.
@@ -151,6 +158,7 @@ type ActionArgs struct {
 	Id         string
 	Receiver   string
 	Name       string
+	Operation  string
 	Parameters map[string]interface{}
 	Enqueued   time.Time
 	Started    time.Time
@@ -165,6 +173,7 @@ func newAction(args ActionArgs) *action {
 	action := &action{
 		Receiver_:   args.Receiver,
 		Name_:       args.Name,
+		Operation_:  args.Operation,
 		Parameters_: args.Parameters,
 		Enqueued_:   args.Enqueued,
 		Status_:     args.Status,
@@ -237,6 +246,7 @@ func importActionList(sourceList []interface{}, version int) ([]*action, error) 
 var actionFieldsFuncs = map[int]fieldsFunc{
 	1: actionV1Fields,
 	2: actionV2Fields,
+	3: actionV3Fields,
 }
 
 func actionV1Fields() (schema.Fields, schema.Defaults) {
@@ -264,6 +274,12 @@ func actionV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := actionV1Fields()
 	fields["logs"] = schema.StringMap(schema.Any())
 	defaults["logs"] = schema.Omit
+	return fields, defaults
+}
+
+func actionV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := actionV2Fields()
+	fields["operation"] = schema.String()
 	return fields, defaults
 }
 
@@ -297,6 +313,10 @@ func importAction(source map[string]interface{}, importVersion int, fieldFunc fu
 			}
 			action.setLogs(logs)
 		}
+	}
+
+	if importVersion >= 3 {
+		action.Operation_ = valid["operation"].(string)
 	}
 
 	return action, nil

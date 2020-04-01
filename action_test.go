@@ -33,6 +33,7 @@ func minimalActionMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"id":         "foo",
 		"name":       "bam",
+		"operation":  "666",
 		"receiver":   "bar",
 		"enqueued":   "2019-01-01T06:06:06Z",
 		"started":    "2019-01-02T06:06:06Z",
@@ -63,6 +64,7 @@ func minimalAction() *action {
 		Id:         "foo",
 		Receiver:   "bar",
 		Name:       "bam",
+		Operation:  "666",
 		Parameters: map[string]interface{}{"foo": 3, "bar": "bam"},
 		Enqueued:   time.Date(2019, 01, 01, 6, 6, 6, 0, time.UTC),
 		Started:    time.Date(2019, 01, 02, 6, 6, 6, 0, time.UTC),
@@ -95,6 +97,7 @@ func (s *ActionSerializationSuite) TestNewAction(c *gc.C) {
 		Id:         "foo",
 		Receiver:   "bar",
 		Name:       "bam",
+		Operation:  "666",
 		Parameters: map[string]interface{}{"foo": 3, "bar": "bam"},
 		Enqueued:   time.Now(),
 		Started:    time.Now(),
@@ -110,6 +113,7 @@ func (s *ActionSerializationSuite) TestNewAction(c *gc.C) {
 	c.Check(action.Id(), gc.Equals, args.Id)
 	c.Check(action.Receiver(), gc.Equals, args.Receiver)
 	c.Check(action.Name(), gc.Equals, args.Name)
+	c.Check(action.Operation(), gc.Equals, args.Operation)
 	c.Check(action.Parameters(), jc.DeepEquals, args.Parameters)
 	c.Check(action.Enqueued(), gc.Equals, args.Enqueued)
 	c.Check(action.Started(), gc.Equals, args.Started)
@@ -140,7 +144,7 @@ func (s *ActionSerializationSuite) exportImportVersion(c *gc.C, action_ *action,
 }
 
 func (s *ActionSerializationSuite) exportImportLatest(c *gc.C, action_ *action) *action {
-	return s.exportImportVersion(c, action_, 2)
+	return s.exportImportVersion(c, action_, 3)
 }
 
 func (s *ActionSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -149,8 +153,20 @@ func (s *ActionSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	// Make an action with fields not in v1 removed.
 	actionLatest := minimalAction()
 	actionLatest.Logs_ = nil
+	actionLatest.Operation_ = ""
 
 	actionResult := s.exportImportVersion(c, actionV1, 1)
+	c.Assert(actionResult, jc.DeepEquals, actionLatest)
+}
+
+func (s *ActionSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
+	actionV1 := minimalAction()
+
+	// Make an action with fields not in v2 removed.
+	actionLatest := minimalAction()
+	actionLatest.Operation_ = ""
+
+	actionResult := s.exportImportVersion(c, actionV1, 2)
 	c.Assert(actionResult, jc.DeepEquals, actionLatest)
 }
 
