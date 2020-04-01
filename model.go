@@ -89,6 +89,9 @@ type Model interface {
 	Actions() []Action
 	AddAction(ActionArgs) Action
 
+	Operations() []Operation
+	AddOperation(OperationArgs) Operation
+
 	Sequences() map[string]int
 	SetSequence(name string, value int)
 
@@ -141,7 +144,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             6,
+		Version:             7,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
@@ -166,6 +169,7 @@ func NewModel(args ModelArgs) Model {
 	m.setSSHHostKeys(nil)
 	m.setCloudImageMetadatas(nil)
 	m.setActions(nil)
+	m.setOperations(nil)
 	m.setVolumes(nil)
 	m.setFilesystems(nil)
 	m.setStorages(nil)
@@ -257,7 +261,8 @@ type model struct {
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
 
-	Actions_ actions `yaml:"actions"`
+	Actions_    actions    `yaml:"actions"`
+	Operations_ operations `yaml:"operations"`
 
 	SSHHostKeys_ sshHostKeys `yaml:"ssh-host-keys"`
 
@@ -633,6 +638,15 @@ func (m *model) Actions() []Action {
 	return result
 }
 
+// Operations implements Model.
+func (m *model) Operations() []Operation {
+	var result []Operation
+	for _, op := range m.Operations_.Operations_ {
+		result = append(result, op)
+	}
+	return result
+}
+
 // AddCloudImageMetadata implements Model.
 func (m *model) AddCloudImageMetadata(args CloudImageMetadataArgs) CloudImageMetadata {
 	addr := newCloudImageMetadata(args)
@@ -656,8 +670,22 @@ func (m *model) AddAction(args ActionArgs) Action {
 
 func (m *model) setActions(actionsList []*action) {
 	m.Actions_ = actions{
-		Version:  2,
+		Version:  3,
 		Actions_: actionsList,
+	}
+}
+
+// AddOperation implements Model.
+func (m *model) AddOperation(args OperationArgs) Operation {
+	op := newOperation(args)
+	m.Operations_.Operations_ = append(m.Operations_.Operations_, op)
+	return op
+}
+
+func (m *model) setOperations(operationsList []*operation) {
+	m.Operations_ = operations{
+		Version:     1,
+		Operations_: operationsList,
 	}
 }
 
@@ -1281,6 +1309,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	4: newModelImporter(4, schema.FieldMap(modelV4Fields())),
 	5: newModelImporter(5, schema.FieldMap(modelV5Fields())),
 	6: newModelImporter(6, schema.FieldMap(modelV6Fields())),
+	7: newModelImporter(7, schema.FieldMap(modelV7Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1367,11 +1396,17 @@ func modelV6Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV7Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV6Fields()
+	fields["operations"] = schema.StringMap(schema.Any())
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
-	// We're always making a version 6 model, no matter what we got on
+	// We're always making a version 7 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        6,
+		Version:        7,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1601,6 +1636,15 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 			}
 			result.setExternalControllers(externalControllers)
 		}
+	}
+
+	if importVersion >= 7 {
+		operationsMap := valid["operations"].(map[string]interface{})
+		operations, err := importOperations(operationsMap)
+		if err != nil {
+			return nil, errors.Annotate(err, "actions")
+		}
+		result.setOperations(operations)
 	}
 
 	return result, nil

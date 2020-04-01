@@ -143,7 +143,8 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	}
 	initial := NewModel(args).(*model)
 	c.Assert(initial.Applications_.Version, gc.Equals, len(applicationDeserializationFuncs))
-	c.Assert(initial.Actions_.Version, gc.Equals, 2)
+	c.Assert(initial.Actions_.Version, gc.Equals, 3)
+	c.Assert(initial.Operations_.Version, gc.Equals, 1)
 	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
 	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
 	c.Assert(initial.RemoteEntities_.Version, gc.Equals, len(remoteEntityFieldsFuncs))
@@ -1107,7 +1108,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 6)
+	c.Assert(version, gc.Equals, 7)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
@@ -1296,6 +1297,29 @@ func (s *ModelSerializationSuite) TestAction(c *gc.C) {
 	model, err := Deserialize(bytes)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(model.Actions(), jc.DeepEquals, actions)
+}
+
+func (s *ModelSerializationSuite) TestOperation(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	enqueued := time.Now().UTC()
+	op := initial.AddOperation(OperationArgs{
+		Summary:           "foo",
+		Enqueued:          enqueued,
+		CompleteTaskCount: 666,
+	})
+	c.Assert(op.Summary(), gc.Equals, "foo")
+	c.Assert(op.CompleteTaskCount(), gc.Equals, 666)
+	c.Assert(op.Enqueued(), gc.Equals, enqueued)
+	operations := initial.Operations()
+	c.Assert(operations, gc.HasLen, 1)
+	c.Assert(operations[0], jc.DeepEquals, op)
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.Operations(), jc.DeepEquals, operations)
 }
 
 func (s *ModelSerializationSuite) TestVolumeValidation(c *gc.C) {
