@@ -47,9 +47,16 @@ func minimalUnitMap() map[interface{}]interface{} {
 			"version":  1,
 			"payloads": []interface{}{},
 		},
-		"state": map[interface{}]interface{}{
-			"charm-state": "0xbadc0ffee",
+		"charm-state": map[interface{}]interface{}{
+			"some-charm-key": "0xbadc0ffee",
 		},
+		"relation-state": map[interface{}]interface{}{
+			1: "yaml-encoded state for relation 1",
+			2: "yaml-encoded state for relation 2",
+		},
+		"uniter-state":       "yaml-encoded state for uniter",
+		"storage-state":      "yaml-encoded state for storage",
+		"meter-status-state": "yaml-encoded state for meter status worker",
 	}
 }
 
@@ -92,9 +99,16 @@ func minimalUnitArgs(modelType string) UnitArgs {
 		Type:         modelType,
 		Machine:      names.NewMachineTag("0"),
 		PasswordHash: "secure-hash",
-		State: map[string]string{
-			"charm-state": "0xbadc0ffee",
+		CharmState: map[string]string{
+			"some-charm-key": "0xbadc0ffee",
 		},
+		RelationState: map[int]string{
+			1: "yaml-encoded state for relation 1",
+			2: "yaml-encoded state for relation 2",
+		},
+		UniterState:      "yaml-encoded state for uniter",
+		StorageState:     "yaml-encoded state for storage",
+		MeterStatusState: "yaml-encoded state for meter status worker",
 	}
 	if modelType == CAAS {
 		result.CloudContainer = &CloudContainerArgs{
@@ -128,9 +142,16 @@ func (s *UnitSerializationSuite) completeUnit() *unit {
 	unit.SetWorkloadStatus(minimalStatusArgs())
 	unit.SetTools(minimalAgentToolsArgs())
 	unit.SetCloudContainer(minimalCloudContainerArgs())
-	unit.SetState(map[string]string{
-		"charm-state": "0xbadc0ffee",
+	unit.SetCharmState(map[string]string{
+		"some-charm-key": "0xbadc0ffee",
 	})
+	unit.SetRelationState(map[int]string{
+		1: "yaml-encoded state for relation 1",
+		2: "yaml-encoded state for relation 2",
+	})
+	unit.SetUniterState("yaml-encoded state for uniter")
+	unit.SetStorageState("yaml-encoded state for storage")
+	unit.SetMeterStatusState("yaml-encoded state for meter status worker")
 	return unit
 }
 
@@ -153,9 +174,16 @@ func (s *UnitSerializationSuite) TestNewUnit(c *gc.C) {
 	c.Assert(unit.WorkloadStatus(), gc.NotNil)
 	c.Assert(unit.AgentStatus(), gc.NotNil)
 	c.Assert(unit.CloudContainer(), gc.NotNil)
-	c.Assert(unit.State(), gc.DeepEquals, map[string]string{
-		"charm-state": "0xbadc0ffee",
+	c.Assert(unit.CharmState(), gc.DeepEquals, map[string]string{
+		"some-charm-key": "0xbadc0ffee",
 	})
+	c.Assert(unit.RelationState(), gc.DeepEquals, map[int]string{
+		1: "yaml-encoded state for relation 1",
+		2: "yaml-encoded state for relation 2",
+	})
+	c.Assert(unit.UniterState(), gc.Equals, "yaml-encoded state for uniter")
+	c.Assert(unit.StorageState(), gc.Equals, "yaml-encoded state for storage")
+	c.Assert(unit.MeterStatusState(), gc.Equals, "yaml-encoded state for meter status worker")
 }
 
 func (s *UnitSerializationSuite) TestMinimalUnitValid(c *gc.C) {
@@ -218,7 +246,11 @@ func (s *UnitSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	unitLatest := minimalUnit()
 	unitLatest.CloudContainer_ = nil
 	unitLatest.Type_ = ""
-	unitLatest.State_ = nil
+	unitLatest.CharmState_ = nil
+	unitLatest.RelationState_ = nil
+	unitLatest.UniterState_ = ""
+	unitLatest.StorageState_ = ""
+	unitLatest.MeterStatusState_ = ""
 
 	unitResult := s.exportImportVersion(c, unitV1, 1)
 	c.Assert(unitResult, jc.DeepEquals, unitLatest)
@@ -229,7 +261,11 @@ func (s *UnitSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 
 	// Make a unit with fields not in v2 removed.
 	unitLatest := s.completeUnit()
-	unitLatest.State_ = nil
+	unitLatest.CharmState_ = nil
+	unitLatest.RelationState_ = nil
+	unitLatest.UniterState_ = ""
+	unitLatest.StorageState_ = ""
+	unitLatest.MeterStatusState_ = ""
 
 	unitResult := s.exportImportVersion(c, unitV2, 2)
 	c.Assert(unitResult, jc.DeepEquals, unitLatest)
@@ -273,14 +309,48 @@ func (s *UnitSerializationSuite) TestCloudContainer(c *gc.C) {
 	c.Assert(unit.CloudContainer(), jc.DeepEquals, newCloudContainer(&args))
 }
 
-func (s *UnitSerializationSuite) TestState(c *gc.C) {
+func (s *UnitSerializationSuite) TestCharmState(c *gc.C) {
 	initial := minimalUnit()
-	initial.SetState(map[string]string{
+	initial.SetCharmState(map[string]string{
 		"foo": "bar",
 	})
 
 	unit := s.exportImportLatest(c, initial)
-	c.Assert(unit.State(), jc.DeepEquals, initial.State())
+	c.Assert(unit.CharmState(), jc.DeepEquals, initial.CharmState())
+}
+
+func (s *UnitSerializationSuite) TestRelationState(c *gc.C) {
+	initial := minimalUnit()
+	initial.SetRelationState(map[int]string{
+		42: "random",
+	})
+
+	unit := s.exportImportLatest(c, initial)
+	c.Assert(unit.RelationState(), jc.DeepEquals, initial.RelationState())
+}
+
+func (s *UnitSerializationSuite) TestUniterState(c *gc.C) {
+	initial := minimalUnit()
+	initial.SetUniterState("my new uniter state")
+
+	unit := s.exportImportLatest(c, initial)
+	c.Assert(unit.UniterState(), jc.DeepEquals, initial.UniterState())
+}
+
+func (s *UnitSerializationSuite) TestStorageState(c *gc.C) {
+	initial := minimalUnit()
+	initial.SetStorageState("my new storage state")
+
+	unit := s.exportImportLatest(c, initial)
+	c.Assert(unit.StorageState(), jc.DeepEquals, initial.StorageState())
+}
+
+func (s *UnitSerializationSuite) TestMeterStatusState(c *gc.C) {
+	initial := minimalUnit()
+	initial.SetMeterStatusState("my new meter status state")
+
+	unit := s.exportImportLatest(c, initial)
+	c.Assert(unit.MeterStatusState(), jc.DeepEquals, initial.MeterStatusState())
 }
 
 func (s *UnitSerializationSuite) TestCAASUnitNoTools(c *gc.C) {

@@ -9,10 +9,30 @@ import (
 	"gopkg.in/juju/names.v3"
 )
 
+// UnitStateGetSetter describes the state-related operations that can be
+// performed against an instance of a unit in a model.
+type UnitStateGetSetter interface {
+	CharmState() map[string]string
+	SetCharmState(map[string]string)
+
+	RelationState() map[int]string
+	SetRelationState(map[int]string)
+
+	UniterState() string
+	SetUniterState(string)
+
+	StorageState() string
+	SetStorageState(string)
+
+	MeterStatusState() string
+	SetMeterStatusState(string)
+}
+
 // Unit represents an instance of a unit in a model.
 type Unit interface {
 	HasAnnotations
 	HasConstraints
+	UnitStateGetSetter
 
 	Tag() names.UnitTag
 	Name() string
@@ -55,9 +75,6 @@ type Unit interface {
 
 	CloudContainer() CloudContainer
 	SetCloudContainer(CloudContainerArgs)
-
-	State() map[string]string
-	SetState(map[string]string)
 
 	Validate() error
 }
@@ -102,7 +119,11 @@ type unit struct {
 
 	CloudContainer_ *cloudContainer `yaml:"cloud-container,omitempty"`
 
-	State_ map[string]string `yaml:"state,omitempty"`
+	CharmState_       map[string]string `yaml:"charm-state,omitempty"`
+	RelationState_    map[int]string    `yaml:"relation-state,omitempty"`
+	UniterState_      string            `yaml:"uniter-state,omitempty"`
+	StorageState_     string            `yaml:"storage-state,omitempty"`
+	MeterStatusState_ string            `yaml:"meter-status-state,omitempty"`
 }
 
 // UnitArgs is an argument struct used to add a Unit to a Application in the Model.
@@ -120,7 +141,11 @@ type UnitArgs struct {
 
 	CloudContainer *CloudContainerArgs
 
-	State map[string]string
+	CharmState       map[string]string
+	RelationState    map[int]string
+	UniterState      string
+	StorageState     string
+	MeterStatusState string
 
 	// TODO: storage attachment count
 }
@@ -144,7 +169,11 @@ func newUnit(args UnitArgs) *unit {
 		WorkloadStatusHistory_:  newStatusHistory(),
 		WorkloadVersionHistory_: newStatusHistory(),
 		AgentStatusHistory_:     newStatusHistory(),
-		State_:                  args.State,
+		CharmState_:             args.CharmState,
+		RelationState_:          args.RelationState,
+		UniterState_:            args.UniterState,
+		StorageState_:           args.StorageState,
+		MeterStatusState_:       args.MeterStatusState,
 	}
 	u.setResources(nil)
 	u.setPayloads(nil)
@@ -352,14 +381,54 @@ func (u *unit) setPayloads(payloadList []*payload) {
 	}
 }
 
-// State implements Unit.
-func (u *unit) State() map[string]string {
-	return u.State_
+// CharmState implements Unit.
+func (u *unit) CharmState() map[string]string {
+	return u.CharmState_
 }
 
-// SetState implements Unit.
-func (u *unit) SetState(st map[string]string) {
-	u.State_ = st
+// SetCharmState implements Unit.
+func (u *unit) SetCharmState(st map[string]string) {
+	u.CharmState_ = st
+}
+
+// RelationState implements Unit.
+func (u *unit) RelationState() map[int]string {
+	return u.RelationState_
+}
+
+// SetRelationState implements Unit.
+func (u *unit) SetRelationState(st map[int]string) {
+	u.RelationState_ = st
+}
+
+// UniterState implements Unit.
+func (u *unit) UniterState() string {
+	return u.UniterState_
+}
+
+// SetUniterState implements Unit.
+func (u *unit) SetUniterState(st string) {
+	u.UniterState_ = st
+}
+
+// StorageState implements Unit.
+func (u *unit) StorageState() string {
+	return u.StorageState_
+}
+
+// SetStorageState implements Unit.
+func (u *unit) SetStorageState(st string) {
+	u.StorageState_ = st
+}
+
+// MeterStatusState implements Unit.
+func (u *unit) MeterStatusState() string {
+	return u.MeterStatusState_
+}
+
+// SetMeterStatusState implements Unit.
+func (u *unit) SetMeterStatusState(st string) {
+	u.MeterStatusState_ = st
 }
 
 // Validate implements Unit.
@@ -466,8 +535,17 @@ func unitV2Fields() (schema.Fields, schema.Defaults) {
 
 func unitV3Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := unitV2Fields()
-	fields["state"] = schema.StringMap(schema.String())
-	defaults["state"] = schema.Omit
+	fields["charm-state"] = schema.StringMap(schema.String())
+	fields["relation-state"] = schema.Map(schema.Int(), schema.String())
+	fields["uniter-state"] = schema.String()
+	fields["storage-state"] = schema.String()
+	fields["meter-status-state"] = schema.String()
+
+	defaults["charm-state"] = schema.Omit
+	defaults["relation-state"] = schema.Omit
+	defaults["uniter-state"] = schema.Omit
+	defaults["storage-state"] = schema.Omit
+	defaults["meter-status-state"] = schema.Omit
 	return fields, defaults
 }
 
@@ -580,12 +658,30 @@ func importUnit(fields schema.Fields, defaults schema.Defaults, importVersion in
 	}
 	result.setPayloads(payloads)
 
-	if stateCoercedMap, ok := valid["state"].(map[string]interface{}); ok {
-		stateMap := make(map[string]string, len(stateCoercedMap))
-		for k, v := range stateCoercedMap {
-			stateMap[k] = v.(string)
+	if charmStateCoercedMap, ok := valid["charm-state"].(map[string]interface{}); ok {
+		charmStateMap := make(map[string]string, len(charmStateCoercedMap))
+		for k, v := range charmStateCoercedMap {
+			charmStateMap[k] = v.(string)
 		}
-		result.SetState(stateMap)
+		result.SetCharmState(charmStateMap)
+	}
+
+	if relationStateCoercedMap, ok := valid["relation-state"].(map[interface{}]interface{}); ok {
+		relationStateMap := make(map[int]string, len(relationStateCoercedMap))
+		for k, v := range relationStateCoercedMap {
+			relationStateMap[int(k.(int64))] = v.(string)
+		}
+		result.SetRelationState(relationStateMap)
+	}
+
+	if v := valid["uniter-state"]; v != nil {
+		result.SetUniterState(v.(string))
+	}
+	if v := valid["storage-state"]; v != nil {
+		result.SetStorageState(v.(string))
+	}
+	if v := valid["meter-status-state"]; v != nil {
+		result.SetMeterStatusState(v.(string))
 	}
 
 	return result, nil
