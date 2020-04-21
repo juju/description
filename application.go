@@ -36,6 +36,7 @@ type Application interface {
 	PodSpec() string
 	DesiredScale() int
 	Placement() string
+	HasResources() bool
 	CloudService() CloudService
 	SetCloudService(CloudServiceArgs)
 
@@ -112,6 +113,7 @@ type application struct {
 	PasswordHash_   string        `yaml:"password-hash,omitempty"`
 	PodSpec_        string        `yaml:"pod-spec,omitempty"`
 	Placement_      string        `yaml:"placement,omitempty"`
+	HasResources_   bool          `yaml:"has-resources,omitempty"`
 	DesiredScale_   int           `yaml:"desired-scale,omitempty"`
 	CloudService_   *cloudService `yaml:"cloud-service,omitempty"`
 	Tools_          *agentTools   `yaml:"tools,omitempty"`
@@ -134,6 +136,7 @@ type ApplicationArgs struct {
 	PasswordHash         string
 	PodSpec              string
 	Placement            string
+	HasResources         bool
 	DesiredScale         int
 	CloudService         *CloudServiceArgs
 	Exposed              bool
@@ -163,6 +166,7 @@ func newApplication(args ApplicationArgs) *application {
 		PodSpec_:              args.PodSpec,
 		CloudService_:         newCloudService(args.CloudService),
 		Placement_:            args.Placement,
+		HasResources_:         args.HasResources,
 		DesiredScale_:         args.DesiredScale,
 		MinUnits_:             args.MinUnits,
 		EndpointBindings_:     args.EndpointBindings,
@@ -247,6 +251,11 @@ func (a *application) PodSpec() string {
 // Placement implements Application.
 func (a *application) Placement() string {
 	return a.Placement_
+}
+
+// HasResources implements Application.
+func (a *application) HasResources() bool {
+	return a.HasResources_
 }
 
 // DesiredScale implements Application.
@@ -537,6 +546,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	3: importApplicationV3,
 	4: importApplicationV4,
 	5: importApplicationV5,
+	6: importApplicationV6,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -616,6 +626,13 @@ func applicationV5Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV6Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV5Fields()
+	fields["has-resources"] = schema.Bool()
+	defaults["has-resources"] = false
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -639,6 +656,11 @@ func importApplicationV4(source map[string]interface{}) (*application, error) {
 func importApplicationV5(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV5Fields()
 	return importApplication(fields, defaults, 5, source)
+}
+
+func importApplicationV6(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV6Fields()
+	return importApplication(fields, defaults, 6, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -696,6 +718,9 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 			}
 			result.setOffers(offers)
 		}
+	}
+	if importVersion >= 6 {
+		result.HasResources_ = valid["has-resources"].(bool)
 	}
 
 	result.importAnnotations(valid)
