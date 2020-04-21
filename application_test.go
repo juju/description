@@ -85,6 +85,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	result["password-hash"] = "some-hash"
 	result["pod-spec"] = "some-spec"
 	result["placement"] = "foo=bar"
+	result["has-resources"] = true
 	result["desired-scale"] = 2
 	result["cloud-service"] = map[interface{}]interface{}{
 		"version":     1,
@@ -178,6 +179,7 @@ func minimalApplicationArgs(modelType string) ApplicationArgs {
 		result.PasswordHash = "some-hash"
 		result.PodSpec = "some-spec"
 		result.Placement = "foo=bar"
+		result.HasResources = true
 		result.DesiredScale = 2
 		result.CloudService = &CloudServiceArgs{
 			ProviderId: "some-provider",
@@ -218,6 +220,7 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		PasswordHash:       "passwordhash",
 		PodSpec:            "podspec",
 		Placement:          "foo=bar",
+		HasResources:       true,
 		DesiredScale:       2,
 	}
 	application := newApplication(args)
@@ -234,6 +237,7 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 	c.Assert(application.PodSpec(), gc.Equals, "podspec")
 	c.Assert(application.Placement(), gc.Equals, "foo=bar")
+	c.Assert(application.HasResources(), jc.IsTrue)
 	c.Assert(application.DesiredScale(), gc.Equals, 2)
 	c.Assert(application.CloudService(), gc.IsNil)
 	c.Assert(application.StorageConstraints(), gc.HasLen, 0)
@@ -313,7 +317,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 5)
+	return s.exportImportVersion(c, application_, 6)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -326,6 +330,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.PasswordHash_ = ""
 	appLatest.PodSpec_ = ""
 	appLatest.Placement_ = ""
+	appLatest.HasResources_ = false
 	appLatest.DesiredScale_ = 0
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
@@ -345,6 +350,7 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.PasswordHash_ = ""
 	appLatest.PodSpec_ = ""
 	appLatest.Placement_ = ""
+	appLatest.HasResources_ = false
 	appLatest.DesiredScale_ = 0
 	appLatest.CloudService_ = nil
 	appLatest.Tools_ = nil
@@ -362,11 +368,24 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	// Make an app with fields not in v3 removed.
 	appLatest := appV2
 	appLatest.Placement_ = ""
+	appLatest.HasResources_ = false
 	appLatest.DesiredScale_ = 0
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
+	c.Assert(appResult, jc.DeepEquals, appLatest)
+}
+
+func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	appV5 := minimalApplication(args)
+
+	// Make an app with fields not in v5 removed.
+	appLatest := appV5
+	appLatest.HasResources_ = false
+
+	appResult := s.exportImportVersion(c, appV5, 5)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
@@ -477,6 +496,15 @@ func (s *ApplicationSerializationSuite) TestPlacement(c *gc.C) {
 
 	application := s.exportImportLatest(c, initial)
 	c.Assert(application.Placement(), gc.Equals, "foo=baz")
+}
+
+func (s *ApplicationSerializationSuite) TestHasResources(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	args.HasResources = true
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.HasResources(), jc.IsTrue)
 }
 
 func (s *ApplicationSerializationSuite) TestDesiredScale(c *gc.C) {
