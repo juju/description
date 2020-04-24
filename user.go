@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/juju/names/v4"
 	"github.com/juju/schema"
-	"gopkg.in/juju/names.v3"
 )
 
 // User represents a user of the model. Users are able to connect to, and

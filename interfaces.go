@@ -6,8 +6,8 @@ package description
 import (
 	"time"
 
+	"github.com/juju/names/v4"
 	"github.com/juju/version"
-	"gopkg.in/juju/names.v3"
 )
 
 // AgentTools represent the version and related binary file
