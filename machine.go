@@ -5,9 +5,9 @@ package description
 
 import (
 	"github.com/juju/errors"
+	"github.com/juju/names/v4"
 	"github.com/juju/schema"
 	"github.com/juju/version"
-	"gopkg.in/juju/names.v3"
 )
 
 // Machine represents an existing live machine or container running in the

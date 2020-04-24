@@ -5,8 +5,8 @@ package description
 
 import (
 	"github.com/juju/errors"
+	"github.com/juju/names/v4"
 	"github.com/juju/schema"
-	"gopkg.in/juju/names.v3"
 )
 
 // RemoteApplication represents an application in another model that
