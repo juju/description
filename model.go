@@ -126,6 +126,8 @@ type Model interface {
 
 	SetMeterStatus(code, info string) MeterStatus
 	MeterStatus() MeterStatus
+
+	PasswordHash() string
 }
 
 // ModelArgs represent the bare minimum information that is needed
@@ -139,12 +141,13 @@ type ModelArgs struct {
 	Blocks             map[string]string
 	Cloud              string
 	CloudRegion        string
+	PasswordHash       string
 }
 
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             7,
+		Version:             8,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
@@ -154,6 +157,7 @@ func NewModel(args ModelArgs) Model {
 		Blocks_:             args.Blocks,
 		Cloud_:              args.Cloud,
 		CloudRegion_:        args.CloudRegion,
+		PasswordHash_:       args.PasswordHash,
 		StatusHistory_:      newStatusHistory(),
 	}
 	m.setUsers(nil)
@@ -287,6 +291,8 @@ type model struct {
 
 	SLA_         sla         `yaml:"sla"`
 	MeterStatus_ meterStatus `yaml:"meter-status"`
+
+	PasswordHash_ string `yaml:"password-hash,omitempty"`
 }
 
 func (m *model) Type() string {
@@ -320,6 +326,11 @@ func (m *model) UpdateConfig(config map[string]interface{}) {
 	for key, value := range config {
 		m.Config_[key] = value
 	}
+}
+
+// PasswordHash implements Model.
+func (m *model) PasswordHash() string {
+	return m.PasswordHash_
 }
 
 // LatestToolsVersion implements Model.
@@ -1310,6 +1321,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	5: newModelImporter(5, schema.FieldMap(modelV5Fields())),
 	6: newModelImporter(6, schema.FieldMap(modelV6Fields())),
 	7: newModelImporter(7, schema.FieldMap(modelV7Fields())),
+	8: newModelImporter(8, schema.FieldMap(modelV8Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1402,11 +1414,18 @@ func modelV7Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV8Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV7Fields()
+	fields["password-hash"] = schema.String()
+	defaults["password-hash"] = ""
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
-	// We're always making a version 7 model, no matter what we got on
+	// We're always making a version 8 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        7,
+		Version:        8,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1645,6 +1664,10 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 			return nil, errors.Annotate(err, "actions")
 		}
 		result.setOperations(operations)
+	}
+
+	if importVersion >= 8 {
+		result.PasswordHash_ = valid["password-hash"].(string)
 	}
 
 	return result, nil
