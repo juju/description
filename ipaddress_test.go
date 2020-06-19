@@ -117,3 +117,39 @@ func (s *IPAddressSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 
 	c.Assert(addresses, jc.DeepEquals, initial.IPAddresses_)
 }
+
+func (s *IPAddressSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
+	initial := ipaddresses{
+		Version: 3,
+		IPAddresses_: []*ipaddress{
+			newIPAddress(IPAddressArgs{
+				SubnetCIDR:        "10.0.0.0/24",
+				ProviderID:        "magic",
+				DeviceName:        "foo",
+				MachineID:         "bar",
+				ConfigMethod:      "static",
+				Value:             "10.0.0.4",
+				DNSServers:        []string{"10.1.0.1", "10.2.0.1"},
+				DNSSearchDomains:  []string{"bam", "mam"},
+				GatewayAddress:    "10.0.0.1",
+				IsDefaultGateway:  true,
+				ProviderNetworkID: "p-net-1",
+				ProviderSubnetID:  "p-sub-1",
+				Origin:            "machine",
+			}),
+			newIPAddress(IPAddressArgs{Value: "10.0.0.5"}),
+		},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	addresses, err := importIPAddresses(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(addresses, jc.DeepEquals, initial.IPAddresses_)
+}

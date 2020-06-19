@@ -52,6 +52,9 @@ type IPAddress interface {
 	DNSSearchDomains() []string
 	GatewayAddress() string
 	IsDefaultGateway() bool
+	ProviderNetworkID() string
+	ProviderSubnetID() string
+	Origin() string
 }
 
 // SSHHostKey represents an ssh host key.
