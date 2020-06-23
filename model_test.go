@@ -1101,6 +1101,18 @@ func (s *ModelSerializationSuite) TestMeterStatus(c *gc.C) {
 	c.Assert(model.MeterStatus().Info(), gc.Equals, "info message")
 }
 
+func (s *ModelSerializationSuite) TestPasswordHash(c *gc.C) {
+	initial := s.newModel(ModelArgs{PasswordHash: "some-hash"})
+	c.Assert(initial.PasswordHash(), gc.Equals, "some-hash")
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.PasswordHash(), gc.Equals, "some-hash")
+}
+
 func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
 	data := asStringMap(c, initial)
@@ -1108,7 +1120,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 7)
+	c.Assert(version, gc.Equals, 8)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
