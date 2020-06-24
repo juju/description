@@ -38,6 +38,7 @@ type LinkLayerDevice interface {
 	IsAutoStart() bool
 	IsUp() bool
 	ParentName() string
+	VirtualPortType() string
 }
 
 // IPAddress represents an IP address.
