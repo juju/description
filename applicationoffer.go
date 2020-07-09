@@ -68,7 +68,7 @@ func (o *applicationOffer) ApplicationDescription() string {
 	return o.ApplicationDescription_
 }
 
-// ApplicationOfferArgs is an argument struct used to instanciate a new
+// ApplicationOfferArgs is an argument struct used to instantiate a new
 // applicationOffer instance that implements ApplicationOffer.
 type ApplicationOfferArgs struct {
 	OfferUUID              string

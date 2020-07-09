@@ -26,6 +26,7 @@ type Application interface {
 	Series() string
 	Subordinate() bool
 	CharmURL() string
+	CharmOrigin() CharmOrigin
 	Channel() string
 	CharmModifiedVersion() int
 	ForceCharm() bool
@@ -72,13 +73,14 @@ type applications struct {
 }
 
 type application struct {
-	Name_                 string `yaml:"name"`
-	Type_                 string `yaml:"type"`
-	Series_               string `yaml:"series"`
-	Subordinate_          bool   `yaml:"subordinate,omitempty"`
-	CharmURL_             string `yaml:"charm-url"`
-	Channel_              string `yaml:"cs-channel"`
-	CharmModifiedVersion_ int    `yaml:"charm-mod-version"`
+	Name_                 string       `yaml:"name"`
+	Type_                 string       `yaml:"type"`
+	Series_               string       `yaml:"series"`
+	Subordinate_          bool         `yaml:"subordinate,omitempty"`
+	CharmURL_             string       `yaml:"charm-url"`
+	CharmOrigin_          charmOrigins `yaml:"charm-origin"`
+	Channel_              string       `yaml:"cs-channel"`
+	CharmModifiedVersion_ int          `yaml:"charm-mod-version"`
 
 	// ForceCharm is true if an upgrade charm is forced.
 	// It means upgrade even if the charm is in an error state.
@@ -130,6 +132,7 @@ type ApplicationArgs struct {
 	Series               string
 	Subordinate          bool
 	CharmURL             string
+	CharmOrigin          CharmOrigin
 	Channel              string
 	CharmModifiedVersion int
 	ForceCharm           bool
@@ -179,6 +182,7 @@ func newApplication(args ApplicationArgs) *application {
 	}
 	app.setUnits(nil)
 	app.setResources(nil)
+	app.setCharmOrigin(nil)
 	if len(args.StorageConstraints) > 0 {
 		app.StorageConstraints_ = make(map[string]*storageconstraint)
 		for key, value := range args.StorageConstraints {
@@ -216,6 +220,11 @@ func (a *application) Subordinate() bool {
 // CharmURL implements Application.
 func (a *application) CharmURL() string {
 	return a.CharmURL_
+}
+
+// CharmOrigin implements Application.
+func (a *application) CharmOrigin() CharmOrigin {
+	return a.CharmOrigin_.CharmOrigin_
 }
 
 // Channel implements Application.
@@ -468,6 +477,20 @@ func (a *application) setOffers(offers []*applicationOffer) {
 	}
 }
 
+// AddCharmOrigin implements Application.
+func (a *application) AddCharmOrigin(args CharmOriginArgs) CharmOrigin {
+	c := newCharmOrigin(args)
+	a.CharmOrigin_.CharmOrigin_ = c
+	return c
+}
+
+func (a *application) setCharmOrigin(charmOrigin *charmOrigin) {
+	a.CharmOrigin_ = charmOrigins{
+		Version:      1,
+		CharmOrigin_: charmOrigin,
+	}
+}
+
 // Validate implements Application.
 func (a *application) Validate() error {
 	if a.Name_ == "" {
@@ -547,6 +570,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	4: importApplicationV4,
 	5: importApplicationV5,
 	6: importApplicationV6,
+	7: importApplicationV7,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -633,6 +657,13 @@ func applicationV6Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV7Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV5Fields()
+	fields["charm-origin"] = schema.StringMap(schema.Any())
+	defaults["charm-origin"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -661,6 +692,11 @@ func importApplicationV5(source map[string]interface{}) (*application, error) {
 func importApplicationV6(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV6Fields()
 	return importApplication(fields, defaults, 6, source)
+}
+
+func importApplicationV7(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV7Fields()
+	return importApplication(fields, defaults, 7, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -721,6 +757,15 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	}
 	if importVersion >= 6 {
 		result.HasResources_ = valid["has-resources"].(bool)
+	}
+	if importVersion >= 7 {
+		if originMap, ok := valid["charm-origin"]; ok {
+			origin, err := importCharmOrigins(originMap.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.setCharmOrigin(origin)
+		}
 	}
 
 	result.importAnnotations(valid)
