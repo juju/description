@@ -150,7 +150,6 @@ type ApplicationArgs struct {
 	EndpointBindings     map[string]string
 	ApplicationConfig    map[string]interface{}
 	CharmConfig          map[string]interface{}
-	CharmOrigin          *CharmOriginArgs
 	Leader               string
 	LeadershipSettings   map[string]interface{}
 	StorageConstraints   map[string]StorageConstraintArgs
