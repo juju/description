@@ -11,13 +11,21 @@ import (
 // CharmOriginArgs is an argument struct used to add information about the
 // tools the agent is using to a Machine.
 type CharmOriginArgs struct {
-	Source string
+	Source   string
+	ID       string
+	Hash     string
+	Revision int
+	Channel  string
 }
 
 func newCharmOrigin(args CharmOriginArgs) *charmOrigin {
 	return &charmOrigin{
-		Version_: 1,
-		Source_:  args.Source,
+		Version_:  1,
+		Source_:   args.Source,
+		ID_:       args.ID,
+		Hash_:     args.Hash,
+		Revision_: args.Revision,
+		Channel_:  args.Channel,
 	}
 }
 
@@ -25,8 +33,12 @@ func newCharmOrigin(args CharmOriginArgs) *charmOrigin {
 // that one day we will succeed in merging the unit agents with the
 // machine agents.
 type charmOrigin struct {
-	Version_ int    `yaml:"version"`
-	Source_  string `yaml:"source"`
+	Version_  int    `yaml:"version"`
+	Source_   string `yaml:"source"`
+	ID_       string `yaml:"id"`
+	Hash_     string `yaml:"hash"`
+	Revision_ int    `yaml:"revision"`
+	Channel_  string `yaml:"channel"`
 }
 
 // Source implements CharmOrigin.
@@ -56,9 +68,20 @@ var charmOriginDeserializationFuncs = map[int]charmOriginDeserializationFunc{
 
 func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
 	fields := schema.Fields{
-		"source": schema.String(),
+		"source":   schema.String(),
+		"id":       schema.String(),
+		"hash":     schema.String(),
+		"revision": schema.Int(),
+		"channel":  schema.String(),
 	}
-	checker := schema.FieldMap(fields, nil) // no defaults
+	defaults := schema.Defaults{
+		"source":   "unknown",
+		"id":       schema.Omit,
+		"hash":     schema.Omit,
+		"revision": schema.Omit,
+		"channel":  schema.Omit,
+	}
+	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -69,8 +92,22 @@ func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
+	var revision int
+	switch t := valid["revision"].(type) {
+	case int:
+		revision = t
+	case int64:
+		revision = int(t)
+	default:
+		return nil, errors.Errorf("unexpected revision type %T", valid["revision"])
+	}
+
 	return &charmOrigin{
-		Version_: 1,
-		Source_:  valid["source"].(string),
+		Version_:  1,
+		Source_:   valid["source"].(string),
+		ID_:       valid["id"].(string),
+		Hash_:     valid["hash"].(string),
+		Revision_: revision,
+		Channel_:  valid["channel"].(string),
 	}, nil
 }
