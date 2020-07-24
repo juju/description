@@ -12,6 +12,12 @@ import (
 type MachinePortRangeSerializationSuite struct {
 }
 
+func assertUnitPortRangeMatches(c *gc.C, prA, prB UnitPortRange) {
+	c.Assert(prA.FromPort(), gc.Equals, prB.FromPort())
+	c.Assert(prA.ToPort(), gc.Equals, prB.ToPort())
+	c.Assert(prA.Protocol(), gc.Equals, prB.Protocol())
+}
+
 var _ = gc.Suite(&MachinePortRangeSerializationSuite{})
 
 func (*MachinePortRangeSerializationSuite) TestParsingSerializedData(c *gc.C) {

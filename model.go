@@ -410,7 +410,7 @@ func (m *model) AddMachine(args MachineArgs) Machine {
 
 func (m *model) setMachines(machineList []*machine) {
 	m.Machines_ = machines{
-		Version:   1,
+		Version:   2,
 		Machines_: machineList,
 	}
 }
@@ -1044,10 +1044,8 @@ func (m *model) validateMachine(machine Machine, allMachineIDs, unitsWithOpenPor
 		return errors.Trace(err)
 	}
 	allMachineIDs.Add(machine.Id())
-	for _, op := range machine.OpenedPorts() {
-		for _, pr := range op.OpenPorts() {
-			unitsWithOpenPorts.Add(pr.UnitName())
-		}
+	for unitName := range machine.OpenedPortRanges().ByUnit() {
+		unitsWithOpenPorts.Add(unitName)
 	}
 	for _, container := range machine.Containers() {
 		err := m.validateMachine(container, allMachineIDs, unitsWithOpenPorts)

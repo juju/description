@@ -27,6 +27,17 @@ type UnitPortRange interface {
 	Protocol() string
 }
 
+// OpenedPortRangeArgs is an argument struct used to add a new port range to
+// a machine.
+type OpenedPortRangeArgs struct {
+	UnitName     string
+	EndpointName string
+
+	FromPort int
+	ToPort   int
+	Protocol string
+}
+
 type machinePortRanges struct {
 	Version int `yaml:"version"`
 
