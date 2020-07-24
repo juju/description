@@ -57,6 +57,9 @@ type Application interface {
 	Units() []Unit
 	AddUnit(UnitArgs) Unit
 
+	CharmOrigin() CharmOrigin
+	SetCharmOrigin(CharmOriginArgs)
+
 	Tools() AgentTools
 	SetTools(AgentToolsArgs)
 
@@ -121,6 +124,9 @@ type application struct {
 
 	// Offer-related fields
 	Offers_ *applicationOffers `yaml:"offers,omitempty"`
+
+	// CharmOrigin fields
+	CharmOrigin_ *charmOrigin `yaml:"charm-origin,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -435,6 +441,20 @@ func (a *application) SetTools(args AgentToolsArgs) {
 	a.Tools_ = newAgentTools(args)
 }
 
+// CharmOrigin implements Application.
+func (a *application) CharmOrigin() CharmOrigin {
+	// To avoid a typed nil, check before returning.
+	if a.CharmOrigin_ == nil {
+		return nil
+	}
+	return a.CharmOrigin_
+}
+
+// SetCharmOrigin implements Application.
+func (a *application) SetCharmOrigin(args CharmOriginArgs) {
+	a.CharmOrigin_ = newCharmOrigin(args)
+}
+
 // Offers implements Application.
 func (a *application) Offers() []ApplicationOffer {
 	if a.Offers_ == nil || len(a.Offers_.Offers) == 0 {
@@ -547,6 +567,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	4: importApplicationV4,
 	5: importApplicationV5,
 	6: importApplicationV6,
+	7: importApplicationV7,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -633,6 +654,13 @@ func applicationV6Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV7Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV6Fields()
+	fields["charm-origin"] = schema.StringMap(schema.Any())
+	defaults["charm-origin"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -661,6 +689,11 @@ func importApplicationV5(source map[string]interface{}) (*application, error) {
 func importApplicationV6(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV6Fields()
 	return importApplication(fields, defaults, 6, source)
+}
+
+func importApplicationV7(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV7Fields()
+	return importApplication(fields, defaults, 7, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -721,6 +754,16 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	}
 	if importVersion >= 6 {
 		result.HasResources_ = valid["has-resources"].(bool)
+	}
+
+	if importVersion >= 7 {
+		if charmOriginMap, ok := valid["charm-origin"]; ok {
+			charmOrigin, err := importCharmOrigin(charmOriginMap.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.CharmOrigin_ = charmOrigin
+		}
 	}
 
 	result.importAnnotations(valid)

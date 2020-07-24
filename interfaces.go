@@ -223,3 +223,9 @@ type FirewallRule interface {
 	WellKnownService() string
 	WhitelistCIDRs() []string
 }
+
+// CharmOrigin represents a charm source, where the charm originates from to
+// help support multiple store locations.
+type CharmOrigin interface {
+	Source() string
+}

@@ -65,6 +65,7 @@ func minimalApplicationMap() map[interface{}]interface{} {
 				minimalUnitMap(),
 			},
 		},
+		"charm-origin": minimalCharmOriginMap(),
 	}
 }
 
@@ -103,6 +104,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	}
 	result["tools"] = minimalAgentToolsMap()
 	result["operator-status"] = minimalStatusMap()
+	result["charm-origin"] = minimalCharmOriginMap()
 	return result
 }
 
@@ -122,6 +124,7 @@ func minimalApplication(args ...ApplicationArgs) *application {
 	} else {
 		u.SetTools(minimalAgentToolsArgs())
 	}
+	a.SetCharmOrigin(minimalCharmOriginArgs())
 	return a
 }
 
@@ -317,7 +320,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 6)
+	return s.exportImportVersion(c, application_, 7)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -336,6 +339,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -356,6 +360,7 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -372,6 +377,7 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.DesiredScale_ = 0
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -384,8 +390,21 @@ func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
 	// Make an app with fields not in v5 removed.
 	appLatest := appV5
 	appLatest.HasResources_ = false
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV5, 5)
+	c.Assert(appResult, jc.DeepEquals, appLatest)
+}
+
+func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	appV6 := minimalApplication(args)
+
+	// Make an app with fields not in v6 removed.
+	appLatest := appV6
+	appLatest.CharmOrigin_ = nil
+
+	appResult := s.exportImportVersion(c, appV6, 6)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
