@@ -228,4 +228,8 @@ type FirewallRule interface {
 // help support multiple store locations.
 type CharmOrigin interface {
 	Source() string
+	ID() string
+	Hash() string
+	Revision() int
+	Channel() string
 }
