@@ -46,6 +46,26 @@ func (a *charmOrigin) Source() string {
 	return a.Source_
 }
 
+// ID implements CharmOrigin.
+func (a *charmOrigin) ID() string {
+	return a.ID_
+}
+
+// Hash implements CharmOrigin.
+func (a *charmOrigin) Hash() string {
+	return a.Hash_
+}
+
+// Revision implements CharmOrigin.
+func (a *charmOrigin) Revision() int {
+	return a.Revision_
+}
+
+// Channel implements CharmOrigin.
+func (a *charmOrigin) Channel() string {
+	return a.Channel_
+}
+
 func importCharmOrigin(source map[string]interface{}) (*charmOrigin, error) {
 	version, err := getVersion(source)
 	if err != nil {
