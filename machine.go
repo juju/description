@@ -586,7 +586,7 @@ func machineV1(valid map[string]interface{}) (*machine, error) {
 func machineV2(valid map[string]interface{}) (*machine, error) {
 	mach, err := machineV1(valid)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	machPortRangesSource, ok := valid["opened-port-ranges"].(map[string]interface{})
@@ -600,7 +600,7 @@ func machineV2(valid map[string]interface{}) (*machine, error) {
 	// instance.
 	machPortRanges, err := importMachinePortRanges(machPortRangesSource)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	mach.OpenedPortRanges_ = machPortRanges
