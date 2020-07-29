@@ -333,15 +333,12 @@ func (s *ModelSerializationSuite) TestModelValidationChecksMachinesGood(c *gc.C)
 func (s *ModelSerializationSuite) TestModelValidationChecksOpenPortsUnits(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
 	machine := s.addMachineToModel(model, "0")
-	machine.AddOpenedPorts(OpenedPortsArgs{
-		OpenedPorts: []PortRangeArgs{
-			{
-				UnitName: "missing/0",
-				FromPort: 8080,
-				ToPort:   8080,
-				Protocol: "tcp",
-			},
-		},
+	machine.AddOpenedPortRange(OpenedPortRangeArgs{
+		UnitName:     "missing/0",
+		EndpointName: "",
+		FromPort:     8080,
+		ToPort:       8080,
+		Protocol:     "tcp",
 	})
 	err := model.Validate()
 	c.Assert(err.Error(), gc.Equals, "unknown unit names in open ports: [missing/0]")

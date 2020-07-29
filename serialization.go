@@ -20,6 +20,16 @@ func versionedChecker(name string) schema.Checker {
 	return schema.FieldMap(fields, nil) // no defaults
 }
 
+func versionedMapChecker(name string) schema.Checker {
+	fields := schema.Fields{
+		"version": schema.Int(),
+	}
+	if name != "" {
+		fields[name] = schema.StringMap(schema.Any())
+	}
+	return schema.FieldMap(fields, nil) // no defaults
+}
+
 func versionedEmbeddedChecker(name string) schema.Checker {
 	fields := schema.Fields{
 		"version": schema.Int(),
