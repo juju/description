@@ -442,7 +442,7 @@ func (m *model) AddApplication(args ApplicationArgs) Application {
 
 func (m *model) setApplications(applicationList []*application) {
 	m.Applications_ = applications{
-		Version:       7,
+		Version:       8,
 		Applications_: applicationList,
 	}
 }
