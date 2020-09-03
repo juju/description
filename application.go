@@ -29,8 +29,12 @@ type Application interface {
 	Channel() string
 	CharmModifiedVersion() int
 	ForceCharm() bool
-	Exposed() bool
 	MinUnits() int
+
+	Exposed() bool
+	ExposedEndpoints() []string
+	ExposeToSpaceIDs() []string
+	ExposeToCIDRs() []string
 
 	PasswordHash() string
 	PodSpec() string
@@ -86,8 +90,12 @@ type application struct {
 	// ForceCharm is true if an upgrade charm is forced.
 	// It means upgrade even if the charm is in an error state.
 	ForceCharm_ bool `yaml:"force-charm,omitempty"`
-	Exposed_    bool `yaml:"exposed,omitempty"`
 	MinUnits_   int  `yaml:"min-units,omitempty"`
+
+	Exposed_          bool     `yaml:"exposed,omitempty"`
+	ExposedEndpoints_ []string `yaml:"exposed-endpoints,omitempty"`
+	ExposeToSpaceIDs_ []string `yaml:"expose-to-space-ids,omitempty"`
+	ExposeToCIDRs_    []string `yaml:"expose-to-cidrs,omitempty"`
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
@@ -145,8 +153,11 @@ type ApplicationArgs struct {
 	HasResources         bool
 	DesiredScale         int
 	CloudService         *CloudServiceArgs
-	Exposed              bool
 	MinUnits             int
+	Exposed              bool
+	ExposedEndpoints     []string
+	ExposeToSpaceIDs     []string
+	ExposeToCIDRs        []string
 	EndpointBindings     map[string]string
 	ApplicationConfig    map[string]interface{}
 	CharmConfig          map[string]interface{}
@@ -168,6 +179,9 @@ func newApplication(args ApplicationArgs) *application {
 		CharmModifiedVersion_: args.CharmModifiedVersion,
 		ForceCharm_:           args.ForceCharm,
 		Exposed_:              args.Exposed,
+		ExposedEndpoints_:     args.ExposedEndpoints,
+		ExposeToSpaceIDs_:     args.ExposeToSpaceIDs,
+		ExposeToCIDRs_:        args.ExposeToCIDRs,
 		PasswordHash_:         args.PasswordHash,
 		PodSpec_:              args.PodSpec,
 		CloudService_:         newCloudService(args.CloudService),
@@ -242,6 +256,21 @@ func (a *application) ForceCharm() bool {
 // Exposed implements Application.
 func (a *application) Exposed() bool {
 	return a.Exposed_
+}
+
+// ExposedEndpoints implements Application.
+func (a *application) ExposedEndpoints() []string {
+	return a.ExposedEndpoints_
+}
+
+// ExposeToSpaceIDs implements Application.
+func (a *application) ExposeToSpaceIDs() []string {
+	return a.ExposeToSpaceIDs_
+}
+
+// ExposeToCIDRs implements Application.
+func (a *application) ExposeToCIDRs() []string {
+	return a.ExposeToCIDRs_
 }
 
 // PasswordHash implements Application.
@@ -568,6 +597,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	5: importApplicationV5,
 	6: importApplicationV6,
 	7: importApplicationV7,
+	8: importApplicationV8,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -661,6 +691,17 @@ func applicationV7Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV8Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV7Fields()
+	fields["exposed-endpoints"] = schema.List(schema.String())
+	fields["expose-to-space-ids"] = schema.List(schema.String())
+	fields["expose-to-cidrs"] = schema.List(schema.String())
+	defaults["exposed-endpoints"] = schema.Omit
+	defaults["expose-to-space-ids"] = schema.Omit
+	defaults["expose-to-cidrs"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -694,6 +735,11 @@ func importApplicationV6(source map[string]interface{}) (*application, error) {
 func importApplicationV7(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV7Fields()
 	return importApplication(fields, defaults, 7, source)
+}
+
+func importApplicationV8(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV8Fields()
+	return importApplication(fields, defaults, 8, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -763,6 +809,18 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 				return nil, errors.Trace(err)
 			}
 			result.CharmOrigin_ = charmOrigin
+		}
+	}
+
+	if importVersion >= 8 {
+		if exposedEndpoints, ok := valid["exposed-endpoints"]; ok {
+			result.ExposedEndpoints_ = convertToStringSlice(exposedEndpoints)
+		}
+		if exposeToSpaceIDs, ok := valid["expose-to-space-ids"]; ok {
+			result.ExposeToSpaceIDs_ = convertToStringSlice(exposeToSpaceIDs)
+		}
+		if exposeToCIDRs, ok := valid["expose-to-cidrs"]; ok {
+			result.ExposeToCIDRs_ = convertToStringSlice(exposeToCIDRs)
 		}
 	}
 

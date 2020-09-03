@@ -205,6 +205,9 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		CharmModifiedVersion: 1,
 		ForceCharm:           true,
 		Exposed:              true,
+		ExposedEndpoints:     []string{"endpoint0", "endpoint1"},
+		ExposeToSpaceIDs:     []string{"0", "42"},
+		ExposeToCIDRs:        []string{"192.168.42.0/24"},
 		MinUnits:             42, // no judgement is made by the migration code
 		EndpointBindings: map[string]string{
 			"rel-name": "some-space",
@@ -237,6 +240,9 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.CharmModifiedVersion(), gc.Equals, 1)
 	c.Assert(application.ForceCharm(), jc.IsTrue)
 	c.Assert(application.Exposed(), jc.IsTrue)
+	c.Assert(application.ExposedEndpoints(), gc.DeepEquals, []string{"endpoint0", "endpoint1"})
+	c.Assert(application.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
+	c.Assert(application.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 	c.Assert(application.PodSpec(), gc.Equals, "podspec")
 	c.Assert(application.Placement(), gc.Equals, "foo=bar")
@@ -320,7 +326,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 7)
+	return s.exportImportVersion(c, application_, 8)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -611,4 +617,18 @@ func (s *ApplicationSerializationSuite) TestIAASUnitMissingTools(c *gc.C) {
 
 	_, err = importApplications(source)
 	c.Assert(err, gc.ErrorMatches, `application 0: unit "ubuntu/0" missing tools not valid`)
+}
+
+func (s *ApplicationSerializationSuite) TestExposeMetadata(c *gc.C) {
+	args := minimalApplicationArgs(IAAS)
+	args.Exposed = true
+	args.ExposedEndpoints = []string{"endpoint0", "endpoint1"}
+	args.ExposeToSpaceIDs = []string{"0", "42"}
+	args.ExposeToCIDRs = []string{"192.168.42.0/24"}
+
+	initial := minimalApplication(args)
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.ExposedEndpoints(), gc.DeepEquals, []string{"endpoint0", "endpoint1"})
+	c.Assert(application.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
+	c.Assert(application.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
 }
