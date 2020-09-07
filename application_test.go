@@ -205,10 +205,15 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		CharmModifiedVersion: 1,
 		ForceCharm:           true,
 		Exposed:              true,
-		ExposedEndpoints:     []string{"endpoint0", "endpoint1"},
-		ExposeToSpaceIDs:     []string{"0", "42"},
-		ExposeToCIDRs:        []string{"192.168.42.0/24"},
-		MinUnits:             42, // no judgement is made by the migration code
+		ExposedEndpoints: map[string]ExposedEndpointArgs{
+			"endpoint0": ExposedEndpointArgs{
+				ExposeToSpaceIDs: []string{"0", "42"},
+			},
+			"endpoint1": ExposedEndpointArgs{
+				ExposeToCIDRs: []string{"192.168.42.0/24"},
+			},
+		},
+		MinUnits: 42, // no judgement is made by the migration code
 		EndpointBindings: map[string]string{
 			"rel-name": "some-space",
 		},
@@ -240,9 +245,18 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.CharmModifiedVersion(), gc.Equals, 1)
 	c.Assert(application.ForceCharm(), jc.IsTrue)
 	c.Assert(application.Exposed(), jc.IsTrue)
-	c.Assert(application.ExposedEndpoints(), gc.DeepEquals, []string{"endpoint0", "endpoint1"})
-	c.Assert(application.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
-	c.Assert(application.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
+
+	expEps := application.ExposedEndpoints()
+	c.Assert(expEps, gc.HasLen, 2)
+	ep0 := expEps["endpoint0"]
+	c.Assert(ep0, gc.Not(gc.IsNil))
+	c.Assert(ep0.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
+	c.Assert(ep0.ExposeToCIDRs(), gc.IsNil)
+	ep1 := expEps["endpoint1"]
+	c.Assert(ep1, gc.Not(gc.IsNil))
+	c.Assert(ep1.ExposeToSpaceIDs(), gc.IsNil)
+	c.Assert(ep1.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
+
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 	c.Assert(application.PodSpec(), gc.Equals, "podspec")
 	c.Assert(application.Placement(), gc.Equals, "foo=bar")
@@ -622,13 +636,28 @@ func (s *ApplicationSerializationSuite) TestIAASUnitMissingTools(c *gc.C) {
 func (s *ApplicationSerializationSuite) TestExposeMetadata(c *gc.C) {
 	args := minimalApplicationArgs(IAAS)
 	args.Exposed = true
-	args.ExposedEndpoints = []string{"endpoint0", "endpoint1"}
-	args.ExposeToSpaceIDs = []string{"0", "42"}
-	args.ExposeToCIDRs = []string{"192.168.42.0/24"}
+	args.ExposedEndpoints = map[string]ExposedEndpointArgs{
+		"endpoint0": ExposedEndpointArgs{
+			ExposeToSpaceIDs: []string{"0", "42"},
+		},
+		"endpoint1": ExposedEndpointArgs{
+			ExposeToCIDRs: []string{"192.168.42.0/24"},
+		},
+	}
 
 	initial := minimalApplication(args)
 	application := s.exportImportLatest(c, initial)
-	c.Assert(application.ExposedEndpoints(), gc.DeepEquals, []string{"endpoint0", "endpoint1"})
-	c.Assert(application.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
-	c.Assert(application.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
+
+	expEps := application.ExposedEndpoints()
+	c.Assert(expEps, gc.HasLen, 2)
+
+	ep0 := expEps["endpoint0"]
+	c.Assert(ep0, gc.Not(gc.IsNil))
+	c.Assert(ep0.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
+	c.Assert(ep0.ExposeToCIDRs(), gc.IsNil)
+
+	ep1 := expEps["endpoint1"]
+	c.Assert(ep1, gc.Not(gc.IsNil))
+	c.Assert(ep1.ExposeToSpaceIDs(), gc.IsNil)
+	c.Assert(ep1.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
 }

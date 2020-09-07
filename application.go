@@ -32,9 +32,7 @@ type Application interface {
 	MinUnits() int
 
 	Exposed() bool
-	ExposedEndpoints() []string
-	ExposeToSpaceIDs() []string
-	ExposeToCIDRs() []string
+	ExposedEndpoints() map[string]ExposedEndpoint
 
 	PasswordHash() string
 	PodSpec() string
@@ -73,6 +71,14 @@ type Application interface {
 	Validate() error
 }
 
+// ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
+// should be able to access ports opened by the application for a particular
+// endpoint once the application is exposed.
+type ExposedEndpoint interface {
+	ExposeToSpaceIDs() []string
+	ExposeToCIDRs() []string
+}
+
 type applications struct {
 	Version       int            `yaml:"version"`
 	Applications_ []*application `yaml:"applications"`
@@ -92,10 +98,8 @@ type application struct {
 	ForceCharm_ bool `yaml:"force-charm,omitempty"`
 	MinUnits_   int  `yaml:"min-units,omitempty"`
 
-	Exposed_          bool     `yaml:"exposed,omitempty"`
-	ExposedEndpoints_ []string `yaml:"exposed-endpoints,omitempty"`
-	ExposeToSpaceIDs_ []string `yaml:"expose-to-space-ids,omitempty"`
-	ExposeToCIDRs_    []string `yaml:"expose-to-cidrs,omitempty"`
+	Exposed_          bool                        `yaml:"exposed,omitempty"`
+	ExposedEndpoints_ map[string]*exposedEndpoint `yaml:"exposed-endpoints,omitempty"`
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
@@ -155,9 +159,7 @@ type ApplicationArgs struct {
 	CloudService         *CloudServiceArgs
 	MinUnits             int
 	Exposed              bool
-	ExposedEndpoints     []string
-	ExposeToSpaceIDs     []string
-	ExposeToCIDRs        []string
+	ExposedEndpoints     map[string]ExposedEndpointArgs
 	EndpointBindings     map[string]string
 	ApplicationConfig    map[string]interface{}
 	CharmConfig          map[string]interface{}
@@ -179,9 +181,6 @@ func newApplication(args ApplicationArgs) *application {
 		CharmModifiedVersion_: args.CharmModifiedVersion,
 		ForceCharm_:           args.ForceCharm,
 		Exposed_:              args.Exposed,
-		ExposedEndpoints_:     args.ExposedEndpoints,
-		ExposeToSpaceIDs_:     args.ExposeToSpaceIDs,
-		ExposeToCIDRs_:        args.ExposeToCIDRs,
 		PasswordHash_:         args.PasswordHash,
 		PodSpec_:              args.PodSpec,
 		CloudService_:         newCloudService(args.CloudService),
@@ -203,6 +202,12 @@ func newApplication(args ApplicationArgs) *application {
 		app.StorageConstraints_ = make(map[string]*storageconstraint)
 		for key, value := range args.StorageConstraints {
 			app.StorageConstraints_[key] = newStorageConstraint(value)
+		}
+	}
+	if len(args.ExposedEndpoints) > 0 {
+		app.ExposedEndpoints_ = make(map[string]*exposedEndpoint)
+		for key, value := range args.ExposedEndpoints {
+			app.ExposedEndpoints_[key] = newExposedEndpoint(value)
 		}
 	}
 	return app
@@ -259,18 +264,16 @@ func (a *application) Exposed() bool {
 }
 
 // ExposedEndpoints implements Application.
-func (a *application) ExposedEndpoints() []string {
-	return a.ExposedEndpoints_
-}
+func (a *application) ExposedEndpoints() map[string]ExposedEndpoint {
+	if len(a.ExposedEndpoints_) == 0 {
+		return nil
+	}
 
-// ExposeToSpaceIDs implements Application.
-func (a *application) ExposeToSpaceIDs() []string {
-	return a.ExposeToSpaceIDs_
-}
-
-// ExposeToCIDRs implements Application.
-func (a *application) ExposeToCIDRs() []string {
-	return a.ExposeToCIDRs_
+	result := make(map[string]ExposedEndpoint)
+	for key, value := range a.ExposedEndpoints_ {
+		result[key] = value
+	}
+	return result
 }
 
 // PasswordHash implements Application.
@@ -693,12 +696,8 @@ func applicationV7Fields() (schema.Fields, schema.Defaults) {
 
 func applicationV8Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV7Fields()
-	fields["exposed-endpoints"] = schema.List(schema.String())
-	fields["expose-to-space-ids"] = schema.List(schema.String())
-	fields["expose-to-cidrs"] = schema.List(schema.String())
+	fields["exposed-endpoints"] = schema.StringMap(schema.StringMap(schema.Any()))
 	defaults["exposed-endpoints"] = schema.Omit
-	defaults["expose-to-space-ids"] = schema.Omit
-	defaults["expose-to-cidrs"] = schema.Omit
 	return fields, defaults
 }
 
@@ -813,14 +812,10 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	}
 
 	if importVersion >= 8 {
-		if exposedEndpoints, ok := valid["exposed-endpoints"]; ok {
-			result.ExposedEndpoints_ = convertToStringSlice(exposedEndpoints)
-		}
-		if exposeToSpaceIDs, ok := valid["expose-to-space-ids"]; ok {
-			result.ExposeToSpaceIDs_ = convertToStringSlice(exposeToSpaceIDs)
-		}
-		if exposeToCIDRs, ok := valid["expose-to-cidrs"]; ok {
-			result.ExposeToCIDRs_ = convertToStringSlice(exposeToCIDRs)
+		if exposedEndpoints, ok := valid["exposed-endpoints"].(map[string]interface{}); ok {
+			if result.ExposedEndpoints_, err = importExposedEndpointsMap(exposedEndpoints); err != nil {
+				return nil, errors.Trace(err)
+			}
 		}
 	}
 
