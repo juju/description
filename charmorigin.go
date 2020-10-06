@@ -16,6 +16,7 @@ type CharmOriginArgs struct {
 	Hash     string
 	Revision int
 	Channel  string
+	Arch     string
 }
 
 func newCharmOrigin(args CharmOriginArgs) *charmOrigin {
@@ -26,6 +27,7 @@ func newCharmOrigin(args CharmOriginArgs) *charmOrigin {
 		Hash_:     args.Hash,
 		Revision_: args.Revision,
 		Channel_:  args.Channel,
+		Arch_:     args.Arch,
 	}
 }
 
@@ -39,6 +41,7 @@ type charmOrigin struct {
 	Hash_     string `yaml:"hash"`
 	Revision_ int    `yaml:"revision"`
 	Channel_  string `yaml:"channel"`
+	Arch_     string `yaml:"arch"`
 }
 
 // Source implements CharmOrigin.
@@ -64,6 +67,11 @@ func (a *charmOrigin) Revision() int {
 // Channel implements CharmOrigin.
 func (a *charmOrigin) Channel() string {
 	return a.Channel_
+}
+
+// Arch implements CharmOrigin.
+func (a *charmOrigin) Arch() string {
+	return a.Arch_
 }
 
 func importCharmOrigin(source map[string]interface{}) (*charmOrigin, error) {
@@ -93,6 +101,7 @@ func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
 		"hash":     schema.String(),
 		"revision": schema.Int(),
 		"channel":  schema.String(),
+		"arch":     schema.String(),
 	}
 	defaults := schema.Defaults{
 		"source":   "unknown",
@@ -100,6 +109,7 @@ func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
 		"hash":     schema.Omit,
 		"revision": schema.Omit,
 		"channel":  schema.Omit,
+		"arch":     schema.Omit,
 	}
 	checker := schema.FieldMap(fields, defaults)
 
@@ -129,5 +139,6 @@ func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
 		Hash_:     valid["hash"].(string),
 		Revision_: revision,
 		Channel_:  valid["channel"].(string),
+		Arch_:     valid["arch"].(string),
 	}, nil
 }

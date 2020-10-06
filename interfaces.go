@@ -232,4 +232,5 @@ type CharmOrigin interface {
 	Hash() string
 	Revision() int
 	Channel() string
+	Arch() string
 }
