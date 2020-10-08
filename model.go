@@ -571,7 +571,7 @@ func (m *model) Subnets() []Subnet {
 	return result
 }
 
-// AddSubnet implemets Model.
+// AddSubnet implements Model.
 func (m *model) AddSubnet(args SubnetArgs) Subnet {
 	subnet := newSubnet(args)
 	m.Subnets_.Subnets_ = append(m.Subnets_.Subnets_, subnet)
@@ -603,7 +603,7 @@ func (m *model) AddIPAddress(args IPAddressArgs) IPAddress {
 
 func (m *model) setIPAddresses(addressesList []*ipaddress) {
 	m.IPAddresses_ = ipaddresses{
-		Version:      2,
+		Version:      4,
 		IPAddresses_: addressesList,
 	}
 }
