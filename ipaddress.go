@@ -27,6 +27,7 @@ type ipaddress struct {
 	ProviderNetworkID_ string   `yaml:"provider-network-id,omitempty"`
 	ProviderSubnetID_  string   `yaml:"provider-subnet-id,omitempty"`
 	Origin_            string   `yaml:"origin"`
+	IsShadow_          bool     `yaml:"is-shadow"`
 }
 
 // ProviderID implements IPAddress.
@@ -94,6 +95,11 @@ func (i *ipaddress) Origin() string {
 	return i.Origin_
 }
 
+// IsShadow implements IPAddress.
+func (i *ipaddress) IsShadow() bool {
+	return i.IsShadow_
+}
+
 // IPAddressArgs is an argument struct used to create a
 // new internal ipaddress type that supports the IPAddress interface.
 type IPAddressArgs struct {
@@ -110,6 +116,7 @@ type IPAddressArgs struct {
 	ProviderNetworkID string
 	ProviderSubnetID  string
 	Origin            string
+	IsShadow          bool
 }
 
 func newIPAddress(args IPAddressArgs) *ipaddress {
@@ -127,6 +134,7 @@ func newIPAddress(args IPAddressArgs) *ipaddress {
 		ProviderNetworkID_: args.ProviderNetworkID,
 		ProviderSubnetID_:  args.ProviderSubnetID,
 		Origin_:            args.Origin,
+		IsShadow_:          args.IsShadow,
 	}
 }
 
@@ -169,6 +177,7 @@ var ipAddressDeserializationFuncs = map[int]ipAddressDeserializationFunc{
 	1: importIPAddressV1,
 	2: importIPAddressV2,
 	3: importIPAddressV3,
+	4: importIPAddressV4,
 }
 
 func parseDnsFields(valid map[string]interface{}) ([]string, []string) {
@@ -215,10 +224,31 @@ func importIPAddressV3(source map[string]interface{}) (*ipaddress, error) {
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "ip address v2 schema check failed")
+		return nil, errors.Annotatef(err, "ip address v3 schema check failed")
 	}
 
 	return ipAddressV3(coerced.(map[string]interface{})), nil
+}
+
+func importIPAddressV4(source map[string]interface{}) (*ipaddress, error) {
+	fields, defaults := ipAddressV4Schema()
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "ip address v4 schema check failed")
+	}
+
+	return ipAddressV4(coerced.(map[string]interface{})), nil
+}
+
+func ipAddressV4Schema() (schema.Fields, schema.Defaults) {
+	fields, defaults := ipAddressV3Schema()
+
+	fields["is-shadow"] = schema.Bool()
+	defaults["is-shadow"] = false
+
+	return fields, defaults
 }
 
 func ipAddressV3Schema() (schema.Fields, schema.Defaults) {
@@ -262,6 +292,12 @@ func ipAddressV1Schema() (schema.Fields, schema.Defaults) {
 	}
 
 	return fields, defaults
+}
+
+func ipAddressV4(valid map[string]interface{}) *ipaddress {
+	addr := ipAddressV3(valid)
+	addr.IsShadow_ = valid["is-shadow"].(bool)
+	return addr
 }
 
 func ipAddressV3(valid map[string]interface{}) *ipaddress {
