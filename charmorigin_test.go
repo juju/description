@@ -39,7 +39,7 @@ func minimalCharmOriginMap() map[interface{}]interface{} {
 		"hash":     "",
 		"revision": 0,
 		"channel":  "",
-		"arch":     "",
+		"platform": "",
 	}
 }
 
@@ -61,17 +61,17 @@ func maximalCharmOriginMap() map[interface{}]interface{} {
 		"hash":     "c553eee8dc77f2cce29a1c7090d1e3c81e76c6e12346d09936048ed12305fd35",
 		"revision": 0,
 		"channel":  "foo/stable",
-		"arch":     "amd64",
+		"platform": "ubuntu/focal/amd64",
 	}
 }
 
 func maximalCharmOriginArgs() CharmOriginArgs {
 	return CharmOriginArgs{
-		Source:  "charmhub",
-		ID:      "random-id",
-		Hash:    "c553eee8dc77f2cce29a1c7090d1e3c81e76c6e12346d09936048ed12305fd35",
-		Channel: "foo/stable",
-		Arch:    "amd64",
+		Source:   "charmhub",
+		ID:       "random-id",
+		Hash:     "c553eee8dc77f2cce29a1c7090d1e3c81e76c6e12346d09936048ed12305fd35",
+		Channel:  "foo/stable",
+		Platform: "ubuntu/focal/amd64",
 	}
 }
 
