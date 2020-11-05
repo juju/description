@@ -57,6 +57,7 @@ type IPAddress interface {
 	ProviderSubnetID() string
 	Origin() string
 	IsShadow() bool
+	IsSecondary() bool
 }
 
 // SSHHostKey represents an ssh host key.
