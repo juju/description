@@ -603,7 +603,7 @@ func (m *model) AddIPAddress(args IPAddressArgs) IPAddress {
 
 func (m *model) setIPAddresses(addressesList []*ipaddress) {
 	m.IPAddresses_ = ipaddresses{
-		Version:      4,
+		Version:      5,
 		IPAddresses_: addressesList,
 	}
 }
