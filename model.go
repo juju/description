@@ -681,7 +681,7 @@ func (m *model) AddAction(args ActionArgs) Action {
 
 func (m *model) setActions(actionsList []*action) {
 	m.Actions_ = actions{
-		Version:  3,
+		Version:  4,
 		Actions_: actionsList,
 	}
 }
