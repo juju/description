@@ -143,7 +143,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	}
 	initial := NewModel(args).(*model)
 	c.Assert(initial.Applications_.Version, gc.Equals, len(applicationDeserializationFuncs))
-	c.Assert(initial.Actions_.Version, gc.Equals, 3)
+	c.Assert(initial.Actions_.Version, gc.Equals, 4)
 	c.Assert(initial.Operations_.Version, gc.Equals, 1)
 	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
 	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
@@ -333,15 +333,12 @@ func (s *ModelSerializationSuite) TestModelValidationChecksMachinesGood(c *gc.C)
 func (s *ModelSerializationSuite) TestModelValidationChecksOpenPortsUnits(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
 	machine := s.addMachineToModel(model, "0")
-	machine.AddOpenedPorts(OpenedPortsArgs{
-		OpenedPorts: []PortRangeArgs{
-			{
-				UnitName: "missing/0",
-				FromPort: 8080,
-				ToPort:   8080,
-				Protocol: "tcp",
-			},
-		},
+	machine.AddOpenedPortRange(OpenedPortRangeArgs{
+		UnitName:     "missing/0",
+		EndpointName: "",
+		FromPort:     8080,
+		ToPort:       8080,
+		Protocol:     "tcp",
 	})
 	err := model.Validate()
 	c.Assert(err.Error(), gc.Equals, "unknown unit names in open ports: [missing/0]")

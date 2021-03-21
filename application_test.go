@@ -65,6 +65,7 @@ func minimalApplicationMap() map[interface{}]interface{} {
 				minimalUnitMap(),
 			},
 		},
+		"charm-origin": minimalCharmOriginMap(),
 	}
 }
 
@@ -103,6 +104,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	}
 	result["tools"] = minimalAgentToolsMap()
 	result["operator-status"] = minimalStatusMap()
+	result["charm-origin"] = minimalCharmOriginMap()
 	return result
 }
 
@@ -122,6 +124,7 @@ func minimalApplication(args ...ApplicationArgs) *application {
 	} else {
 		u.SetTools(minimalAgentToolsArgs())
 	}
+	a.SetCharmOrigin(minimalCharmOriginArgs())
 	return a
 }
 
@@ -202,7 +205,15 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		CharmModifiedVersion: 1,
 		ForceCharm:           true,
 		Exposed:              true,
-		MinUnits:             42, // no judgement is made by the migration code
+		ExposedEndpoints: map[string]ExposedEndpointArgs{
+			"endpoint0": ExposedEndpointArgs{
+				ExposeToSpaceIDs: []string{"0", "42"},
+			},
+			"endpoint1": ExposedEndpointArgs{
+				ExposeToCIDRs: []string{"192.168.42.0/24"},
+			},
+		},
+		MinUnits: 42, // no judgement is made by the migration code
 		EndpointBindings: map[string]string{
 			"rel-name": "some-space",
 		},
@@ -234,6 +245,18 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.CharmModifiedVersion(), gc.Equals, 1)
 	c.Assert(application.ForceCharm(), jc.IsTrue)
 	c.Assert(application.Exposed(), jc.IsTrue)
+
+	expEps := application.ExposedEndpoints()
+	c.Assert(expEps, gc.HasLen, 2)
+	ep0 := expEps["endpoint0"]
+	c.Assert(ep0, gc.Not(gc.IsNil))
+	c.Assert(ep0.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
+	c.Assert(ep0.ExposeToCIDRs(), gc.IsNil)
+	ep1 := expEps["endpoint1"]
+	c.Assert(ep1, gc.Not(gc.IsNil))
+	c.Assert(ep1.ExposeToSpaceIDs(), gc.IsNil)
+	c.Assert(ep1.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
+
 	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
 	c.Assert(application.PodSpec(), gc.Equals, "podspec")
 	c.Assert(application.Placement(), gc.Equals, "foo=bar")
@@ -317,7 +340,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 6)
+	return s.exportImportVersion(c, application_, 8)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -336,6 +359,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -356,6 +380,7 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -372,6 +397,7 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.DesiredScale_ = 0
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
@@ -384,8 +410,21 @@ func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
 	// Make an app with fields not in v5 removed.
 	appLatest := appV5
 	appLatest.HasResources_ = false
+	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV5, 5)
+	c.Assert(appResult, jc.DeepEquals, appLatest)
+}
+
+func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	appV6 := minimalApplication(args)
+
+	// Make an app with fields not in v6 removed.
+	appLatest := appV6
+	appLatest.CharmOrigin_ = nil
+
+	appResult := s.exportImportVersion(c, appV6, 6)
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
@@ -592,4 +631,33 @@ func (s *ApplicationSerializationSuite) TestIAASUnitMissingTools(c *gc.C) {
 
 	_, err = importApplications(source)
 	c.Assert(err, gc.ErrorMatches, `application 0: unit "ubuntu/0" missing tools not valid`)
+}
+
+func (s *ApplicationSerializationSuite) TestExposeMetadata(c *gc.C) {
+	args := minimalApplicationArgs(IAAS)
+	args.Exposed = true
+	args.ExposedEndpoints = map[string]ExposedEndpointArgs{
+		"endpoint0": ExposedEndpointArgs{
+			ExposeToSpaceIDs: []string{"0", "42"},
+		},
+		"endpoint1": ExposedEndpointArgs{
+			ExposeToCIDRs: []string{"192.168.42.0/24"},
+		},
+	}
+
+	initial := minimalApplication(args)
+	application := s.exportImportLatest(c, initial)
+
+	expEps := application.ExposedEndpoints()
+	c.Assert(expEps, gc.HasLen, 2)
+
+	ep0 := expEps["endpoint0"]
+	c.Assert(ep0, gc.Not(gc.IsNil))
+	c.Assert(ep0.ExposeToSpaceIDs(), gc.DeepEquals, []string{"0", "42"})
+	c.Assert(ep0.ExposeToCIDRs(), gc.IsNil)
+
+	ep1 := expEps["endpoint1"]
+	c.Assert(ep1, gc.Not(gc.IsNil))
+	c.Assert(ep1.ExposeToSpaceIDs(), gc.IsNil)
+	c.Assert(ep1.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
 }

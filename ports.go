@@ -10,6 +10,9 @@ import (
 
 // OpenedPorts represents a collection of port ranges that are open on a
 // particular subnet. OpenedPorts are always associated with a Machine.
+//
+// This type is deprecated and retained for backwards-compatibility purposes.
+// The MachinePortRanges interface should be used instead.
 type OpenedPorts interface {
 	SubnetID() string
 	OpenPorts() []PortRange
@@ -17,6 +20,9 @@ type OpenedPorts interface {
 
 // PortRange represents one or more contiguous ports opened by a particular
 // Unit.
+//
+// This type is deprecated and retained for backwards-compatibility purposes.
+// The UnitPortRange interface should be used instead.
 type PortRange interface {
 	UnitName() string
 	FromPort() int

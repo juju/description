@@ -4,6 +4,8 @@
 package description
 
 import (
+	"bytes"
+
 	"github.com/juju/errors"
 	"github.com/juju/names/v4"
 	jc "github.com/juju/testing/checkers"
@@ -319,49 +321,52 @@ func (*MachineSerializationSuite) TestNestedParsingWithPriorVersion(c *gc.C) {
 	c.Assert(machines, jc.DeepEquals, expected)
 }
 
-func (s *MachineSerializationSuite) addOpenedPorts(m Machine) []OpenedPortsArgs {
-	args := []OpenedPortsArgs{
+func (s *MachineSerializationSuite) addOpenedPortRanges(m Machine) {
+	args := []OpenedPortRangeArgs{
 		{
-			SubnetID: "0.1.2.0/24",
-			OpenedPorts: []PortRangeArgs{
-				{
-					UnitName: "magic/0",
-					FromPort: 1234,
-					ToPort:   2345,
-					Protocol: "tcp",
-				},
-			},
+			UnitName:     "magic/0",
+			EndpointName: "",
+			FromPort:     1234,
+			ToPort:       2345,
+			Protocol:     "tcp",
 		}, {
-			SubnetID: "",
-			OpenedPorts: []PortRangeArgs{
-				{
-					UnitName: "unicorn/0",
-					FromPort: 80,
-					ToPort:   80,
-					Protocol: "tcp",
-				},
-			},
+			UnitName:     "unicorn/0",
+			EndpointName: "dmz",
+			FromPort:     80,
+			ToPort:       80,
+			Protocol:     "tcp",
+		}, {
+			UnitName:     "unicorn/0",
+			EndpointName: "dmz",
+			FromPort:     1821,
+			ToPort:       1821,
+			Protocol:     "udp",
 		},
 	}
-	m.AddOpenedPorts(args[0])
-	m.AddOpenedPorts(args[1])
-	return args
+	m.AddOpenedPortRange(args[0])
+	m.AddOpenedPortRange(args[1])
+	m.AddOpenedPortRange(args[2])
 }
 
-func (s *MachineSerializationSuite) TestOpenedPorts(c *gc.C) {
+func (s *MachineSerializationSuite) TestOpenedPortRanges(c *gc.C) {
 	m := newMachine(s.machineArgs("42"))
-	args := s.addOpenedPorts(m)
-	ports := m.OpenedPorts()
-	c.Assert(ports, gc.HasLen, 2)
-	withSubnet, withoutSubnet := ports[0], ports[1]
-	c.Assert(withSubnet.SubnetID(), gc.Equals, "0.1.2.0/24")
-	c.Assert(withoutSubnet.SubnetID(), gc.Equals, "")
-	opened := withSubnet.OpenPorts()
-	c.Assert(opened, gc.HasLen, 1)
-	s.AssertPortRange(c, opened[0], args[0].OpenedPorts[0])
-	opened = withoutSubnet.OpenPorts()
-	c.Assert(opened, gc.HasLen, 1)
-	s.AssertPortRange(c, opened[0], args[1].OpenedPorts[0])
+	s.addOpenedPortRanges(m)
+
+	machineRangesByUnit := m.OpenedPortRanges().ByUnit()
+	c.Assert(machineRangesByUnit, gc.HasLen, 2)
+
+	magicUnitRangesByEndpoint := machineRangesByUnit["magic/0"].ByEndpoint()
+	c.Assert(magicUnitRangesByEndpoint, gc.HasLen, 1)
+	magicUnitRanges := magicUnitRangesByEndpoint[""]
+	c.Assert(magicUnitRanges, gc.HasLen, 1)
+	assertUnitPortRangeMatches(c, magicUnitRanges[0], newUnitPortRange(1234, 2345, "tcp"))
+
+	unicornUnitRangesByEndpoint := machineRangesByUnit["unicorn/0"].ByEndpoint()
+	c.Assert(unicornUnitRangesByEndpoint, gc.HasLen, 1)
+	unicornUnitRanges := unicornUnitRangesByEndpoint["dmz"]
+	c.Assert(unicornUnitRanges, gc.HasLen, 2)
+	assertUnitPortRangeMatches(c, unicornUnitRanges[0], newUnitPortRange(80, 80, "tcp"))
+	assertUnitPortRangeMatches(c, unicornUnitRanges[1], newUnitPortRange(1821, 1821, "udp"))
 }
 
 func (s *MachineSerializationSuite) TestAnnotations(c *gc.C) {
@@ -391,7 +396,7 @@ func (s *MachineSerializationSuite) TestConstraints(c *gc.C) {
 
 func (s *MachineSerializationSuite) exportImport(c *gc.C, machine_ *machine) *machine {
 	initial := machines{
-		Version:   1,
+		Version:   2,
 		Machines_: []*machine{machine_},
 	}
 
@@ -408,7 +413,83 @@ func (s *MachineSerializationSuite) exportImport(c *gc.C, machine_ *machine) *ma
 	return machines[0]
 }
 
-func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
+func (s *MachineSerializationSuite) TestConvertPortToPortRangesForV1Payloads(c *gc.C) {
+	v1Ports := versionedOpenedPorts{
+		Version: 1,
+		OpenedPorts_: []*openedPorts{
+			{
+				// Pre 2.9 juju opens ports across all subnets so the
+				// ports documents always have an empty subnet ID
+				SubnetID_: "",
+				OpenedPorts_: &portRanges{
+					Version: 1,
+					OpenedPorts_: []*portRange{
+						{
+							UnitName_: "magic/0",
+							FromPort_: 80,
+							ToPort_:   90,
+							Protocol_: "tcp",
+						},
+						{
+							UnitName_: "magic/0",
+							FromPort_: 1337,
+							ToPort_:   1337,
+							Protocol_: "udp",
+						},
+						{
+							UnitName_: "unicorn/0",
+							FromPort_: 8080,
+							ToPort_:   8080,
+							Protocol_: "tcp",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var (
+		buf           bytes.Buffer
+		v1PortPayload map[string]interface{}
+	)
+	c.Assert(yaml.NewEncoder(&buf).Encode(v1Ports), jc.ErrorIsNil)
+	c.Assert(yaml.NewDecoder(&buf).Decode(&v1PortPayload), jc.ErrorIsNil)
+
+	// Get a minimal machine map and inject the generated port payload
+	machPayload := minimalMachineMap("1")
+	machPayload["opened-ports"] = v1PortPayload
+	machineListPayload := map[string]interface{}{
+		"version": 1,
+		"machines": []interface{}{
+			machPayload,
+		},
+	}
+
+	// Import the machine and ensure that the V1 ports get correctly
+	// converted into port ranges.
+	machines, err := importMachines(machineListPayload)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machines, gc.HasLen, 1)
+	mach := machines[0]
+
+	machineRangesByUnit := mach.OpenedPortRanges().ByUnit()
+	c.Assert(machineRangesByUnit, gc.HasLen, 2)
+
+	magicUnitRangesByEndpoint := machineRangesByUnit["magic/0"].ByEndpoint()
+	c.Assert(magicUnitRangesByEndpoint, gc.HasLen, 1)
+	magicUnitRanges := magicUnitRangesByEndpoint[""]
+	c.Assert(magicUnitRanges, gc.HasLen, 2)
+	assertUnitPortRangeMatches(c, magicUnitRanges[0], newUnitPortRange(80, 90, "tcp"))
+	assertUnitPortRangeMatches(c, magicUnitRanges[1], newUnitPortRange(1337, 1337, "udp"))
+
+	unicornUnitRangesByEndpoint := machineRangesByUnit["unicorn/0"].ByEndpoint()
+	c.Assert(unicornUnitRangesByEndpoint, gc.HasLen, 1)
+	unicornUnitRanges := unicornUnitRangesByEndpoint[""]
+	c.Assert(unicornUnitRanges, gc.HasLen, 1)
+	assertUnitPortRangeMatches(c, unicornUnitRanges[0], newUnitPortRange(8080, 8080, "tcp"))
+}
+
+func (s *MachineSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 	// TODO: need to fully specify a machine.
 	args := s.machineArgs("0")
 	supported := []string{"kvm", "lxd"}
@@ -420,7 +501,7 @@ func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	m.Instance().SetStatus(minimalStatusArgs())
 	m.Instance().SetModificationStatus(minimalStatusArgs())
 	m.AddBlockDevice(allBlockDeviceArgs())
-	s.addOpenedPorts(m)
+	s.addOpenedPortRanges(m)
 
 	// Just use one set of address args for both machine and provider.
 	addrArgs := []AddressArgs{
