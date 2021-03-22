@@ -553,7 +553,7 @@ func (s *AgentToolsSerializationSuite) TestNewAgentTools(c *gc.C) {
 
 func minimalAgentToolsMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":       1,
+		"version":       2,
 		"tools-version": "3.4.5-ubuntu-amd64",
 		"url":           "some-url",
 		"sha256":        "long-hash",

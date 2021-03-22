@@ -1546,9 +1546,9 @@ applications:
         tools:
           sha256: ""
           size: 0
-          tools-version: 2.1-rc1.1-xenial-amd64
+          tools-version: 2.1-rc1.1-ubuntu-amd64
           url: ""
-          version: 1
+          version: 2
         workload-status:
           status:
             message: ready
@@ -1919,9 +1919,9 @@ machines:
     tools:
       sha256: ""
       size: 0
-      tools-version: 2.1-rc1.1-xenial-amd64
+      tools-version: 2.1-rc1.1-ubuntu-amd64
       url: ""
-      version: 1
+      version: 2
   version: 1
 owner: admin
 relations:
