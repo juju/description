@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/juju/names/v4"
-	"github.com/juju/version"
+	"github.com/juju/version/v2"
 )
 
 // AgentTools represent the version and related binary file

@@ -7,7 +7,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/names/v4"
 	"github.com/juju/schema"
-	"github.com/juju/version"
+	"github.com/juju/version/v2"
 )
 
 // Machine represents an existing live machine or container running in the
@@ -673,7 +673,7 @@ type AgentToolsArgs struct {
 
 func newAgentTools(args AgentToolsArgs) *agentTools {
 	return &agentTools{
-		Version_:      1,
+		Version_:      2,
 		ToolsVersion_: args.Version,
 		URL_:          args.URL,
 		SHA256_:       args.SHA256,
@@ -730,9 +730,20 @@ type agentToolsDeserializationFunc func(map[string]interface{}) (*agentTools, er
 
 var agentToolsDeserializationFuncs = map[int]agentToolsDeserializationFunc{
 	1: importAgentToolsV1,
+	2: importAgentToolsV2,
+}
+
+func importAgentToolsV2(source map[string]interface{}) (*agentTools, error) {
+	// v2 is the same format as v1 except that agent binary version string
+	// contains the os name not the series name.
+	return importAgentToolsVersion(source, 2)
 }
 
 func importAgentToolsV1(source map[string]interface{}) (*agentTools, error) {
+	return importAgentToolsVersion(source, 1)
+}
+
+func importAgentToolsVersion(source map[string]interface{}, formatVersion int) (*agentTools, error) {
 	fields := schema.Fields{
 		"tools-version": schema.String(),
 		"url":           schema.String(),
@@ -756,7 +767,7 @@ func importAgentToolsV1(source map[string]interface{}) (*agentTools, error) {
 	}
 
 	return &agentTools{
-		Version_:      1,
+		Version_:      formatVersion,
 		ToolsVersion_: toolsVersion,
 		URL_:          valid["url"].(string),
 		SHA256_:       valid["sha256"].(string),
