@@ -9,7 +9,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/names/v4"
 	jc "github.com/juju/testing/checkers"
-	"github.com/juju/version"
+	"github.com/juju/version/v2"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
 )
@@ -538,7 +538,7 @@ func (s *AgentToolsSerializationSuite) SetUpTest(c *gc.C) {
 
 func (s *AgentToolsSerializationSuite) TestNewAgentTools(c *gc.C) {
 	args := AgentToolsArgs{
-		Version: version.MustParseBinary("3.4.5-trusty-amd64"),
+		Version: version.MustParseBinary("3.4.5-ubuntu-amd64"),
 		URL:     "some-url",
 		SHA256:  "long-hash",
 		Size:    123456789,
@@ -554,7 +554,7 @@ func (s *AgentToolsSerializationSuite) TestNewAgentTools(c *gc.C) {
 func minimalAgentToolsMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"version":       1,
-		"tools-version": "3.4.5-trusty-amd64",
+		"tools-version": "3.4.5-ubuntu-amd64",
 		"url":           "some-url",
 		"sha256":        "long-hash",
 		"size":          123456789,
@@ -563,7 +563,7 @@ func minimalAgentToolsMap() map[interface{}]interface{} {
 
 func minimalAgentToolsArgs() AgentToolsArgs {
 	return AgentToolsArgs{
-		Version: version.MustParseBinary("3.4.5-trusty-amd64"),
+		Version: version.MustParseBinary("3.4.5-ubuntu-amd64"),
 		URL:     "some-url",
 		SHA256:  "long-hash",
 		Size:    123456789,
@@ -586,7 +586,7 @@ func (s *AgentToolsSerializationSuite) TestMinimalMatches(c *gc.C) {
 
 func (s *AgentToolsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := newAgentTools(AgentToolsArgs{
-		Version: version.MustParseBinary("2.0.4-trusty-amd64"),
+		Version: version.MustParseBinary("2.0.4-ubuntu-amd64"),
 		URL:     "some-url",
 		SHA256:  "long-hash",
 		Size:    123456789,
