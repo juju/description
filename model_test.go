@@ -144,7 +144,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	initial := NewModel(args).(*model)
 	c.Assert(initial.Applications_.Version, gc.Equals, len(applicationDeserializationFuncs))
 	c.Assert(initial.Actions_.Version, gc.Equals, 4)
-	c.Assert(initial.Operations_.Version, gc.Equals, 1)
+	c.Assert(initial.Operations_.Version, gc.Equals, 2)
 	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
 	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
 	c.Assert(initial.RemoteEntities_.Version, gc.Equals, len(remoteEntityFieldsFuncs))
@@ -1313,10 +1313,12 @@ func (s *ModelSerializationSuite) TestOperation(c *gc.C) {
 	enqueued := time.Now().UTC()
 	op := initial.AddOperation(OperationArgs{
 		Summary:           "foo",
+		Fail:              "fail",
 		Enqueued:          enqueued,
 		CompleteTaskCount: 666,
 	})
 	c.Assert(op.Summary(), gc.Equals, "foo")
+	c.Assert(op.Fail(), gc.Equals, "fail")
 	c.Assert(op.CompleteTaskCount(), gc.Equals, 666)
 	c.Assert(op.Enqueued(), gc.Equals, enqueued)
 	operations := initial.Operations()
