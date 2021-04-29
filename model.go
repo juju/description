@@ -410,7 +410,7 @@ func (m *model) AddMachine(args MachineArgs) Machine {
 
 func (m *model) setMachines(machineList []*machine) {
 	m.Machines_ = machines{
-		Version:   2,
+		Version:   1,
 		Machines_: machineList,
 	}
 }
@@ -442,7 +442,7 @@ func (m *model) AddApplication(args ApplicationArgs) Application {
 
 func (m *model) setApplications(applicationList []*application) {
 	m.Applications_ = applications{
-		Version:       8,
+		Version:       6,
 		Applications_: applicationList,
 	}
 }
@@ -603,7 +603,7 @@ func (m *model) AddIPAddress(args IPAddressArgs) IPAddress {
 
 func (m *model) setIPAddresses(addressesList []*ipaddress) {
 	m.IPAddresses_ = ipaddresses{
-		Version:      5,
+		Version:      2,
 		IPAddresses_: addressesList,
 	}
 }
@@ -631,7 +631,7 @@ func (m *model) setSSHHostKeys(addressesList []*sshHostKey) {
 	}
 }
 
-// CloudImageMetadatas implements Model.
+// CloudImageMetadata implements Model.
 func (m *model) CloudImageMetadata() []CloudImageMetadata {
 	var result []CloudImageMetadata
 	for _, addr := range m.CloudImageMetadata_.CloudImageMetadata_ {
@@ -681,7 +681,7 @@ func (m *model) AddAction(args ActionArgs) Action {
 
 func (m *model) setActions(actionsList []*action) {
 	m.Actions_ = actions{
-		Version:  4,
+		Version:  3,
 		Actions_: actionsList,
 	}
 }
@@ -980,24 +980,6 @@ func (m *model) setMeterStatus(ms meterStatus) {
 	m.MeterStatus_ = ms
 }
 
-type validationContext struct {
-	allMachines           set.Strings
-	allApplications       set.Strings
-	allUnits              set.Strings
-	unitsWithOpenPorts    set.Strings
-	unknownUnitsWithPorts set.Strings
-}
-
-func newValidationContext() *validationContext {
-	return &validationContext{
-		allMachines:           set.NewStrings(),
-		allApplications:       set.NewStrings(),
-		allUnits:              set.NewStrings(),
-		unitsWithOpenPorts:    set.NewStrings(),
-		unknownUnitsWithPorts: set.NewStrings(),
-	}
-}
-
 // Validate implements Model.
 func (m *model) Validate() error {
 	// A model needs an owner.
@@ -1007,23 +989,25 @@ func (m *model) Validate() error {
 	if m.Status_ == nil {
 		return errors.NotValidf("missing status")
 	}
-
-	validationCtx := newValidationContext()
+	allMachines := set.NewStrings()
+	unitsWithOpenPorts := set.NewStrings()
 	for _, machine := range m.Machines_.Machines_ {
-		if err := m.validateMachine(validationCtx, machine); err != nil {
+		if err := m.validateMachine(machine, allMachines, unitsWithOpenPorts); err != nil {
 			return errors.Trace(err)
 		}
 	}
+	allApplications := set.NewStrings()
+	allUnits := set.NewStrings()
 	for _, application := range m.Applications_.Applications_ {
 		if err := application.Validate(); err != nil {
 			return errors.Trace(err)
 		}
-		validationCtx.allApplications.Add(application.Name())
-		validationCtx.allUnits = validationCtx.allUnits.Union(application.unitNames())
+		allApplications.Add(application.Name())
+		allUnits = allUnits.Union(application.unitNames())
 	}
 	// Make sure that all the unit names specified in machine opened ports
 	// exist as units of applications.
-	unknownUnitsWithPorts := validationCtx.unitsWithOpenPorts.Difference(validationCtx.allUnits)
+	unknownUnitsWithPorts := unitsWithOpenPorts.Difference(allUnits)
 	if len(unknownUnitsWithPorts) > 0 {
 		return errors.Errorf("unknown unit names in open ports: %s", unknownUnitsWithPorts.SortedValues())
 	}
@@ -1047,7 +1031,7 @@ func (m *model) Validate() error {
 		return errors.Trace(err)
 	}
 
-	err = m.validateStorage(validationCtx)
+	err = m.validateStorage(allMachines, allApplications, allUnits)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -1055,16 +1039,18 @@ func (m *model) Validate() error {
 	return nil
 }
 
-func (m *model) validateMachine(validationCtx *validationContext, machine Machine) error {
+func (m *model) validateMachine(machine Machine, allMachineIDs, unitsWithOpenPorts set.Strings) error {
 	if err := machine.Validate(); err != nil {
 		return errors.Trace(err)
 	}
-	validationCtx.allMachines.Add(machine.Id())
-	for unitName := range machine.OpenedPortRanges().ByUnit() {
-		validationCtx.unitsWithOpenPorts.Add(unitName)
+	allMachineIDs.Add(machine.Id())
+	for _, op := range machine.OpenedPorts() {
+		for _, pr := range op.OpenPorts() {
+			unitsWithOpenPorts.Add(pr.UnitName())
+		}
 	}
 	for _, container := range machine.Containers() {
-		err := m.validateMachine(validationCtx, container)
+		err := m.validateMachine(container, allMachineIDs, unitsWithOpenPorts)
 		if err != nil {
 			return errors.Trace(err)
 		}
@@ -1072,8 +1058,8 @@ func (m *model) validateMachine(validationCtx *validationContext, machine Machin
 	return nil
 }
 
-func (m *model) validateStorage(validationCtx *validationContext) error {
-	appsAndUnits := validationCtx.allApplications.Union(validationCtx.allUnits)
+func (m *model) validateStorage(allMachineIDs, allApplications, allUnits set.Strings) error {
+	appsAndUnits := allApplications.Union(allUnits)
 	allStorage := set.NewStrings()
 	for i, storage := range m.Storages_.Storages_ {
 		if err := storage.Validate(); err != nil {
@@ -1091,7 +1077,7 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 			}
 		}
 		for _, unit := range storage.Attachments() {
-			if !validationCtx.allUnits.Contains(unit.Id()) {
+			if !allUnits.Contains(unit.Id()) {
 				return errors.NotValidf("storage[%d] attachment referencing unknown unit %q", i, unit)
 			}
 		}
@@ -1107,8 +1093,8 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 		}
 		for j, attachment := range volume.Attachments() {
 			hostID := attachment.Host().Id()
-			knownMachine := validationCtx.allMachines.Contains(hostID)
-			knownUnit := validationCtx.allUnits.Contains(hostID)
+			knownMachine := allMachineIDs.Contains(hostID)
+			knownUnit := allUnits.Contains(hostID)
 			if !knownMachine && !knownUnit {
 				return errors.NotValidf("volume[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
 			}
@@ -1126,8 +1112,8 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 		}
 		for j, attachment := range filesystem.Attachments() {
 			hostID := attachment.Host().Id()
-			knownMachine := validationCtx.allMachines.Contains(hostID)
-			knownUnit := validationCtx.allUnits.Contains(hostID)
+			knownMachine := allMachineIDs.Contains(hostID)
+			knownUnit := allUnits.Contains(hostID)
 			if !knownMachine && !knownUnit {
 				return errors.NotValidf("filesystem[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
 			}

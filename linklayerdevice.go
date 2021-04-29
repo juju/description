@@ -14,16 +14,15 @@ type linklayerdevices struct {
 }
 
 type linklayerdevice struct {
-	Name_            string `yaml:"name"`
-	MTU_             uint   `yaml:"mtu"`
-	ProviderID_      string `yaml:"provider-id,omitempty"`
-	MachineID_       string `yaml:"machine-id"`
-	Type_            string `yaml:"type"`
-	MACAddress_      string `yaml:"mac-address"`
-	IsAutoStart_     bool   `yaml:"is-autostart"`
-	IsUp_            bool   `yaml:"is-up"`
-	ParentName_      string `yaml:"parent-name"`
-	VirtualPortType_ string `yaml:"virtual-port-type,omitempty"`
+	Name_        string `yaml:"name"`
+	MTU_         uint   `yaml:"mtu"`
+	ProviderID_  string `yaml:"provider-id,omitempty"`
+	MachineID_   string `yaml:"machine-id"`
+	Type_        string `yaml:"type"`
+	MACAddress_  string `yaml:"mac-address"`
+	IsAutoStart_ bool   `yaml:"is-autostart"`
+	IsUp_        bool   `yaml:"is-up"`
+	ParentName_  string `yaml:"parent-name"`
 }
 
 // ProviderID implements LinkLayerDevice.
@@ -71,38 +70,31 @@ func (i *linklayerdevice) ParentName() string {
 	return i.ParentName_
 }
 
-// VirtualPortType implements LinkLayerDevice.
-func (i *linklayerdevice) VirtualPortType() string {
-	return i.VirtualPortType_
-}
-
 // LinkLayerDeviceArgs is an argument struct used to create a
 // new internal linklayerdevice type that supports the LinkLayerDevice interface.
 type LinkLayerDeviceArgs struct {
-	Name            string
-	MTU             uint
-	ProviderID      string
-	MachineID       string
-	Type            string
-	MACAddress      string
-	IsAutoStart     bool
-	IsUp            bool
-	ParentName      string
-	VirtualPortType string
+	Name        string
+	MTU         uint
+	ProviderID  string
+	MachineID   string
+	Type        string
+	MACAddress  string
+	IsAutoStart bool
+	IsUp        bool
+	ParentName  string
 }
 
 func newLinkLayerDevice(args LinkLayerDeviceArgs) *linklayerdevice {
 	return &linklayerdevice{
-		ProviderID_:      args.ProviderID,
-		MachineID_:       args.MachineID,
-		Name_:            args.Name,
-		MTU_:             args.MTU,
-		Type_:            args.Type,
-		MACAddress_:      args.MACAddress,
-		IsAutoStart_:     args.IsAutoStart,
-		IsUp_:            args.IsUp,
-		ParentName_:      args.ParentName,
-		VirtualPortType_: args.VirtualPortType,
+		ProviderID_:  args.ProviderID,
+		MachineID_:   args.MachineID,
+		Name_:        args.Name,
+		MTU_:         args.MTU,
+		Type_:        args.Type,
+		MACAddress_:  args.MACAddress,
+		IsAutoStart_: args.IsAutoStart,
+		IsUp_:        args.IsUp,
+		ParentName_:  args.ParentName,
 	}
 }
 
@@ -143,50 +135,9 @@ type linklayerdeviceDeserializationFunc func(map[string]interface{}) (*linklayer
 
 var linklayerdeviceDeserializationFuncs = map[int]linklayerdeviceDeserializationFunc{
 	1: importLinkLayerDeviceV1,
-	2: importLinkLayerDeviceV2,
 }
 
 func importLinkLayerDeviceV1(source map[string]interface{}) (*linklayerdevice, error) {
-	fields, defaults := linkLayerDeviceV1Schema()
-	checker := schema.FieldMap(fields, defaults)
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "linklayerdevice v1 schema check failed")
-	}
-	return linkLayerDeviceV1(coerced.(map[string]interface{})), nil
-}
-
-func importLinkLayerDeviceV2(source map[string]interface{}) (*linklayerdevice, error) {
-	fields, defaults := linkLayerDeviceV2Schema()
-	checker := schema.FieldMap(fields, defaults)
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "linklayerdevice v2 schema check failed")
-	}
-	return linkLayerDeviceV2(coerced.(map[string]interface{})), nil
-}
-
-func linkLayerDeviceV1(valid map[string]interface{}) *linklayerdevice {
-	return &linklayerdevice{
-		ProviderID_:  valid["provider-id"].(string),
-		MachineID_:   valid["machine-id"].(string),
-		Name_:        valid["name"].(string),
-		MTU_:         uint(valid["mtu"].(int64)),
-		Type_:        valid["type"].(string),
-		MACAddress_:  valid["mac-address"].(string),
-		IsAutoStart_: valid["is-autostart"].(bool),
-		IsUp_:        valid["is-up"].(bool),
-		ParentName_:  valid["parent-name"].(string),
-	}
-}
-
-func linkLayerDeviceV2(valid map[string]interface{}) *linklayerdevice {
-	lld := linkLayerDeviceV1(valid)
-	lld.VirtualPortType_ = valid["virtual-port-type"].(string)
-	return lld
-}
-
-func linkLayerDeviceV1Schema() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"provider-id":  schema.String(),
 		"machine-id":   schema.String(),
@@ -202,15 +153,22 @@ func linkLayerDeviceV1Schema() (schema.Fields, schema.Defaults) {
 	defaults := schema.Defaults{
 		"provider-id": "",
 	}
+	checker := schema.FieldMap(fields, defaults)
 
-	return fields, defaults
-}
-
-func linkLayerDeviceV2Schema() (schema.Fields, schema.Defaults) {
-	fields, defaults := linkLayerDeviceV1Schema()
-
-	fields["virtual-port-type"] = schema.String()
-	defaults["virtual-port-type"] = ""
-
-	return fields, defaults
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "linklayerdevice v1 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return &linklayerdevice{
+		ProviderID_:  valid["provider-id"].(string),
+		MachineID_:   valid["machine-id"].(string),
+		Name_:        valid["name"].(string),
+		MTU_:         uint(valid["mtu"].(int64)),
+		Type_:        valid["type"].(string),
+		MACAddress_:  valid["mac-address"].(string),
+		IsAutoStart_: valid["is-autostart"].(bool),
+		IsUp_:        valid["is-up"].(bool),
+		ParentName_:  valid["parent-name"].(string),
+	}, nil
 }

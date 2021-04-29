@@ -17,8 +17,6 @@ type Action interface {
 	Name() string
 	Operation() string
 	Parameters() map[string]interface{}
-	Parallel() bool
-	ExecutionGroup() string
 	Enqueued() time.Time
 	Started() time.Time
 	Completed() time.Time
@@ -60,14 +58,12 @@ func (m actionMessage) Message() string {
 }
 
 type action struct {
-	Id_             string                 `yaml:"id"`
-	Receiver_       string                 `yaml:"receiver"`
-	Name_           string                 `yaml:"name"`
-	Operation_      string                 `yaml:"operation"`
-	Parameters_     map[string]interface{} `yaml:"parameters"`
-	Parallel_       bool                   `yaml:"parallel"`
-	ExecutionGroup_ string                 `yaml:"execution-group"`
-	Enqueued_       time.Time              `yaml:"enqueued"`
+	Id_         string                 `yaml:"id"`
+	Receiver_   string                 `yaml:"receiver"`
+	Name_       string                 `yaml:"name"`
+	Operation_  string                 `yaml:"operation"`
+	Parameters_ map[string]interface{} `yaml:"parameters"`
+	Enqueued_   time.Time              `yaml:"enqueued"`
 	// Can't use omitempty with time.Time, it just doesn't work
 	// (nothing is serialised), so use a pointer in the struct.
 	Started_   *time.Time             `yaml:"started,omitempty"`
@@ -101,16 +97,6 @@ func (i *action) Operation() string {
 // Parameters implements Action.
 func (i *action) Parameters() map[string]interface{} {
 	return i.Parameters_
-}
-
-// Parallel implements Action.
-func (i *action) Parallel() bool {
-	return i.Parallel_
-}
-
-// ExecutionGroup implements Action.
-func (i *action) ExecutionGroup() string {
-	return i.ExecutionGroup_
 }
 
 // Enqueued implements Action.
@@ -169,35 +155,31 @@ func (i *action) Logs() []ActionMessage {
 // ActionArgs is an argument struct used to create a
 // new internal action type that supports the Action interface.
 type ActionArgs struct {
-	Id             string
-	Receiver       string
-	Name           string
-	Operation      string
-	Parameters     map[string]interface{}
-	Parallel       bool
-	ExecutionGroup string
-	Enqueued       time.Time
-	Started        time.Time
-	Completed      time.Time
-	Status         string
-	Message        string
-	Results        map[string]interface{}
-	Messages       []ActionMessage
+	Id         string
+	Receiver   string
+	Name       string
+	Operation  string
+	Parameters map[string]interface{}
+	Enqueued   time.Time
+	Started    time.Time
+	Completed  time.Time
+	Status     string
+	Message    string
+	Results    map[string]interface{}
+	Messages   []ActionMessage
 }
 
 func newAction(args ActionArgs) *action {
 	action := &action{
-		Receiver_:       args.Receiver,
-		Name_:           args.Name,
-		Operation_:      args.Operation,
-		Parameters_:     args.Parameters,
-		Parallel_:       args.Parallel,
-		ExecutionGroup_: args.ExecutionGroup,
-		Enqueued_:       args.Enqueued,
-		Status_:         args.Status,
-		Message_:        args.Message,
-		Id_:             args.Id,
-		Results_:        args.Results,
+		Receiver_:   args.Receiver,
+		Name_:       args.Name,
+		Operation_:  args.Operation,
+		Parameters_: args.Parameters,
+		Enqueued_:   args.Enqueued,
+		Status_:     args.Status,
+		Message_:    args.Message,
+		Id_:         args.Id,
+		Results_:    args.Results,
 	}
 	if len(args.Messages) > 0 {
 		logs := make([]*actionMessage, len(args.Messages))
@@ -265,7 +247,6 @@ var actionFieldsFuncs = map[int]fieldsFunc{
 	1: actionV1Fields,
 	2: actionV2Fields,
 	3: actionV3Fields,
-	4: actionV4Fields,
 }
 
 func actionV1Fields() (schema.Fields, schema.Defaults) {
@@ -299,13 +280,6 @@ func actionV2Fields() (schema.Fields, schema.Defaults) {
 func actionV3Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := actionV2Fields()
 	fields["operation"] = schema.String()
-	return fields, defaults
-}
-
-func actionV4Fields() (schema.Fields, schema.Defaults) {
-	fields, defaults := actionV3Fields()
-	fields["parallel"] = schema.Bool()
-	fields["execution-group"] = schema.String()
 	return fields, defaults
 }
 
@@ -343,11 +317,6 @@ func importAction(source map[string]interface{}, importVersion int, fieldFunc fu
 
 	if importVersion >= 3 {
 		action.Operation_ = valid["operation"].(string)
-	}
-
-	if importVersion >= 4 {
-		action.Parallel_ = valid["parallel"].(bool)
-		action.ExecutionGroup_ = valid["execution-group"].(string)
 	}
 
 	return action, nil
