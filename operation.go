@@ -14,6 +14,7 @@ import (
 type Operation interface {
 	Id() string
 	Summary() string
+	Fail() string
 	Enqueued() time.Time
 	Started() time.Time
 	Completed() time.Time
@@ -35,6 +36,7 @@ type operation struct {
 	Started_           *time.Time `yaml:"started,omitempty"`
 	Completed_         *time.Time `yaml:"completed,omitempty"`
 	Status_            string     `yaml:"status"`
+	Fail_              string     `yaml:"fail,omitempty"`
 	CompleteTaskCount_ int        `yaml:"complete-task-count"`
 }
 
@@ -46,6 +48,11 @@ func (i *operation) Id() string {
 // Summary implements Operation.
 func (i *operation) Summary() string {
 	return i.Summary_
+}
+
+// Fail implements Operation.
+func (i *operation) Fail() string {
+	return i.Fail_
 }
 
 // Enqueued implements Operation.
@@ -90,6 +97,7 @@ type OperationArgs struct {
 	Started           time.Time
 	Completed         time.Time
 	Status            string
+	Fail              string
 	CompleteTaskCount int
 }
 
@@ -99,6 +107,7 @@ func newOperation(args OperationArgs) *operation {
 		Summary_:           args.Summary,
 		Enqueued_:          args.Enqueued,
 		Status_:            args.Status,
+		Fail_:              args.Fail,
 		CompleteTaskCount_: args.CompleteTaskCount,
 	}
 	if !args.Started.IsZero() {
@@ -148,6 +157,7 @@ func importOperationList(sourceList []interface{}, version int) ([]*operation, e
 
 var operationFieldsFuncs = map[int]fieldsFunc{
 	1: operationV1Fields,
+	2: operationV2Fields,
 }
 
 func operationV1Fields() (schema.Fields, schema.Defaults) {
@@ -165,6 +175,13 @@ func operationV1Fields() (schema.Fields, schema.Defaults) {
 		"started":   schema.Omit,
 		"completed": schema.Omit,
 	}
+	return fields, defaults
+}
+
+func operationV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := operationV1Fields()
+	fields["fail"] = schema.String()
+	defaults["fail"] = schema.Omit
 	return fields, defaults
 }
 
@@ -187,5 +204,8 @@ func importOperation(source map[string]interface{}, importVersion int, fieldFunc
 		CompleteTaskCount_: int(valid["complete-task-count"].(int64)),
 	}
 
+	if importVersion >= 2 {
+		operation.Fail_, _ = valid["fail"].(string)
+	}
 	return operation, nil
 }

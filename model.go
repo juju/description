@@ -695,7 +695,7 @@ func (m *model) AddOperation(args OperationArgs) Operation {
 
 func (m *model) setOperations(operationsList []*operation) {
 	m.Operations_ = operations{
-		Version:     1,
+		Version:     2,
 		Operations_: operationsList,
 	}
 }
