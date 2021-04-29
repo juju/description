@@ -29,10 +29,8 @@ type Application interface {
 	Channel() string
 	CharmModifiedVersion() int
 	ForceCharm() bool
-	MinUnits() int
-
 	Exposed() bool
-	ExposedEndpoints() map[string]ExposedEndpoint
+	MinUnits() int
 
 	PasswordHash() string
 	PodSpec() string
@@ -59,9 +57,6 @@ type Application interface {
 	Units() []Unit
 	AddUnit(UnitArgs) Unit
 
-	CharmOrigin() CharmOrigin
-	SetCharmOrigin(CharmOriginArgs)
-
 	Tools() AgentTools
 	SetTools(AgentToolsArgs)
 
@@ -69,14 +64,6 @@ type Application interface {
 	AddOffer(ApplicationOfferArgs) ApplicationOffer
 
 	Validate() error
-}
-
-// ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
-// should be able to access ports opened by the application for a particular
-// endpoint once the application is exposed.
-type ExposedEndpoint interface {
-	ExposeToSpaceIDs() []string
-	ExposeToCIDRs() []string
 }
 
 type applications struct {
@@ -96,10 +83,8 @@ type application struct {
 	// ForceCharm is true if an upgrade charm is forced.
 	// It means upgrade even if the charm is in an error state.
 	ForceCharm_ bool `yaml:"force-charm,omitempty"`
+	Exposed_    bool `yaml:"exposed,omitempty"`
 	MinUnits_   int  `yaml:"min-units,omitempty"`
-
-	Exposed_          bool                        `yaml:"exposed,omitempty"`
-	ExposedEndpoints_ map[string]*exposedEndpoint `yaml:"exposed-endpoints,omitempty"`
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
@@ -136,9 +121,6 @@ type application struct {
 
 	// Offer-related fields
 	Offers_ *applicationOffers `yaml:"offers,omitempty"`
-
-	// CharmOrigin fields
-	CharmOrigin_ *charmOrigin `yaml:"charm-origin,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -157,9 +139,8 @@ type ApplicationArgs struct {
 	HasResources         bool
 	DesiredScale         int
 	CloudService         *CloudServiceArgs
-	MinUnits             int
 	Exposed              bool
-	ExposedEndpoints     map[string]ExposedEndpointArgs
+	MinUnits             int
 	EndpointBindings     map[string]string
 	ApplicationConfig    map[string]interface{}
 	CharmConfig          map[string]interface{}
@@ -202,12 +183,6 @@ func newApplication(args ApplicationArgs) *application {
 		app.StorageConstraints_ = make(map[string]*storageconstraint)
 		for key, value := range args.StorageConstraints {
 			app.StorageConstraints_[key] = newStorageConstraint(value)
-		}
-	}
-	if len(args.ExposedEndpoints) > 0 {
-		app.ExposedEndpoints_ = make(map[string]*exposedEndpoint)
-		for key, value := range args.ExposedEndpoints {
-			app.ExposedEndpoints_[key] = newExposedEndpoint(value)
 		}
 	}
 	return app
@@ -261,19 +236,6 @@ func (a *application) ForceCharm() bool {
 // Exposed implements Application.
 func (a *application) Exposed() bool {
 	return a.Exposed_
-}
-
-// ExposedEndpoints implements Application.
-func (a *application) ExposedEndpoints() map[string]ExposedEndpoint {
-	if len(a.ExposedEndpoints_) == 0 {
-		return nil
-	}
-
-	result := make(map[string]ExposedEndpoint)
-	for key, value := range a.ExposedEndpoints_ {
-		result[key] = value
-	}
-	return result
 }
 
 // PasswordHash implements Application.
@@ -473,20 +435,6 @@ func (a *application) SetTools(args AgentToolsArgs) {
 	a.Tools_ = newAgentTools(args)
 }
 
-// CharmOrigin implements Application.
-func (a *application) CharmOrigin() CharmOrigin {
-	// To avoid a typed nil, check before returning.
-	if a.CharmOrigin_ == nil {
-		return nil
-	}
-	return a.CharmOrigin_
-}
-
-// SetCharmOrigin implements Application.
-func (a *application) SetCharmOrigin(args CharmOriginArgs) {
-	a.CharmOrigin_ = newCharmOrigin(args)
-}
-
 // Offers implements Application.
 func (a *application) Offers() []ApplicationOffer {
 	if a.Offers_ == nil || len(a.Offers_.Offers) == 0 {
@@ -599,8 +547,6 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	4: importApplicationV4,
 	5: importApplicationV5,
 	6: importApplicationV6,
-	7: importApplicationV7,
-	8: importApplicationV8,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -687,20 +633,6 @@ func applicationV6Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
-func applicationV7Fields() (schema.Fields, schema.Defaults) {
-	fields, defaults := applicationV6Fields()
-	fields["charm-origin"] = schema.StringMap(schema.Any())
-	defaults["charm-origin"] = schema.Omit
-	return fields, defaults
-}
-
-func applicationV8Fields() (schema.Fields, schema.Defaults) {
-	fields, defaults := applicationV7Fields()
-	fields["exposed-endpoints"] = schema.StringMap(schema.StringMap(schema.Any()))
-	defaults["exposed-endpoints"] = schema.Omit
-	return fields, defaults
-}
-
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -729,16 +661,6 @@ func importApplicationV5(source map[string]interface{}) (*application, error) {
 func importApplicationV6(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV6Fields()
 	return importApplication(fields, defaults, 6, source)
-}
-
-func importApplicationV7(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV7Fields()
-	return importApplication(fields, defaults, 7, source)
-}
-
-func importApplicationV8(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV8Fields()
-	return importApplication(fields, defaults, 8, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -799,24 +721,6 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	}
 	if importVersion >= 6 {
 		result.HasResources_ = valid["has-resources"].(bool)
-	}
-
-	if importVersion >= 7 {
-		if charmOriginMap, ok := valid["charm-origin"]; ok {
-			charmOrigin, err := importCharmOrigin(charmOriginMap.(map[string]interface{}))
-			if err != nil {
-				return nil, errors.Trace(err)
-			}
-			result.CharmOrigin_ = charmOrigin
-		}
-	}
-
-	if importVersion >= 8 {
-		if exposedEndpoints, ok := valid["exposed-endpoints"].(map[string]interface{}); ok {
-			if result.ExposedEndpoints_, err = importExposedEndpointsMap(exposedEndpoints); err != nil {
-				return nil, errors.Trace(err)
-			}
-		}
 	}
 
 	result.importAnnotations(valid)

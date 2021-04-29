@@ -38,7 +38,6 @@ type LinkLayerDevice interface {
 	IsAutoStart() bool
 	IsUp() bool
 	ParentName() string
-	VirtualPortType() string
 }
 
 // IPAddress represents an IP address.
@@ -56,8 +55,6 @@ type IPAddress interface {
 	ProviderNetworkID() string
 	ProviderSubnetID() string
 	Origin() string
-	IsShadow() bool
-	IsSecondary() bool
 }
 
 // SSHHostKey represents an ssh host key.
@@ -224,15 +221,4 @@ type FirewallRule interface {
 	ID() string
 	WellKnownService() string
 	WhitelistCIDRs() []string
-}
-
-// CharmOrigin represents a charm source, where the charm originates from to
-// help support multiple store locations.
-type CharmOrigin interface {
-	Source() string
-	ID() string
-	Hash() string
-	Revision() int
-	Channel() string
-	Platform() string
 }

@@ -31,19 +31,17 @@ func (s *ActionSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalActionMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"id":              "foo",
-		"name":            "bam",
-		"operation":       "666",
-		"receiver":        "bar",
-		"parallel":        true,
-		"execution-group": "group",
-		"enqueued":        "2019-01-01T06:06:06Z",
-		"started":         "2019-01-02T06:06:06Z",
-		"completed":       "2019-01-03T06:06:06Z",
-		"message":         "a message",
-		"parameters":      map[interface{}]interface{}{"bar": "bam", "foo": 3},
-		"results":         map[interface{}]interface{}{"the": 3, "thing": "bam"},
-		"status":          "happy",
+		"id":         "foo",
+		"name":       "bam",
+		"operation":  "666",
+		"receiver":   "bar",
+		"enqueued":   "2019-01-01T06:06:06Z",
+		"started":    "2019-01-02T06:06:06Z",
+		"completed":  "2019-01-03T06:06:06Z",
+		"message":    "a message",
+		"parameters": map[interface{}]interface{}{"bar": "bam", "foo": 3},
+		"results":    map[interface{}]interface{}{"the": 3, "thing": "bam"},
+		"status":     "happy",
 	}
 }
 
@@ -63,19 +61,17 @@ func minimalActionMapWithLogs() map[interface{}]interface{} {
 
 func minimalAction() *action {
 	action := newAction(ActionArgs{
-		Id:             "foo",
-		Receiver:       "bar",
-		Name:           "bam",
-		Operation:      "666",
-		Parameters:     map[string]interface{}{"foo": 3, "bar": "bam"},
-		Parallel:       true,
-		ExecutionGroup: "group",
-		Enqueued:       time.Date(2019, 01, 01, 6, 6, 6, 0, time.UTC),
-		Started:        time.Date(2019, 01, 02, 6, 6, 6, 0, time.UTC),
-		Completed:      time.Date(2019, 01, 03, 6, 6, 6, 0, time.UTC),
-		Status:         "happy",
-		Message:        "a message",
-		Results:        map[string]interface{}{"the": 3, "thing": "bam"},
+		Id:         "foo",
+		Receiver:   "bar",
+		Name:       "bam",
+		Operation:  "666",
+		Parameters: map[string]interface{}{"foo": 3, "bar": "bam"},
+		Enqueued:   time.Date(2019, 01, 01, 6, 6, 6, 0, time.UTC),
+		Started:    time.Date(2019, 01, 02, 6, 6, 6, 0, time.UTC),
+		Completed:  time.Date(2019, 01, 03, 6, 6, 6, 0, time.UTC),
+		Status:     "happy",
+		Message:    "a message",
+		Results:    map[string]interface{}{"the": 3, "thing": "bam"},
 	})
 	action.setLogs([]*actionMessage{
 		{
@@ -98,19 +94,17 @@ func (s *ActionSerializationSuite) TestMinimalMatches(c *gc.C) {
 
 func (s *ActionSerializationSuite) TestNewAction(c *gc.C) {
 	args := ActionArgs{
-		Id:             "foo",
-		Receiver:       "bar",
-		Name:           "bam",
-		Operation:      "666",
-		Parameters:     map[string]interface{}{"foo": 3, "bar": "bam"},
-		Parallel:       true,
-		ExecutionGroup: "group",
-		Enqueued:       time.Now(),
-		Started:        time.Now(),
-		Completed:      time.Now(),
-		Status:         "happy",
-		Message:        "a message",
-		Results:        map[string]interface{}{"the": 3, "thing": "bam"},
+		Id:         "foo",
+		Receiver:   "bar",
+		Name:       "bam",
+		Operation:  "666",
+		Parameters: map[string]interface{}{"foo": 3, "bar": "bam"},
+		Enqueued:   time.Now(),
+		Started:    time.Now(),
+		Completed:  time.Now(),
+		Status:     "happy",
+		Message:    "a message",
+		Results:    map[string]interface{}{"the": 3, "thing": "bam"},
 		Messages: []ActionMessage{
 			&actionMessage{Timestamp_: time.Now(), Message_: "hello"},
 		},
@@ -120,8 +114,6 @@ func (s *ActionSerializationSuite) TestNewAction(c *gc.C) {
 	c.Check(action.Receiver(), gc.Equals, args.Receiver)
 	c.Check(action.Name(), gc.Equals, args.Name)
 	c.Check(action.Operation(), gc.Equals, args.Operation)
-	c.Check(action.Parallel(), gc.Equals, args.Parallel)
-	c.Check(action.ExecutionGroup(), gc.Equals, args.ExecutionGroup)
 	c.Check(action.Parameters(), jc.DeepEquals, args.Parameters)
 	c.Check(action.Enqueued(), gc.Equals, args.Enqueued)
 	c.Check(action.Started(), gc.Equals, args.Started)
@@ -152,7 +144,7 @@ func (s *ActionSerializationSuite) exportImportVersion(c *gc.C, action_ *action,
 }
 
 func (s *ActionSerializationSuite) exportImportLatest(c *gc.C, action_ *action) *action {
-	return s.exportImportVersion(c, action_, 4)
+	return s.exportImportVersion(c, action_, 3)
 }
 
 func (s *ActionSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -162,8 +154,6 @@ func (s *ActionSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	actionLatest := minimalAction()
 	actionLatest.Logs_ = nil
 	actionLatest.Operation_ = ""
-	actionLatest.Parallel_ = false
-	actionLatest.ExecutionGroup_ = ""
 
 	actionResult := s.exportImportVersion(c, actionV1, 1)
 	c.Assert(actionResult, jc.DeepEquals, actionLatest)
@@ -175,22 +165,8 @@ func (s *ActionSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	// Make an action with fields not in v2 removed.
 	actionLatest := minimalAction()
 	actionLatest.Operation_ = ""
-	actionLatest.Parallel_ = false
-	actionLatest.ExecutionGroup_ = ""
 
 	actionResult := s.exportImportVersion(c, actionV1, 2)
-	c.Assert(actionResult, jc.DeepEquals, actionLatest)
-}
-
-func (s *ActionSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
-	actionV1 := minimalAction()
-
-	// Make an action with fields not in v3 removed.
-	actionLatest := minimalAction()
-	actionLatest.Parallel_ = false
-	actionLatest.ExecutionGroup_ = ""
-
-	actionResult := s.exportImportVersion(c, actionV1, 3)
 	c.Assert(actionResult, jc.DeepEquals, actionLatest)
 }
 

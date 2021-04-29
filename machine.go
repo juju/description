@@ -49,8 +49,8 @@ type Machine interface {
 	BlockDevices() []BlockDevice
 	AddBlockDevice(BlockDeviceArgs) BlockDevice
 
-	OpenedPortRanges() MachinePortRanges
-	AddOpenedPortRange(OpenedPortRangeArgs)
+	OpenedPorts() []OpenedPorts
+	AddOpenedPorts(OpenedPortsArgs) OpenedPorts
 
 	Validate() error
 }
@@ -85,7 +85,7 @@ type machine struct {
 
 	Containers_ []*machine `yaml:"containers"`
 
-	OpenedPortRanges_ *machinePortRanges `yaml:"opened-port-ranges,omitempty"`
+	OpenedPorts_ *versionedOpenedPorts `yaml:"opened-ports,omitempty"`
 
 	Annotations_ `yaml:"annotations,omitempty"`
 
@@ -322,28 +322,33 @@ func (m *machine) AddContainer(args MachineArgs) Machine {
 	return container
 }
 
-// OpenedPortRanges implements Machine.
-func (m *machine) OpenedPortRanges() MachinePortRanges {
-	if m.OpenedPortRanges_ == nil {
-		m.OpenedPortRanges_ = newMachinePortRanges()
+// OpenedPorts implements Machine.
+func (m *machine) OpenedPorts() []OpenedPorts {
+	if m.OpenedPorts_ == nil {
+		return nil
 	}
-	return m.OpenedPortRanges_
+	var result []OpenedPorts
+	for _, ports := range m.OpenedPorts_.OpenedPorts_ {
+		result = append(result, ports)
+	}
+	return result
 }
 
-// AddOpenedPortRange implements Machine.
-func (m *machine) AddOpenedPortRange(args OpenedPortRangeArgs) {
-	if m.OpenedPortRanges_ == nil {
-		m.OpenedPortRanges_ = newMachinePortRanges()
+// AddOpenedPorts implements Machine.
+func (m *machine) AddOpenedPorts(args OpenedPortsArgs) OpenedPorts {
+	if m.OpenedPorts_ == nil {
+		m.OpenedPorts_ = &versionedOpenedPorts{Version: 1}
 	}
+	ports := newOpenedPorts(args)
+	m.OpenedPorts_.OpenedPorts_ = append(m.OpenedPorts_.OpenedPorts_, ports)
+	return ports
+}
 
-	if m.OpenedPortRanges_.ByUnit_[args.UnitName] == nil {
-		m.OpenedPortRanges_.ByUnit_[args.UnitName] = newUnitPortRanges()
+func (m *machine) setOpenedPorts(portsList []*openedPorts) {
+	m.OpenedPorts_ = &versionedOpenedPorts{
+		Version:      1,
+		OpenedPorts_: portsList,
 	}
-
-	m.OpenedPortRanges_.ByUnit_[args.UnitName].ByEndpoint_[args.EndpointName] = append(
-		m.OpenedPortRanges_.ByUnit_[args.UnitName].ByEndpoint_[args.EndpointName],
-		newUnitPortRange(args.FromPort, args.ToPort, args.Protocol),
-	)
 }
 
 // Constraints implements HasConstraints.
@@ -424,34 +429,56 @@ type machineDeserializationFunc func(map[string]interface{}) (*machine, error)
 
 var machineDeserializationFuncs = map[int]machineDeserializationFunc{
 	1: importMachineV1,
-	2: importMachineV2,
 }
 
 func importMachineV1(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV1()
+	fields := schema.Fields{
+		"id":                   schema.String(),
+		"nonce":                schema.String(),
+		"password-hash":        schema.String(),
+		"placement":            schema.String(),
+		"instance":             schema.StringMap(schema.Any()),
+		"series":               schema.String(),
+		"container-type":       schema.String(),
+		"jobs":                 schema.List(schema.String()),
+		"status":               schema.StringMap(schema.Any()),
+		"supported-containers": schema.List(schema.String()),
+		"tools":                schema.StringMap(schema.Any()),
+		"containers":           schema.List(schema.StringMap(schema.Any())),
+		"opened-ports":         schema.StringMap(schema.Any()),
+
+		"provider-addresses":        schema.List(schema.StringMap(schema.Any())),
+		"machine-addresses":         schema.List(schema.StringMap(schema.Any())),
+		"preferred-public-address":  schema.StringMap(schema.Any()),
+		"preferred-private-address": schema.StringMap(schema.Any()),
+
+		"block-devices": schema.StringMap(schema.Any()),
+	}
+
+	defaults := schema.Defaults{
+		"placement":      "",
+		"container-type": "",
+		// Even though we are expecting instance data for every machine,
+		// it isn't strictly necessary, so we allow it to not exist here.
+		"instance":                  schema.Omit,
+		"supported-containers":      schema.Omit,
+		"opened-ports":              schema.Omit,
+		"block-devices":             schema.Omit,
+		"provider-addresses":        schema.Omit,
+		"machine-addresses":         schema.Omit,
+		"preferred-public-address":  schema.Omit,
+		"preferred-private-address": schema.Omit,
+	}
+	addAnnotationSchema(fields, defaults)
+	addConstraintsSchema(fields, defaults)
+	addStatusHistorySchema(fields)
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "machine v1 schema check failed")
 	}
-
-	return machineV1(coerced.(map[string]interface{}))
-}
-
-func importMachineV2(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV2()
-	checker := schema.FieldMap(fields, defaults)
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "machine v2 schema check failed")
-	}
-
-	return machineV2(coerced.(map[string]interface{}))
-}
-
-func machineV1(valid map[string]interface{}) (*machine, error) {
+	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := &machine{
@@ -561,105 +588,11 @@ func machineV1(valid map[string]interface{}) (*machine, error) {
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
-
-		// Convert to the new open port ranges format. As subnets
-		// were never actively used by older controllers (ranges were
-		// opened to all subnets), we can emulate the original semantics
-		// by opening each range for all endpoints.
-		for _, portList := range portsList {
-			for _, pr := range portList.OpenPorts() {
-				result.AddOpenedPortRange(OpenedPortRangeArgs{
-					UnitName:     pr.UnitName(),
-					EndpointName: "",
-					FromPort:     pr.FromPort(),
-					ToPort:       pr.ToPort(),
-					Protocol:     pr.Protocol(),
-				})
-			}
-		}
+		result.setOpenedPorts(portsList)
 	}
 
 	return result, nil
 
-}
-
-func machineV2(valid map[string]interface{}) (*machine, error) {
-	mach, err := machineV1(valid)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	machPortRangesSource, ok := valid["opened-port-ranges"].(map[string]interface{})
-	if !ok {
-		return mach, nil
-	}
-
-	// V1 legacy ports have been converted to open port ranges by the V1
-	// machine parser. V2 machines *only* include port ranges so if present
-	// we can simply parse them and inject them into the parsed machine
-	// instance.
-	machPortRanges, err := importMachinePortRanges(machPortRangesSource)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	mach.OpenedPortRanges_ = machPortRanges
-	return mach, nil
-}
-
-func machineSchemaV1() (schema.Fields, schema.Defaults) {
-	fields := schema.Fields{
-		"id":                   schema.String(),
-		"nonce":                schema.String(),
-		"password-hash":        schema.String(),
-		"placement":            schema.String(),
-		"instance":             schema.StringMap(schema.Any()),
-		"series":               schema.String(),
-		"container-type":       schema.String(),
-		"jobs":                 schema.List(schema.String()),
-		"status":               schema.StringMap(schema.Any()),
-		"supported-containers": schema.List(schema.String()),
-		"tools":                schema.StringMap(schema.Any()),
-		"containers":           schema.List(schema.StringMap(schema.Any())),
-		"opened-ports":         schema.StringMap(schema.Any()),
-
-		"provider-addresses":        schema.List(schema.StringMap(schema.Any())),
-		"machine-addresses":         schema.List(schema.StringMap(schema.Any())),
-		"preferred-public-address":  schema.StringMap(schema.Any()),
-		"preferred-private-address": schema.StringMap(schema.Any()),
-
-		"block-devices": schema.StringMap(schema.Any()),
-	}
-
-	defaults := schema.Defaults{
-		"placement":      "",
-		"container-type": "",
-		// Even though we are expecting instance data for every machine,
-		// it isn't strictly necessary, so we allow it to not exist here.
-		"instance":                  schema.Omit,
-		"supported-containers":      schema.Omit,
-		"opened-ports":              schema.Omit,
-		"block-devices":             schema.Omit,
-		"provider-addresses":        schema.Omit,
-		"machine-addresses":         schema.Omit,
-		"preferred-public-address":  schema.Omit,
-		"preferred-private-address": schema.Omit,
-	}
-
-	addAnnotationSchema(fields, defaults)
-	addConstraintsSchema(fields, defaults)
-	addStatusHistorySchema(fields)
-
-	return fields, defaults
-}
-
-func machineSchemaV2() (schema.Fields, schema.Defaults) {
-	fields, defaults := machineSchemaV1()
-
-	fields["opened-port-ranges"] = schema.StringMap(schema.Any())
-	defaults["opened-port-ranges"] = schema.Omit
-
-	return fields, defaults
 }
 
 // AgentToolsArgs is an argument struct used to add information about the
