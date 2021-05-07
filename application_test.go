@@ -588,32 +588,6 @@ func (s *ApplicationSerializationSuite) TestResourcesAreValidated(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, `resource foo: no application revision set`)
 }
 
-func (s *ApplicationSerializationSuite) TestCAASMissingToolsValidated(c *gc.C) {
-	app := minimalApplication(minimalApplicationArgs(CAAS))
-	app.Tools_ = nil
-	err := app.Validate()
-	c.Assert(err, gc.ErrorMatches, `application "ubuntu" missing tools not valid`)
-}
-
-func (s *ApplicationSerializationSuite) TestCAASApplicationMissingTools(c *gc.C) {
-	app := minimalApplication(minimalApplicationArgs(CAAS))
-	app.Tools_ = nil
-	initial := applications{
-		Version:       3,
-		Applications_: []*application{app},
-	}
-
-	bytes, err := yaml.Marshal(initial)
-	c.Assert(err, jc.ErrorIsNil)
-
-	var source map[string]interface{}
-	err = yaml.Unmarshal(bytes, &source)
-	c.Assert(err, jc.ErrorIsNil)
-
-	_, err = importApplications(source)
-	c.Assert(err, gc.ErrorMatches, "application 0: tools metadata in CAAS model not found")
-}
-
 func (s *ApplicationSerializationSuite) TestIAASUnitMissingTools(c *gc.C) {
 	app := minimalApplication()
 	app.Units_.Units_[0].Tools_ = nil
