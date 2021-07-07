@@ -20,6 +20,7 @@ type Operation interface {
 	Completed() time.Time
 	Status() string
 	CompleteTaskCount() int
+	SpawnedTaskCount() int
 }
 
 type operations struct {
@@ -38,6 +39,7 @@ type operation struct {
 	Status_            string     `yaml:"status"`
 	Fail_              string     `yaml:"fail,omitempty"`
 	CompleteTaskCount_ int        `yaml:"complete-task-count"`
+	SpawnedTaskCount_  int        `yaml:"spawned-task-count"`
 }
 
 // Id implements Operation.
@@ -88,6 +90,11 @@ func (i *operation) CompleteTaskCount() int {
 	return i.CompleteTaskCount_
 }
 
+// SpawnedTaskCount implements Operation.
+func (i *operation) SpawnedTaskCount() int {
+	return i.SpawnedTaskCount_
+}
+
 // OperationArgs is an argument struct used to create a
 // new internal operation type that supports the Operation interface.
 type OperationArgs struct {
@@ -99,6 +106,7 @@ type OperationArgs struct {
 	Status            string
 	Fail              string
 	CompleteTaskCount int
+	SpawnedTaskCount  int
 }
 
 func newOperation(args OperationArgs) *operation {
@@ -109,6 +117,7 @@ func newOperation(args OperationArgs) *operation {
 		Status_:            args.Status,
 		Fail_:              args.Fail,
 		CompleteTaskCount_: args.CompleteTaskCount,
+		SpawnedTaskCount_:  args.SpawnedTaskCount,
 	}
 	if !args.Started.IsZero() {
 		value := args.Started
@@ -158,6 +167,7 @@ func importOperationList(sourceList []interface{}, version int) ([]*operation, e
 var operationFieldsFuncs = map[int]fieldsFunc{
 	1: operationV1Fields,
 	2: operationV2Fields,
+	3: operationV3Fields,
 }
 
 func operationV1Fields() (schema.Fields, schema.Defaults) {
@@ -185,6 +195,12 @@ func operationV2Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func operationV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := operationV2Fields()
+	fields["spawned-task-count"] = schema.Int()
+	return fields, defaults
+}
+
 func importOperation(source map[string]interface{}, importVersion int, fieldFunc func() (schema.Fields, schema.Defaults)) (*operation, error) {
 	fields, defaults := fieldFunc()
 	checker := schema.FieldMap(fields, defaults)
@@ -207,5 +223,10 @@ func importOperation(source map[string]interface{}, importVersion int, fieldFunc
 	if importVersion >= 2 {
 		operation.Fail_, _ = valid["fail"].(string)
 	}
+
+	if importVersion >= 3 {
+		operation.SpawnedTaskCount_ = int(valid["spawned-task-count"].(int64))
+	}
+
 	return operation, nil
 }
