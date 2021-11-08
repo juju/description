@@ -38,6 +38,7 @@ func minimalOperationMap() map[interface{}]interface{} {
 		"started":             "2019-01-02T06:06:06Z",
 		"completed":           "2019-01-03T06:06:06Z",
 		"complete-task-count": 666,
+		"spawned-task-count":  667,
 		"status":              "happy",
 	}
 }
@@ -52,6 +53,7 @@ func minimalOperation() *operation {
 		Completed:         time.Date(2019, 01, 03, 6, 6, 6, 0, time.UTC),
 		Status:            "happy",
 		CompleteTaskCount: 666,
+		SpawnedTaskCount:  667,
 	})
 }
 
@@ -75,6 +77,7 @@ func (s *OperationSerializationSuite) TestNewOperation(c *gc.C) {
 		Completed:         time.Now(),
 		Status:            "happy",
 		CompleteTaskCount: 666,
+		SpawnedTaskCount:  667,
 	}
 	operation := newOperation(args)
 	c.Check(operation.Id(), gc.Equals, args.Id)
@@ -85,6 +88,7 @@ func (s *OperationSerializationSuite) TestNewOperation(c *gc.C) {
 	c.Check(operation.Completed(), gc.Equals, args.Completed)
 	c.Check(operation.Status(), gc.Equals, args.Status)
 	c.Check(operation.CompleteTaskCount(), gc.Equals, args.CompleteTaskCount)
+	c.Check(operation.SpawnedTaskCount(), gc.Equals, args.SpawnedTaskCount)
 }
 
 func (s *OperationSerializationSuite) exportImportVersion(c *gc.C, operation_ *operation, version int) *operation {
@@ -110,15 +114,28 @@ func (s *OperationSerializationSuite) exportImportV1(c *gc.C, operation_ *operat
 	return s.exportImportVersion(c, operation_, 1)
 }
 
+func (s *OperationSerializationSuite) exportImportV2(c *gc.C, operation_ *operation) *operation {
+	return s.exportImportVersion(c, operation_, 2)
+}
+
 func (s *OperationSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
 	operation := minimalOperation()
 	operation.Fail_ = ""
+	operation.SpawnedTaskCount_ = 0
 	operationResult := s.exportImportV1(c, operation)
 	c.Assert(operationResult, jc.DeepEquals, operation)
 }
 
+func (s *OperationSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
+	operation := minimalOperation()
+	operation.Fail_ = ""
+	operation.SpawnedTaskCount_ = 0
+	operationResult := s.exportImportV2(c, operation)
+	c.Assert(operationResult, jc.DeepEquals, operation)
+}
+
 func (s *OperationSerializationSuite) exportImportLatest(c *gc.C, operation_ *operation) *operation {
-	return s.exportImportVersion(c, operation_, 2)
+	return s.exportImportVersion(c, operation_, 3)
 }
 
 func (s *OperationSerializationSuite) TestParsingSerializedData(c *gc.C) {
