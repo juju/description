@@ -28,6 +28,8 @@ type Machine interface {
 	Jobs() []string
 	SupportedContainers() ([]string, bool)
 
+	DisplayName() string
+
 	Instance() CloudInstance
 	SetInstance(CloudInstanceArgs)
 
@@ -63,6 +65,7 @@ type machines struct {
 type machine struct {
 	Id_            string         `yaml:"id"`
 	Nonce_         string         `yaml:"nonce"`
+	DisplayName_   string         `yaml:"display-name,omitempty"`
 	PasswordHash_  string         `yaml:"password-hash"`
 	Placement_     string         `yaml:"placement,omitempty"`
 	Instance_      *cloudInstance `yaml:"instance,omitempty"`
@@ -106,6 +109,7 @@ type MachineArgs struct {
 	// A null value means that we don't yet know which containers
 	// are supported. An empty slice means 'no containers are supported'.
 	SupportedContainers *[]string
+	DisplayName         string
 }
 
 func newMachine(args MachineArgs) *machine {
@@ -117,6 +121,7 @@ func newMachine(args MachineArgs) *machine {
 	m := &machine{
 		Id_:            args.Id.Id(),
 		Nonce_:         args.Nonce,
+		DisplayName_:   args.DisplayName,
 		PasswordHash_:  args.PasswordHash,
 		Placement_:     args.Placement,
 		Series_:        args.Series,
@@ -146,6 +151,11 @@ func (m *machine) Tag() names.MachineTag {
 // Nonce implements Machine.
 func (m *machine) Nonce() string {
 	return m.Nonce_
+}
+
+// DisplayName implements Machine.
+func (m *machine) DisplayName() string {
+	return m.DisplayName_
 }
 
 // PasswordHash implements Machine.
@@ -469,6 +479,10 @@ func machineV1(valid map[string]interface{}) (*machine, error) {
 		return nil, errors.Trace(err)
 	}
 
+	if displayName, ok := valid["display-name"].(string); ok {
+		result.DisplayName_ = displayName
+	}
+
 	if constraintsMap, ok := valid["constraints"]; ok {
 		constraints, err := importConstraints(constraintsMap.(map[string]interface{}))
 		if err != nil {
@@ -611,6 +625,7 @@ func machineSchemaV1() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"id":                   schema.String(),
 		"nonce":                schema.String(),
+		"display-name":         schema.String(),
 		"password-hash":        schema.String(),
 		"placement":            schema.String(),
 		"instance":             schema.StringMap(schema.Any()),
@@ -636,6 +651,7 @@ func machineSchemaV1() (schema.Fields, schema.Defaults) {
 		"container-type": "",
 		// Even though we are expecting instance data for every machine,
 		// it isn't strictly necessary, so we allow it to not exist here.
+		"display-name":              schema.Omit,
 		"instance":                  schema.Omit,
 		"supported-containers":      schema.Omit,
 		"opened-ports":              schema.Omit,
