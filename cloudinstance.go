@@ -16,6 +16,7 @@ type CloudInstance interface {
 	HasModificationStatus
 
 	InstanceId() string
+	DisplayName() string
 	Architecture() string
 	Memory() uint64
 	RootDisk() uint64
@@ -33,6 +34,7 @@ type CloudInstance interface {
 // cloud instance to a Machine.
 type CloudInstanceArgs struct {
 	InstanceId       string
+	DisplayName      string
 	Architecture     string
 	Memory           uint64
 	RootDisk         uint64
@@ -52,6 +54,7 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 	return &cloudInstance{
 		Version:           5,
 		InstanceId_:       args.InstanceId,
+		DisplayName_:      args.DisplayName,
 		Architecture_:     args.Architecture,
 		Memory_:           args.Memory,
 		RootDisk_:         args.RootDisk,
@@ -68,7 +71,8 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 type cloudInstance struct {
 	Version int `yaml:"version"`
 
-	InstanceId_ string `yaml:"instance-id"`
+	InstanceId_  string `yaml:"instance-id"`
+	DisplayName_ string `yaml:"display-name,omitempty"`
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
@@ -97,6 +101,11 @@ type cloudInstance struct {
 // InstanceId implements CloudInstance.
 func (c *cloudInstance) InstanceId() string {
 	return c.InstanceId_
+}
+
+// DisplayName implements CloudInstance.
+func (c *cloudInstance) DisplayName() string {
+	return c.DisplayName_
 }
 
 // Status implements CloudInstance.
@@ -212,6 +221,7 @@ var cloudInstanceFieldsFuncs = map[int]fieldsFunc{
 func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"instance-id":       schema.String(),
+		"display-name":      schema.String(),
 		"status":            schema.String(),
 		"architecture":      schema.String(),
 		"memory":            schema.ForceUint(),
@@ -224,6 +234,7 @@ func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
 	// Some values don't have to be there.
 	defaults := schema.Defaults{
 		"architecture":      "",
+		"display-name":      schema.Omit,
 		"memory":            uint64(0),
 		"root-disk":         uint64(0),
 		"cores":             uint64(0),
@@ -289,6 +300,10 @@ func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) 
 		AvailabilityZone_: valid["availability-zone"].(string),
 		CharmProfiles_:    convertToStringSlice(valid["charm-profiles"]),
 		StatusHistory_:    newStatusHistory(),
+	}
+
+	if displayName, ok := valid["display-name"].(string); ok {
+		instance.DisplayName_ = displayName
 	}
 
 	switch {

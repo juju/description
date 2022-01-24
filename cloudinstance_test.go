@@ -162,6 +162,7 @@ func (s *CloudInstanceSerializationSuite) testArgs() CloudInstanceArgs {
 	// NOTE: using gig from package_test.go
 	return CloudInstanceArgs{
 		InstanceId:       "instance id",
+		DisplayName:      "foo",
 		Architecture:     "amd64",
 		Memory:           16 * gig,
 		RootDisk:         200 * gig,
@@ -185,6 +186,7 @@ func (s *CloudInstanceSerializationSuite) allV4Map() map[string]interface{} {
 	return map[string]interface{}{
 		"version":             4,
 		"instance-id":         "instance id",
+		"display-name":        "foo",
 		"status":              minimalStatusMap(),
 		"status-history":      emptyStatusHistoryMap(),
 		"modification-status": minimalStatusMap(),
@@ -235,6 +237,7 @@ func (s *CloudInstanceSerializationSuite) allV5Map() map[string]interface{} {
 	return map[string]interface{}{
 		"version":             5,
 		"instance-id":         "instance id",
+		"display-name":        "foo",
 		"status":              minimalStatusMap(),
 		"status-history":      emptyStatusHistoryMap(),
 		"modification-status": minimalStatusMap(),
