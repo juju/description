@@ -25,18 +25,19 @@ func (s *ConstraintsSerializationSuite) SetUpTest(c *gc.C) {
 func (s *ConstraintsSerializationSuite) allArgs() ConstraintsArgs {
 	// NOTE: using gig from package_test.go
 	return ConstraintsArgs{
-		Architecture:   "amd64",
-		Container:      "lxd",
-		CpuCores:       8,
-		CpuPower:       4000,
-		InstanceType:   "magic",
-		Memory:         16 * gig,
-		RootDisk:       200 * gig,
-		RootDiskSource: "somewhere-good",
-		Spaces:         []string{"my", "own"},
-		Tags:           []string{"much", "strong"},
-		Zones:          []string{"az1", "az2"},
-		VirtType:       "something",
+		AllocatePublicIP: true,
+		Architecture:     "amd64",
+		Container:        "lxd",
+		CpuCores:         8,
+		CpuPower:         4000,
+		InstanceType:     "magic",
+		Memory:           16 * gig,
+		RootDisk:         200 * gig,
+		RootDiskSource:   "somewhere-good",
+		Spaces:           []string{"my", "own"},
+		Tags:             []string{"much", "strong"},
+		Zones:            []string{"az1", "az2"},
+		VirtType:         "something",
 	}
 }
 
@@ -52,6 +53,7 @@ func (s *ConstraintsSerializationSuite) TestNewConstraints(c *gc.C) {
 	c.Assert(instance.Memory(), gc.Equals, args.Memory)
 	c.Assert(instance.RootDisk(), gc.Equals, args.RootDisk)
 	c.Assert(instance.RootDiskSource(), gc.Equals, args.RootDiskSource)
+	c.Assert(instance.AllocatePublicIP(), gc.Equals, args.AllocatePublicIP)
 
 	// Before we check tags, spaces and zones, modify args to make sure that
 	// the instance ones do not change.
@@ -156,6 +158,7 @@ func (s *ConstraintsSerializationSuite) TestParsingV1Full(c *gc.C) {
 	expected := s.testConstraints()
 	expected.Zones_ = nil
 	expected.RootDiskSource_ = ""
+	expected.AllocatePublicIP_ = false
 	expected.Version = 1
 	c.Assert(imported, gc.DeepEquals, expected)
 }
@@ -198,6 +201,7 @@ func (s *ConstraintsSerializationSuite) TestParsingV2Full(c *gc.C) {
 	imported := s.importConstraints(c, original)
 	expected := s.testConstraints()
 	expected.RootDiskSource_ = ""
+	expected.AllocatePublicIP_ = false
 	expected.Version = 2
 	c.Assert(imported, gc.DeepEquals, expected)
 }
@@ -240,6 +244,8 @@ func (s *ConstraintsSerializationSuite) TestParsingV3Full(c *gc.C) {
 	original := s.allV3Map()
 	imported := s.importConstraints(c, original)
 	expected := s.testConstraints()
+	expected.AllocatePublicIP_ = false
+	expected.Version = 3
 	c.Assert(imported, gc.DeepEquals, expected)
 }
 
@@ -249,5 +255,40 @@ func (s *ConstraintsSerializationSuite) TestParsingV3Minimal(c *gc.C) {
 	}
 	imported := s.importConstraints(c, original)
 	expected := &constraints{Version: 3}
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) allV4Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":            4,
+		"allocate-public-ip": true,
+		"architecture":       "amd64",
+		"container":          "lxd",
+		"cores":              8,
+		"cpu-power":          4000,
+		"instance-type":      "magic",
+		"memory":             16 * gig,
+		"root-disk":          200 * gig,
+		"root-disk-source":   "somewhere-good",
+		"spaces":             []interface{}{"my", "own"},
+		"tags":               []interface{}{"much", "strong"},
+		"zones":              []interface{}{"az1", "az2"},
+		"virt-type":          "something",
+	}
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV4Full(c *gc.C) {
+	original := s.allV4Map()
+	imported := s.importConstraints(c, original)
+	expected := s.testConstraints()
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV4Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version": 4,
+	}
+	imported := s.importConstraints(c, original)
+	expected := &constraints{Version: 4}
 	c.Assert(imported, gc.DeepEquals, expected)
 }
