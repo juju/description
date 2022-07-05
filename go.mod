@@ -15,7 +15,7 @@ require (
 
 require (
 	github.com/juju/clock v0.0.0-20220203021603-d9deb868a28a // indirect
-	github.com/juju/loggo v0.0.0-20210728185423-eebad3a902c4 // indirect
+	github.com/juju/loggo v0.0.0-20210728185423-eebad3a902c4
 	github.com/juju/mgo/v2 v2.0.0-20220111072304-f200228f1090 // indirect
 	github.com/juju/retry v0.0.0-20220204093819-62423bf33287 // indirect
 	github.com/juju/utils/v3 v3.0.0-20220203023959-c3fbc78a33b0 // indirect

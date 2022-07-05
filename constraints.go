@@ -18,6 +18,7 @@ type HasConstraints interface {
 // Constraints holds information about particular deployment
 // constraints for entities.
 type Constraints interface {
+	AllocatePublicIP() bool
 	Architecture() string
 	Container() string
 	CpuCores() uint64
@@ -36,14 +37,15 @@ type Constraints interface {
 
 // ConstraintsArgs is an argument struct to construct Constraints.
 type ConstraintsArgs struct {
-	Architecture   string
-	Container      string
-	CpuCores       uint64
-	CpuPower       uint64
-	InstanceType   string
-	Memory         uint64
-	RootDisk       uint64
-	RootDiskSource string
+	AllocatePublicIP bool
+	Architecture     string
+	Container        string
+	CpuCores         uint64
+	CpuPower         uint64
+	InstanceType     string
+	Memory           uint64
+	RootDisk         uint64
+	RootDiskSource   string
 
 	Spaces []string
 	Tags   []string
@@ -67,39 +69,46 @@ func newConstraints(args ConstraintsArgs) *constraints {
 	copy(zones, args.Zones)
 
 	return &constraints{
-		Version:         3,
-		Architecture_:   args.Architecture,
-		Container_:      args.Container,
-		CpuCores_:       args.CpuCores,
-		CpuPower_:       args.CpuPower,
-		InstanceType_:   args.InstanceType,
-		Memory_:         args.Memory,
-		RootDisk_:       args.RootDisk,
-		RootDiskSource_: args.RootDiskSource,
-		Spaces_:         spaces,
-		Tags_:           tags,
-		Zones_:          zones,
-		VirtType_:       args.VirtType,
+		Version:           4,
+		AllocatePublicIP_: args.AllocatePublicIP,
+		Architecture_:     args.Architecture,
+		Container_:        args.Container,
+		CpuCores_:         args.CpuCores,
+		CpuPower_:         args.CpuPower,
+		InstanceType_:     args.InstanceType,
+		Memory_:           args.Memory,
+		RootDisk_:         args.RootDisk,
+		RootDiskSource_:   args.RootDiskSource,
+		Spaces_:           spaces,
+		Tags_:             tags,
+		Zones_:            zones,
+		VirtType_:         args.VirtType,
 	}
 }
 
 type constraints struct {
 	Version int `yaml:"version"`
 
-	Architecture_   string `yaml:"architecture,omitempty"`
-	Container_      string `yaml:"container,omitempty"`
-	CpuCores_       uint64 `yaml:"cores,omitempty"`
-	CpuPower_       uint64 `yaml:"cpu-power,omitempty"`
-	InstanceType_   string `yaml:"instance-type,omitempty"`
-	Memory_         uint64 `yaml:"memory,omitempty"`
-	RootDisk_       uint64 `yaml:"root-disk,omitempty"`
-	RootDiskSource_ string `yaml:"root-disk-source,omitempty"`
+	AllocatePublicIP_ bool   `yaml:"allocate-public-ip,omitempty"`
+	Architecture_     string `yaml:"architecture,omitempty"`
+	Container_        string `yaml:"container,omitempty"`
+	CpuCores_         uint64 `yaml:"cores,omitempty"`
+	CpuPower_         uint64 `yaml:"cpu-power,omitempty"`
+	InstanceType_     string `yaml:"instance-type,omitempty"`
+	Memory_           uint64 `yaml:"memory,omitempty"`
+	RootDisk_         uint64 `yaml:"root-disk,omitempty"`
+	RootDiskSource_   string `yaml:"root-disk-source,omitempty"`
 
 	Spaces_ []string `yaml:"spaces,omitempty"`
 	Tags_   []string `yaml:"tags,omitempty"`
 	Zones_  []string `yaml:"zones,omitempty"`
 
 	VirtType_ string `yaml:"virt-type,omitempty"`
+}
+
+// AllocatePublicIP implements Constraints.
+func (c *constraints) AllocatePublicIP() bool {
+	return c.AllocatePublicIP_
 }
 
 // Architecture implements Constraints.
@@ -206,6 +215,7 @@ var constraintsFieldsFuncs = map[int]fieldsFunc{
 	1: constraintsV1Fields,
 	2: constraintsV2Fields,
 	3: constraintsV3Fields,
+	4: constraintsV4Fields,
 }
 
 func constraintsV1Fields() (schema.Fields, schema.Defaults) {
@@ -256,6 +266,13 @@ func constraintsV3Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func constraintsV4Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := constraintsV3Fields()
+	fields["allocate-public-ip"] = schema.Bool()
+	defaults["allocate-public-ip"] = schema.Omit
+	return fields, defaults
+}
+
 // constraintsValidCPUCores returns an error if both aliases for CPU core count
 // are present in the list of fields.
 // If correctly specified, the cores value is returned.
@@ -302,6 +319,11 @@ func validatedConstraints(version int, valid map[string]interface{}, cores uint6
 	if version > 2 {
 		cons.RootDiskSource_ = valid["root-disk-source"].(string)
 	}
+	if version > 3 {
+		if value, ok := valid["allocate-public-ip"]; ok {
+			cons.AllocatePublicIP_ = value.(bool)
+		}
+	}
 
 	return cons
 }
@@ -323,5 +345,6 @@ func (c ConstraintsArgs) empty() bool {
 		c.Spaces == nil &&
 		c.Tags == nil &&
 		c.Zones == nil &&
-		c.VirtType == ""
+		c.VirtType == "" &&
+		c.AllocatePublicIP == false
 }
