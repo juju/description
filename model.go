@@ -110,6 +110,9 @@ type Model interface {
 	StoragePools() []StoragePool
 	AddStoragePool(StoragePoolArgs) StoragePool
 
+	Secrets() []Secret
+	AddSecret(args SecretArgs) Secret
+
 	RemoteApplications() []RemoteApplication
 	AddRemoteApplication(RemoteApplicationArgs) RemoteApplication
 
@@ -147,7 +150,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             8,
+		Version:             9,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
@@ -178,6 +181,7 @@ func NewModel(args ModelArgs) Model {
 	m.setFilesystems(nil)
 	m.setStorages(nil)
 	m.setStoragePools(nil)
+	m.setSecrets(nil)
 	m.setRemoteApplications(nil)
 	m.setFirewallRules(nil)
 	m.setOfferConnections(nil)
@@ -288,6 +292,8 @@ type model struct {
 	FirewallRules_ firewallRules `yaml:"firewall-rules"`
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
+
+	Secrets_ secrets `yaml:"secrets,omitempty"`
 
 	SLA_         sla         `yaml:"sla"`
 	MeterStatus_ meterStatus `yaml:"meter-status"`
@@ -888,6 +894,29 @@ func (m *model) setStoragePools(poolList []*storagepool) {
 	}
 }
 
+// Secrets implements Model.
+func (m *model) Secrets() []Secret {
+	var result []Secret
+	for _, secret := range m.Secrets_.Secrets_ {
+		result = append(result, secret)
+	}
+	return result
+}
+
+// AddSecret implements Model.
+func (m *model) AddSecret(args SecretArgs) Secret {
+	secret := newSecret(args)
+	m.Secrets_.Secrets_ = append(m.Secrets_.Secrets_, secret)
+	return secret
+}
+
+func (m *model) setSecrets(secretList []*secret) {
+	m.Secrets_ = secrets{
+		Version:  1,
+		Secrets_: secretList,
+	}
+}
+
 // RemoteApplications implements Model.
 func (m *model) RemoteApplications() []RemoteApplication {
 	var result []RemoteApplication
@@ -1052,6 +1081,11 @@ func (m *model) Validate() error {
 		return errors.Trace(err)
 	}
 
+	err = m.validateSecrets(validationCtx)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
 	return nil
 }
 
@@ -1151,6 +1185,53 @@ func (m *model) validateSubnets() error {
 		}
 		if !spaceIDs.Contains(subnet.SpaceID()) {
 			return errors.Errorf("subnet %q references non-existent space %q", subnet.CIDR(), subnet.SpaceID())
+		}
+	}
+
+	return nil
+}
+
+func (m *model) validateSecrets(validationCtx *validationContext) error {
+	appsAndUnits := validationCtx.allApplications.Union(validationCtx.allUnits)
+
+	checkValidAppOrUnit := func(i int, label string, entity names.Tag) error {
+		if entity.Kind() == names.ApplicationTagKind || entity.Kind() == names.UnitTagKind {
+			entityID := entity.Id()
+			if !appsAndUnits.Contains(entityID) {
+				return errors.NotValidf("secret[%d] %s (%s)", i, label, entityID)
+			}
+		}
+		return nil
+	}
+
+	for i, secret := range m.Secrets_.Secrets_ {
+		if err := secret.Validate(); err != nil {
+			return errors.Annotatef(err, "secret[%d]", i)
+		}
+		owner, err := secret.Owner()
+		if err != nil {
+			return errors.Wrap(err, errors.NotValidf("secret[%d] owner (%s)", i, owner))
+		}
+		if err := checkValidAppOrUnit(i, "owner", owner); err != nil {
+			return err
+		}
+		for _, c := range secret.Consumers_ {
+			consumer, err := c.Consumer()
+			if err != nil {
+				return errors.Wrap(err, errors.NotValidf("secret[%d] consumer (%s)", i, c))
+			}
+			if err := checkValidAppOrUnit(i, "consumer", consumer); err != nil {
+				return err
+			}
+		}
+		for s := range secret.ACL_ {
+			subject, err := names.ParseTag(s)
+			if err != nil {
+				return errors.Wrap(err, errors.NotValidf("secret[%d] accessor (%s)", i, s))
+			}
+			if err := checkValidAppOrUnit(i, "accessor", subject); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1336,6 +1417,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	6: newModelImporter(6, schema.FieldMap(modelV6Fields())),
 	7: newModelImporter(7, schema.FieldMap(modelV7Fields())),
 	8: newModelImporter(8, schema.FieldMap(modelV8Fields())),
+	9: newModelImporter(9, schema.FieldMap(modelV9Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1435,11 +1517,17 @@ func modelV8Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV9Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV8Fields()
+	fields["secrets"] = schema.StringMap(schema.Any())
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
 	// We're always making a version 8 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        8,
+		Version:        9,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1675,13 +1763,22 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 		operationsMap := valid["operations"].(map[string]interface{})
 		operations, err := importOperations(operationsMap)
 		if err != nil {
-			return nil, errors.Annotate(err, "actions")
+			return nil, errors.Annotate(err, "operations")
 		}
 		result.setOperations(operations)
 	}
 
 	if importVersion >= 8 {
 		result.PasswordHash_ = valid["password-hash"].(string)
+	}
+
+	if importVersion >= 9 {
+		secretsMap := valid["secrets"].(map[string]interface{})
+		secrets, err := importSecrets(secretsMap)
+		if err != nil {
+			return nil, errors.Annotate(err, "secrets")
+		}
+		result.setSecrets(secrets)
 	}
 
 	return result, nil

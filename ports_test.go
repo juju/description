@@ -41,13 +41,13 @@ func (s *OpenedPortsSerializationSuite) TestNewOpenedPorts(c *gc.C) {
 	args := OpenedPortsArgs{
 		SubnetID: "0.1.2.0/24",
 		OpenedPorts: []PortRangeArgs{
-			PortRangeArgs{
+			{
 				UnitName: "magic/0",
 				FromPort: 1234,
 				ToPort:   2345,
 				Protocol: "tcp",
 			},
-			PortRangeArgs{
+			{
 				UnitName: "magic/0",
 				FromPort: 1234,
 				ToPort:   2345,
@@ -68,12 +68,12 @@ func (*OpenedPortsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := &versionedOpenedPorts{
 		Version: 1,
 		OpenedPorts_: []*openedPorts{
-			&openedPorts{
+			{
 				SubnetID_: "fc00::/64",
 				OpenedPorts_: &portRanges{
 					Version: 1,
 					OpenedPorts_: []*portRange{
-						&portRange{
+						{
 							UnitName_: "magic/0",
 							FromPort_: 1234,
 							ToPort_:   2345,
@@ -82,12 +82,12 @@ func (*OpenedPortsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 					},
 				},
 			},
-			&openedPorts{
+			{
 				SubnetID_: "192.168.0.0/16",
 				OpenedPorts_: &portRanges{
 					Version: 1,
 					OpenedPorts_: []*portRange{
-						&portRange{
+						{
 							UnitName_: "unicorn/0",
 							FromPort_: 80,
 							ToPort_:   80,
@@ -146,13 +146,13 @@ func (*PortRangeSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := &portRanges{
 		Version: 1,
 		OpenedPorts_: []*portRange{
-			&portRange{
+			{
 				UnitName_: "magic/0",
 				FromPort_: 1234,
 				ToPort_:   2345,
 				Protocol_: "tcp",
 			},
-			&portRange{
+			{
 				UnitName_: "unicorn/1",
 				FromPort_: 8080,
 				ToPort_:   8080,

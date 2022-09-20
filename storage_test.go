@@ -29,23 +29,6 @@ func (s *StorageSerializationSuite) SetUpTest(c *gc.C) {
 	}
 }
 
-func testStorageMap() map[interface{}]interface{} {
-	return map[interface{}]interface{}{
-		"id":    "db/0",
-		"kind":  "magic",
-		"owner": "application-postgresql",
-		"name":  "db",
-		"attachments": []interface{}{
-			"postgresql/0",
-			"postgresql/1",
-		},
-		"constraints": map[string]interface{}{
-			"pool": "radiance",
-			"size": 1234,
-		},
-	}
-}
-
 func testStorage() *storage {
 	v := newStorage(testStorageArgs())
 	return v
