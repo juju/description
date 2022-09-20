@@ -77,20 +77,6 @@ func convertToStringMap(field interface{}) map[string]string {
 	return result
 }
 
-// convertToMapOfMaps is expected to be used on a field with the schema
-// checker `schema.StringMap(schema.StringMap(schema.Any())`.
-func convertToMapOfMaps(field interface{}) map[string]map[string]interface{} {
-	if field == nil {
-		return nil
-	}
-	fieldMap := field.(map[string]interface{})
-	result := make(map[string]map[string]interface{})
-	for key, value := range fieldMap {
-		result[key] = value.(map[string]interface{})
-	}
-	return result
-}
-
 // fieldToTimePtr looks for a field with the given name and converts
 // it to a Time.Time, returning a pointer to it. If the field doesn't
 // exist, nil is returned. This is useful for handling optional time

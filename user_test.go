@@ -58,13 +58,13 @@ func (*UserSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := users{
 		Version: 1,
 		Users_: []*user{
-			&user{
+			{
 				Name_:           "admin",
 				CreatedBy_:      "admin",
 				DateCreated_:    time.Date(2015, 10, 9, 12, 34, 56, 0, time.UTC),
 				LastConnection_: &lastConn,
 			},
-			&user{
+			{
 				Name_:        "read-only",
 				DisplayName_: "A read only user",
 				CreatedBy_:   "admin",

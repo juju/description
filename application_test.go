@@ -206,10 +206,10 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 		ForceCharm:           true,
 		Exposed:              true,
 		ExposedEndpoints: map[string]ExposedEndpointArgs{
-			"endpoint0": ExposedEndpointArgs{
+			"endpoint0": {
 				ExposeToSpaceIDs: []string{"0", "42"},
 			},
-			"endpoint1": ExposedEndpointArgs{
+			"endpoint1": {
 				ExposeToCIDRs: []string{"192.168.42.0/24"},
 			},
 		},
@@ -611,10 +611,10 @@ func (s *ApplicationSerializationSuite) TestExposeMetadata(c *gc.C) {
 	args := minimalApplicationArgs(IAAS)
 	args.Exposed = true
 	args.ExposedEndpoints = map[string]ExposedEndpointArgs{
-		"endpoint0": ExposedEndpointArgs{
+		"endpoint0": {
 			ExposeToSpaceIDs: []string{"0", "42"},
 		},
-		"endpoint1": ExposedEndpointArgs{
+		"endpoint1": {
 			ExposeToCIDRs: []string{"192.168.42.0/24"},
 		},
 	}

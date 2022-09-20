@@ -51,17 +51,6 @@ func minimalRelationNetwork() *relationNetwork {
 	return c
 }
 
-func minimalRelationNetworkArgs() RelationNetworkArgs {
-	return RelationNetworkArgs{
-		ID:          "rel-netw-id",
-		RelationKey: "keys-to-the-city",
-		CIDRS: []string{
-			"1.2.3.4/24",
-			"0.0.0.1",
-		},
-	}
-}
-
 func (*RelationNetworkSerializationSuite) TestNew(c *gc.C) {
 	e := minimalRelationNetwork()
 	c.Check(e.ID(), gc.Equals, "rel-netw-id")

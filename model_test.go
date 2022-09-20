@@ -145,6 +145,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	c.Assert(initial.Applications_.Version, gc.Equals, len(applicationDeserializationFuncs))
 	c.Assert(initial.Actions_.Version, gc.Equals, 4)
 	c.Assert(initial.Operations_.Version, gc.Equals, 2)
+	c.Assert(initial.Secrets_.Version, gc.Equals, 1)
 	c.Assert(initial.Filesystems_.Version, gc.Equals, len(filesystemDeserializationFuncs))
 	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
 	c.Assert(initial.RemoteEntities_.Version, gc.Equals, len(remoteEntityFieldsFuncs))
@@ -1117,7 +1118,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 8)
+	c.Assert(version, gc.Equals, 9)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
@@ -1472,6 +1473,46 @@ func (s *ModelSerializationSuite) TestStatus(c *gc.C) {
 
 	model := s.exportImport(c, initial)
 	c.Check(model.Status(), jc.DeepEquals, expected)
+}
+
+func (s *ModelSerializationSuite) TestSecrets(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	secretArgs := testSecretArgs()
+	secret := initial.AddSecret(secretArgs)
+	c.Assert(secret.Id(), gc.Equals, secretArgs.ID)
+	c.Assert(secret.Version(), gc.Equals, 1)
+	c.Assert(secret.Description(), gc.Equals, secretArgs.Description)
+	c.Assert(secret.Label(), gc.Equals, secretArgs.Label)
+	c.Assert(secret.RotatePolicy(), gc.Equals, secretArgs.RotatePolicy)
+	owner, err := secret.Owner()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(owner.String(), gc.Equals, secretArgs.Owner.String())
+	c.Assert(secret.Created(), gc.Equals, secretArgs.Created)
+	c.Assert(secret.Updated(), gc.Equals, secretArgs.Updated)
+	c.Assert(secret.NextRotateTime(), jc.DeepEquals, secretArgs.NextRotateTime)
+	secrets := initial.Secrets()
+	c.Assert(secrets, gc.HasLen, 1)
+	c.Assert(secrets[0], jc.DeepEquals, secret)
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.Secrets(), jc.DeepEquals, secrets)
+}
+
+func (s *ModelSerializationSuite) TestSecretValidate(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	secretArgs := testSecretArgs()
+	secretArgs.Owner = names.NewUnitTag("foo/0")
+	secret := initial.AddSecret(secretArgs)
+	secrets := initial.Secrets()
+	c.Assert(secrets, gc.HasLen, 1)
+	c.Assert(secrets[0], jc.DeepEquals, secret)
+
+	err := initial.Validate()
+	c.Assert(err, gc.ErrorMatches, `secret\[0\] owner \(foo/0\) not valid`)
 }
 
 // modelV1example was taken from a Juju 2.1 model dump, which is version

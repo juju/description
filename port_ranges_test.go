@@ -24,17 +24,17 @@ func (*MachinePortRangeSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := &machinePortRanges{
 		Version: 1,
 		ByUnit_: map[string]*unitPortRanges{
-			"lorem/0": &unitPortRanges{
+			"lorem/0": {
 				ByEndpoint_: map[string][]*unitPortRange{
-					"dmz": []*unitPortRange{
+					"dmz": {
 						newUnitPortRange(1234, 2345, "tcp"),
 						newUnitPortRange(1337, 1337, "udp"),
 					},
 				},
 			},
-			"ipsum/0": &unitPortRanges{
+			"ipsum/0": {
 				ByEndpoint_: map[string][]*unitPortRange{
-					"": []*unitPortRange{
+					"": {
 						newUnitPortRange(8080, 8080, "tcp"),
 					},
 				},

@@ -89,7 +89,7 @@ func (i *cloudimagemetadata) Priority() int {
 	return i.Priority_
 }
 
-//ImageId implements CloudImageMetadata.
+// ImageId implements CloudImageMetadata.
 func (i *cloudimagemetadata) ImageId() string {
 	return i.ImageId_
 }
