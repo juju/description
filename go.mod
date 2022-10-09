@@ -6,6 +6,7 @@ require (
 	github.com/juju/collections v1.0.0
 	github.com/juju/errors v1.0.0
 	github.com/juju/names/v4 v4.0.0
+	github.com/juju/os/v2 v2.2.3
 	github.com/juju/schema v1.0.1
 	github.com/juju/testing v1.0.2
 	github.com/juju/version/v2 v2.0.1
@@ -24,4 +25,5 @@ require (
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3 // indirect
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f // indirect
+	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069 // indirect
 )

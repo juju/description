@@ -4,7 +4,10 @@
 package description
 
 import (
+	"strings"
+
 	"github.com/juju/errors"
+	"github.com/juju/os/v2/series"
 	"github.com/juju/schema"
 )
 
@@ -21,7 +24,7 @@ type CharmOriginArgs struct {
 
 func newCharmOrigin(args CharmOriginArgs) *charmOrigin {
 	return &charmOrigin{
-		Version_:  1,
+		Version_:  2,
 		Source_:   args.Source,
 		ID_:       args.ID,
 		Hash_:     args.Hash,
@@ -92,9 +95,18 @@ type charmOriginDeserializationFunc func(map[string]interface{}) (*charmOrigin, 
 
 var charmOriginDeserializationFuncs = map[int]charmOriginDeserializationFunc{
 	1: importCharmOriginV1,
+	2: importCharmOriginV2,
 }
 
 func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
+	return importCharmOriginVersion(source, 1)
+}
+
+func importCharmOriginV2(source map[string]interface{}) (*charmOrigin, error) {
+	return importCharmOriginVersion(source, 2)
+}
+
+func importCharmOriginVersion(source map[string]interface{}, importVersion int) (*charmOrigin, error) {
 	fields := schema.Fields{
 		"source":   schema.String(),
 		"id":       schema.String(),
@@ -109,7 +121,6 @@ func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
 		"hash":     schema.Omit,
 		"revision": schema.Omit,
 		"channel":  schema.Omit,
-		"platform": schema.Omit,
 	}
 	checker := schema.FieldMap(fields, defaults)
 
@@ -132,13 +143,29 @@ func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
 		return nil, errors.Errorf("unexpected revision type %T", valid["revision"])
 	}
 
+	platform := valid["platform"].(string)
+	if importVersion < 2 {
+		parts := strings.Split(platform, "/")
+		if len(parts) < 3 {
+			return nil, errors.NotValidf("platform %q", platform)
+		}
+		pSeries := parts[2]
+		vers, err := series.SeriesVersion(pSeries)
+		if err != nil {
+			return nil, errors.NotValidf("platform series %q", pSeries)
+		}
+		parts[2] = vers
+		parts = append(parts, "stable")
+		platform = strings.Join(parts, "/")
+	}
+
 	return &charmOrigin{
-		Version_:  1,
+		Version_:  2,
 		Source_:   valid["source"].(string),
 		ID_:       valid["id"].(string),
 		Hash_:     valid["hash"].(string),
 		Revision_: revision,
 		Channel_:  valid["channel"].(string),
-		Platform_: valid["platform"].(string),
+		Platform_: platform,
 	}, nil
 }
