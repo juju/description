@@ -33,19 +33,20 @@ func (s *CharmOriginSerializationSuite) TestNewCharmOrigin(c *gc.C) {
 
 func minimalCharmOriginMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":  1,
+		"version":  2,
 		"source":   "local",
 		"id":       "",
 		"hash":     "",
 		"revision": 0,
 		"channel":  "",
-		"platform": "",
+		"platform": "amd64/ubuntu/22.04/stable",
 	}
 }
 
 func minimalCharmOriginArgs() CharmOriginArgs {
 	return CharmOriginArgs{
-		Source: "local",
+		Source:   "local",
+		Platform: "amd64/ubuntu/22.04/stable",
 	}
 }
 
@@ -55,13 +56,13 @@ func minimalCharmOrigin() *charmOrigin {
 
 func maximalCharmOriginMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":  1,
+		"version":  2,
 		"source":   "charmhub",
 		"id":       "random-id",
 		"hash":     "c553eee8dc77f2cce29a1c7090d1e3c81e76c6e12346d09936048ed12305fd35",
 		"revision": 0,
 		"channel":  "foo/stable",
-		"platform": "ubuntu/focal/amd64",
+		"platform": "amd64/ubuntu/22.04/stable",
 	}
 }
 
@@ -71,7 +72,7 @@ func maximalCharmOriginArgs() CharmOriginArgs {
 		ID:       "random-id",
 		Hash:     "c553eee8dc77f2cce29a1c7090d1e3c81e76c6e12346d09936048ed12305fd35",
 		Channel:  "foo/stable",
-		Platform: "ubuntu/focal/amd64",
+		Platform: "amd64/ubuntu/22.04/stable",
 	}
 }
 
@@ -100,9 +101,7 @@ func (s *CharmOriginSerializationSuite) TestMaximalMatches(c *gc.C) {
 }
 
 func (s *CharmOriginSerializationSuite) TestParsingSerializedData(c *gc.C) {
-	initial := newCharmOrigin(CharmOriginArgs{
-		Source: "local",
-	})
+	initial := maximalCharmOrigin()
 	bytes, err := yaml.Marshal(initial)
 	c.Assert(err, jc.ErrorIsNil)
 
@@ -113,4 +112,29 @@ func (s *CharmOriginSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	instance, err := importCharmOrigin(source)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(instance, jc.DeepEquals, initial)
+}
+
+func (s *CharmOriginSerializationSuite) exportImportVersion(c *gc.C, origin_ *charmOrigin, version int) *charmOrigin {
+	origin_.Version_ = version
+	bytes, err := yaml.Marshal(origin_)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	origin, err := importCharmOrigin(source)
+	c.Assert(err, jc.ErrorIsNil)
+	return origin
+}
+
+func (s *CharmOriginSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
+	args := maximalCharmOriginArgs()
+	args.Platform = "amd64/ubuntu/focal"
+	originV1 := newCharmOrigin(args)
+
+	originLatest := *originV1
+	originLatest.Platform_ = "amd64/ubuntu/20.04/stable"
+	originResult := s.exportImportVersion(c, originV1, 1)
+	c.Assert(*originResult, jc.DeepEquals, originLatest)
 }

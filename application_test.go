@@ -38,7 +38,6 @@ func (s *ApplicationSerializationSuite) SetUpTest(c *gc.C) {
 func minimalApplicationMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
 		"name":              "ubuntu",
-		"series":            "trusty",
 		"type":              IAAS,
 		"charm-url":         "cs:trusty/ubuntu",
 		"cs-channel":        "stable",
@@ -164,7 +163,6 @@ func addMinimalApplication(model Model) {
 func minimalApplicationArgs(modelType string) ApplicationArgs {
 	result := ApplicationArgs{
 		Tag:                  names.NewApplicationTag("ubuntu"),
-		Series:               "trusty",
 		Type:                 modelType,
 		CharmURL:             "cs:trusty/ubuntu",
 		Channel:              "stable",
@@ -198,9 +196,8 @@ func minimalApplicationArgs(modelType string) ApplicationArgs {
 func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	args := ApplicationArgs{
 		Tag:                  names.NewApplicationTag("magic"),
-		Series:               "zesty",
 		Subordinate:          true,
-		CharmURL:             "cs:zesty/magic",
+		CharmURL:             "cs:jammy/magic",
 		Channel:              "stable",
 		CharmModifiedVersion: 1,
 		ForceCharm:           true,
@@ -238,9 +235,8 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 
 	c.Assert(application.Name(), gc.Equals, "magic")
 	c.Assert(application.Tag(), gc.Equals, names.NewApplicationTag("magic"))
-	c.Assert(application.Series(), gc.Equals, "zesty")
 	c.Assert(application.Subordinate(), jc.IsTrue)
-	c.Assert(application.CharmURL(), gc.Equals, "cs:zesty/magic")
+	c.Assert(application.CharmURL(), gc.Equals, "cs:jammy/magic")
 	c.Assert(application.Channel(), gc.Equals, "stable")
 	c.Assert(application.CharmModifiedVersion(), gc.Equals, 1)
 	c.Assert(application.ForceCharm(), jc.IsTrue)
@@ -340,12 +336,13 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 8)
+	return s.exportImportVersion(c, application_, 9)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	args := minimalApplicationArgs(CAAS)
 	args.Type = ""
+	args.Series = "focal"
 	appV1 := minimalApplication(args)
 
 	// Make an app with fields not in v1 removed.
@@ -362,11 +359,13 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
+	appLatest.Series_ = ""
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
 func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	args := minimalApplicationArgs(CAAS)
+	args.Series = "focal"
 	appV1 := minimalApplication(args)
 
 	// Make an app with fields not in v2 removed.
@@ -383,11 +382,13 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
+	appLatest.Series_ = ""
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
 func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	args := minimalApplicationArgs(CAAS)
+	args.Series = "focal"
 	appV2 := minimalApplication(args)
 
 	// Make an app with fields not in v3 removed.
@@ -400,11 +401,13 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
+	appLatest.Series_ = ""
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
 func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
 	args := minimalApplicationArgs(CAAS)
+	args.Series = "focal"
 	appV5 := minimalApplication(args)
 
 	// Make an app with fields not in v5 removed.
@@ -413,11 +416,13 @@ func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV5, 5)
+	appLatest.Series_ = ""
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
 func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
 	args := minimalApplicationArgs(CAAS)
+	args.Series = "focal"
 	appV6 := minimalApplication(args)
 
 	// Make an app with fields not in v6 removed.
@@ -425,6 +430,7 @@ func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 
 	appResult := s.exportImportVersion(c, appV6, 6)
+	appLatest.Series_ = ""
 	c.Assert(appResult, jc.DeepEquals, appLatest)
 }
 
@@ -592,7 +598,7 @@ func (s *ApplicationSerializationSuite) TestIAASUnitMissingTools(c *gc.C) {
 	app := minimalApplication()
 	app.Units_.Units_[0].Tools_ = nil
 	initial := applications{
-		Version:       3,
+		Version:       9,
 		Applications_: []*application{app},
 	}
 

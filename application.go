@@ -23,7 +23,6 @@ type Application interface {
 	Tag() names.ApplicationTag
 	Name() string
 	Type() string
-	Series() string
 	Subordinate() bool
 	CharmURL() string
 	Channel() string
@@ -85,9 +84,10 @@ type applications struct {
 }
 
 type application struct {
-	Name_                 string `yaml:"name"`
-	Type_                 string `yaml:"type"`
-	Series_               string `yaml:"series"`
+	Name_ string `yaml:"name"`
+	Type_ string `yaml:"type"`
+	// Series obsolete from v9. Retained for tests.
+	Series_               string `yaml:"series,omitempty"`
 	Subordinate_          bool   `yaml:"subordinate,omitempty"`
 	CharmURL_             string `yaml:"charm-url"`
 	Channel_              string `yaml:"cs-channel"`
@@ -143,8 +143,9 @@ type application struct {
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
 type ApplicationArgs struct {
-	Tag                  names.ApplicationTag
-	Type                 string
+	Tag  names.ApplicationTag
+	Type string
+	// Series obsolete from v9. Retained for tests.
 	Series               string
 	Subordinate          bool
 	CharmURL             string
@@ -226,11 +227,6 @@ func (a *application) Name() string {
 // Type implements Application
 func (a *application) Type() string {
 	return a.Type_
-}
-
-// Series implements Application.
-func (a *application) Series() string {
-	return a.Series_
 }
 
 // Subordinate implements Application.
@@ -597,6 +593,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	6: importApplicationV6,
 	7: importApplicationV7,
 	8: importApplicationV8,
+	9: importApplicationV9,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -697,6 +694,13 @@ func applicationV8Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV9Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV8Fields()
+	delete(fields, "series")
+	defaults["series"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -737,6 +741,11 @@ func importApplicationV8(source map[string]interface{}) (*application, error) {
 	return importApplication(fields, defaults, 8, source)
 }
 
+func importApplicationV9(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV9Fields()
+	return importApplication(fields, defaults, 9, source)
+}
+
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
 	checker := schema.FieldMap(fields, defaults)
 
@@ -749,7 +758,6 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	// contains fields of the right type.
 	result := &application{
 		Name_:                 valid["name"].(string),
-		Series_:               valid["series"].(string),
 		Type_:                 IAAS,
 		Subordinate_:          valid["subordinate"].(bool),
 		CharmURL_:             valid["charm-url"].(string),
