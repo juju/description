@@ -4,8 +4,12 @@
 package description
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/juju/errors"
 	"github.com/juju/names/v4"
+	"github.com/juju/os/v2/series"
 	"github.com/juju/schema"
 	"github.com/juju/version/v2"
 )
@@ -23,7 +27,7 @@ type Machine interface {
 	Nonce() string
 	PasswordHash() string
 	Placement() string
-	Series() string
+	Base() string
 	ContainerType() string
 	Jobs() []string
 	SupportedContainers() ([]string, bool)
@@ -61,13 +65,15 @@ type machines struct {
 }
 
 type machine struct {
-	Id_            string         `yaml:"id"`
-	Nonce_         string         `yaml:"nonce"`
-	PasswordHash_  string         `yaml:"password-hash"`
-	Placement_     string         `yaml:"placement,omitempty"`
-	Instance_      *cloudInstance `yaml:"instance,omitempty"`
-	Series_        string         `yaml:"series"`
-	ContainerType_ string         `yaml:"container-type,omitempty"`
+	Id_           string         `yaml:"id"`
+	Nonce_        string         `yaml:"nonce"`
+	PasswordHash_ string         `yaml:"password-hash"`
+	Placement_    string         `yaml:"placement,omitempty"`
+	Instance_     *cloudInstance `yaml:"instance,omitempty"`
+	// Series obsolete from v3. Retained for tests.
+	Series_        string `yaml:"series,omitempty"`
+	Base_          string `yaml:"base"`
+	ContainerType_ string `yaml:"container-type,omitempty"`
 
 	Status_        *status `yaml:"status"`
 	StatusHistory_ `yaml:"status-history"`
@@ -101,6 +107,7 @@ type MachineArgs struct {
 	PasswordHash  string
 	Placement     string
 	Series        string
+	Base          string
 	ContainerType string
 	Jobs          []string
 	// A null value means that we don't yet know which containers
@@ -120,6 +127,7 @@ func newMachine(args MachineArgs) *machine {
 		PasswordHash_:  args.PasswordHash,
 		Placement_:     args.Placement,
 		Series_:        args.Series,
+		Base_:          args.Base,
 		ContainerType_: args.ContainerType,
 		Jobs_:          jobs,
 		StatusHistory_: newStatusHistory(),
@@ -172,9 +180,9 @@ func (m *machine) SetInstance(args CloudInstanceArgs) {
 	m.Instance_ = newCloudInstance(args)
 }
 
-// Series implements Machine.
-func (m *machine) Series() string {
-	return m.Series_
+// Base implements Machine.
+func (m *machine) Base() string {
+	return m.Base_
 }
 
 // ContainerType implements Machine.
@@ -364,6 +372,12 @@ func (m *machine) Validate() error {
 	if m.Id_ == "" {
 		return errors.NotValidf("machine missing id")
 	}
+	if m.Base_ != "" {
+		parts := strings.Split(m.Base_, ":")
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+			return errors.NotValidf("machine %q base %q", m.Id_, m.Base_)
+		}
+	}
 	if m.Status_ == nil {
 		return errors.NotValidf("machine %q missing status", m.Id_)
 	}
@@ -425,33 +439,36 @@ type machineDeserializationFunc func(map[string]interface{}) (*machine, error)
 var machineDeserializationFuncs = map[int]machineDeserializationFunc{
 	1: importMachineV1,
 	2: importMachineV2,
+	3: importMachineV3,
 }
 
 func importMachineV1(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV1()
-	checker := schema.FieldMap(fields, defaults)
-
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, errors.Annotatef(err, "machine v1 schema check failed")
-	}
-
-	return machineV1(coerced.(map[string]interface{}))
+	fields, defaults := machineSchemaV2()
+	return importMachine(fields, defaults, 1, source, importMachineV1)
 }
 
 func importMachineV2(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV2()
+	fields, defaults := machineSchemaV1()
+	return importMachine(fields, defaults, 2, source, importMachineV2)
+}
+
+func importMachineV3(source map[string]interface{}) (*machine, error) {
+	fields, defaults := machineSchemaV3()
+	return importMachine(fields, defaults, 3, source, importMachineV3)
+}
+
+func importMachine(
+	fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{},
+	importFunc machineDeserializationFunc,
+) (*machine, error) {
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "machine v2 schema check failed")
+		return nil, errors.Annotatef(err, "machine v%d schema check failed", importVersion)
 	}
+	valid := coerced.(map[string]interface{})
 
-	return machineV2(coerced.(map[string]interface{}))
-}
-
-func machineV1(valid map[string]interface{}) (*machine, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	result := &machine{
@@ -459,11 +476,25 @@ func machineV1(valid map[string]interface{}) (*machine, error) {
 		Nonce_:         valid["nonce"].(string),
 		PasswordHash_:  valid["password-hash"].(string),
 		Placement_:     valid["placement"].(string),
-		Series_:        valid["series"].(string),
 		ContainerType_: valid["container-type"].(string),
 		StatusHistory_: newStatusHistory(),
 		Jobs_:          convertToStringSlice(valid["jobs"]),
 	}
+	if importVersion < 3 {
+		mSeries := valid["series"].(string)
+		os, err := series.GetOSFromSeries(mSeries)
+		if err != nil {
+			return nil, errors.NotValidf("base series %q", mSeries)
+		}
+		vers, err := series.SeriesVersion(mSeries)
+		if err != nil {
+			return nil, errors.NotValidf("base series %q", mSeries)
+		}
+		result.Base_ = fmt.Sprintf("%s:%s", strings.ToLower(os.String()), vers)
+	} else {
+		result.Base_ = valid["base"].(string)
+	}
+
 	result.importAnnotations(valid)
 	if err := result.importStatusHistory(valid); err != nil {
 		return nil, errors.Trace(err)
@@ -550,7 +581,7 @@ func machineV1(valid map[string]interface{}) (*machine, error) {
 	}
 
 	machineList := valid["containers"].([]interface{})
-	machines, err := importMachineList(machineList, importMachineV1)
+	machines, err := importMachineList(machineList, importFunc)
 	if err != nil {
 		return nil, errors.Annotatef(err, "containers")
 	}
@@ -579,32 +610,22 @@ func machineV1(valid map[string]interface{}) (*machine, error) {
 		}
 	}
 
+	if importVersion >= 2 {
+		machPortRangesSource, ok := valid["opened-port-ranges"].(map[string]interface{})
+		if ok {
+			// V1 legacy ports have been converted to open port ranges by the V1
+			// machine parser. V2 machines *only* include port ranges so if present
+			// we can simply parse them and inject them into the parsed machine
+			// instance.
+			machPortRanges, err := importMachinePortRanges(machPortRangesSource)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.OpenedPortRanges_ = machPortRanges
+		}
+	}
+
 	return result, nil
-
-}
-
-func machineV2(valid map[string]interface{}) (*machine, error) {
-	mach, err := machineV1(valid)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	machPortRangesSource, ok := valid["opened-port-ranges"].(map[string]interface{})
-	if !ok {
-		return mach, nil
-	}
-
-	// V1 legacy ports have been converted to open port ranges by the V1
-	// machine parser. V2 machines *only* include port ranges so if present
-	// we can simply parse them and inject them into the parsed machine
-	// instance.
-	machPortRanges, err := importMachinePortRanges(machPortRangesSource)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	mach.OpenedPortRanges_ = machPortRanges
-	return mach, nil
 }
 
 func machineSchemaV1() (schema.Fields, schema.Defaults) {
@@ -658,6 +679,16 @@ func machineSchemaV2() (schema.Fields, schema.Defaults) {
 
 	fields["opened-port-ranges"] = schema.StringMap(schema.Any())
 	defaults["opened-port-ranges"] = schema.Omit
+
+	return fields, defaults
+}
+
+func machineSchemaV3() (schema.Fields, schema.Defaults) {
+	fields, defaults := machineSchemaV2()
+
+	fields["base"] = schema.String()
+	delete(fields, "series")
+	delete(defaults, "schema")
 
 	return fields, defaults
 }
