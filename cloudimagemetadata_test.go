@@ -22,7 +22,7 @@ func (s *CloudImageMetadataSerializationSuite) SetUpTest(c *gc.C) {
 	s.importName = "cloudimagemetadata"
 	s.sliceName = "cloudimagemetadata"
 	s.importFunc = func(m map[string]interface{}) (interface{}, error) {
-		return importCloudImageMetadata(m)
+		return importCloudImageMetadatas(m)
 	}
 	s.testFields = func(m map[string]interface{}) {
 		m["cloudimagemetadata"] = []interface{}{}
@@ -36,7 +36,6 @@ func (s *CloudImageMetadataSerializationSuite) TestNewCloudImageMetadata(c *gc.C
 		Stream:          "stream",
 		Region:          "region-test",
 		Version:         "14.04",
-		Series:          "trusty",
 		Arch:            "arch",
 		VirtType:        "virtType-test",
 		RootStorageType: "rootStorageType-test",
@@ -51,7 +50,6 @@ func (s *CloudImageMetadataSerializationSuite) TestNewCloudImageMetadata(c *gc.C
 	c.Check(metadata.Stream(), gc.Equals, args.Stream)
 	c.Check(metadata.Region(), gc.Equals, args.Region)
 	c.Check(metadata.Version(), gc.Equals, args.Version)
-	c.Check(metadata.Series(), gc.Equals, args.Series)
 	c.Check(metadata.Arch(), gc.Equals, args.Arch)
 	c.Check(metadata.VirtType(), gc.Equals, args.VirtType)
 	c.Check(metadata.RootStorageType(), gc.Equals, args.RootStorageType)
@@ -69,13 +67,12 @@ func (s *CloudImageMetadataSerializationSuite) TestParsingSerializedData(c *gc.C
 	storageSize := uint64(3)
 	now := time.Now()
 	initial := cloudimagemetadataset{
-		Version: 1,
+		Version: 2,
 		CloudImageMetadata_: []*cloudimagemetadata{
 			newCloudImageMetadata(CloudImageMetadataArgs{
 				Stream:          "stream",
 				Region:          "region-test",
 				Version:         "14.04",
-				Series:          "trusty",
 				Arch:            "arch",
 				VirtType:        "virtType-test",
 				RootStorageType: "rootStorageType-test",
@@ -101,7 +98,7 @@ func (s *CloudImageMetadataSerializationSuite) TestParsingSerializedData(c *gc.C
 	err = yaml.Unmarshal(bytes, &source)
 	c.Assert(err, jc.ErrorIsNil)
 
-	metadata, err := importCloudImageMetadata(source)
+	metadata, err := importCloudImageMetadatas(source)
 	c.Assert(err, jc.ErrorIsNil)
 
 	c.Assert(metadata, jc.DeepEquals, initial.CloudImageMetadata_)

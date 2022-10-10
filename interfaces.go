@@ -71,7 +71,6 @@ type CloudImageMetadata interface {
 	Stream() string
 	Region() string
 	Version() string
-	Series() string
 	Arch() string
 	VirtType() string
 	RootStorageType() string
