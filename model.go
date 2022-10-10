@@ -666,14 +666,14 @@ func (m *model) Operations() []Operation {
 
 // AddCloudImageMetadata implements Model.
 func (m *model) AddCloudImageMetadata(args CloudImageMetadataArgs) CloudImageMetadata {
-	addr := newCloudImageMetadata(args)
-	m.CloudImageMetadata_.CloudImageMetadata_ = append(m.CloudImageMetadata_.CloudImageMetadata_, addr)
-	return addr
+	md := newCloudImageMetadata(args)
+	m.CloudImageMetadata_.CloudImageMetadata_ = append(m.CloudImageMetadata_.CloudImageMetadata_, md)
+	return md
 }
 
 func (m *model) setCloudImageMetadatas(cloudimagemetadataList []*cloudimagemetadata) {
 	m.CloudImageMetadata_ = cloudimagemetadataset{
-		Version:             1,
+		Version:             2,
 		CloudImageMetadata_: cloudimagemetadataList,
 	}
 }
@@ -1635,7 +1635,7 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 	result.setSSHHostKeys(hostKeys)
 
 	cloudimagemetadataMap := valid["cloud-image-metadata"].(map[string]interface{})
-	cloudimagemetadata, err := importCloudImageMetadata(cloudimagemetadataMap)
+	cloudimagemetadata, err := importCloudImageMetadatas(cloudimagemetadataMap)
 	if err != nil {
 		return nil, errors.Annotate(err, "cloud-image-metadata")
 	}

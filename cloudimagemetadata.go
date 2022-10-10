@@ -19,7 +19,6 @@ type cloudimagemetadata struct {
 	Stream_          string     `yaml:"stream"`
 	Region_          string     `yaml:"region"`
 	Version_         string     `yaml:"version"`
-	Series_          string     `yaml:"series"`
 	Arch_            string     `yaml:"arch"`
 	VirtType_        string     `yaml:"virt-type"`
 	RootStorageType_ string     `yaml:"root-storage-type"`
@@ -44,11 +43,6 @@ func (i *cloudimagemetadata) Region() string {
 // Version implements CloudImageMetadata.
 func (i *cloudimagemetadata) Version() string {
 	return i.Version_
-}
-
-// Series implements CloudImageMetadata.
-func (i *cloudimagemetadata) Series() string {
-	return i.Series_
 }
 
 // Arch implements CloudImageMetadata.
@@ -105,7 +99,6 @@ type CloudImageMetadataArgs struct {
 	Stream          string
 	Region          string
 	Version         string
-	Series          string
 	Arch            string
 	VirtType        string
 	RootStorageType string
@@ -122,7 +115,6 @@ func newCloudImageMetadata(args CloudImageMetadataArgs) *cloudimagemetadata {
 		Stream_:          args.Stream,
 		Region_:          args.Region,
 		Version_:         args.Version,
-		Series_:          args.Series,
 		Arch_:            args.Arch,
 		VirtType_:        args.VirtType,
 		RootStorageType_: args.RootStorageType,
@@ -136,7 +128,7 @@ func newCloudImageMetadata(args CloudImageMetadataArgs) *cloudimagemetadata {
 	return cloudimagemetadata
 }
 
-func importCloudImageMetadata(source map[string]interface{}) ([]*cloudimagemetadata, error) {
+func importCloudImageMetadatas(source map[string]interface{}) ([]*cloudimagemetadata, error) {
 	checker := versionedChecker("cloudimagemetadata")
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -169,18 +161,12 @@ func importCloudImageMetadataList(sourceList []interface{}, importFunc cloudimag
 	return result, nil
 }
 
-type cloudimagemetadataDeserializationFunc func(map[string]interface{}) (*cloudimagemetadata, error)
-
-var cloudimagemetadataDeserializationFuncs = map[int]cloudimagemetadataDeserializationFunc{
-	1: importCloudImageMetadataV1,
-}
-
-func importCloudImageMetadataV1(source map[string]interface{}) (*cloudimagemetadata, error) {
+func cloudImageMetadataV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"stream":            schema.String(),
 		"region":            schema.String(),
-		"version":           schema.String(),
 		"series":            schema.String(),
+		"version":           schema.String(),
 		"arch":              schema.String(),
 		"virt-type":         schema.String(),
 		"root-storage-type": schema.String(),
@@ -196,6 +182,35 @@ func importCloudImageMetadataV1(source map[string]interface{}) (*cloudimagemetad
 		"root-storage-size": schema.Omit,
 		"expire-at":         schema.Omit,
 	}
+	return fields, defaults
+}
+
+func cloudImageMetadataV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := cloudImageMetadataV1Fields()
+	delete(fields, "series")
+	defaults["series"] = schema.Omit
+	return fields, defaults
+}
+
+type cloudimagemetadataDeserializationFunc func(map[string]interface{}) (*cloudimagemetadata, error)
+
+var cloudimagemetadataDeserializationFuncs = map[int]cloudimagemetadataDeserializationFunc{
+	1: importCloudImageMetadataV1,
+	2: importCloudImageMetadataV2,
+}
+
+func importCloudImageMetadataV1(source map[string]interface{}) (*cloudimagemetadata, error) {
+	fields, defaults := cloudImageMetadataV1Fields()
+	return importCloudImageMetadata(fields, defaults, source, 1)
+}
+
+func importCloudImageMetadataV2(source map[string]interface{}) (*cloudimagemetadata, error) {
+	fields, defaults := cloudImageMetadataV2Fields()
+	return importCloudImageMetadata(fields, defaults, source, 2)
+}
+
+func importCloudImageMetadata(fields schema.Fields, defaults schema.Defaults, source map[string]interface{}, importVersion int) (*cloudimagemetadata, error) {
+
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
@@ -220,7 +235,6 @@ func importCloudImageMetadataV1(source map[string]interface{}) (*cloudimagemetad
 		Stream_:          valid["stream"].(string),
 		Region_:          valid["region"].(string),
 		Version_:         valid["version"].(string),
-		Series_:          valid["series"].(string),
 		Arch_:            valid["arch"].(string),
 		VirtType_:        valid["virt-type"].(string),
 		RootStorageType_: valid["root-storage-type"].(string),

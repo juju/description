@@ -1250,7 +1250,6 @@ func (s *ModelSerializationSuite) TestCloudImageMetadata(c *gc.C) {
 		Stream:          "stream",
 		Region:          "region-test",
 		Version:         "14.04",
-		Series:          "trusty",
 		Arch:            "arch",
 		VirtType:        "virtType-test",
 		RootStorageType: "rootStorageType-test",
