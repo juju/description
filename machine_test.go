@@ -46,7 +46,7 @@ func minimalMachineMap(id string, containers ...interface{}) map[interface{}]int
 		"nonce":          "a-nonce",
 		"password-hash":  "some-hash",
 		"instance":       minimalCloudInstanceMap(),
-		"series":         "zesty",
+		"base":           "ubuntu:22.04",
 		"tools":          minimalAgentToolsMap(),
 		"jobs":           []interface{}{"host-units"},
 		"containers":     containers,
@@ -54,6 +54,13 @@ func minimalMachineMap(id string, containers ...interface{}) map[interface{}]int
 		"status-history": emptyStatusHistoryMap(),
 		"block-devices":  emptyBlockDeviceMap(),
 	}
+}
+
+func minimalMachineV1Map(id string, containers ...interface{}) map[interface{}]interface{} {
+	result := minimalMachineMap(id, containers...)
+	delete(result, "base")
+	result["series"] = "jammy"
+	return result
 }
 
 func minimalMachineMapWithPriorInstanceMap(id string, containers ...interface{}) map[interface{}]interface{} {
@@ -77,7 +84,7 @@ func minimalMachine(id string, containers ...*machine) *machine {
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Series:       "zesty",
+		Base:         "ubuntu:22.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.Containers_ = containers
@@ -94,7 +101,7 @@ func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *mach
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Series:       "zesty",
+		Base:         "ubuntu:17.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.Containers_ = containers
@@ -114,7 +121,7 @@ func addMinimalMachine(model Model, id string) {
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Series:       "zesty",
+		Base:         "ubuntu:22.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.SetInstance(minimalCloudInstanceArgs())
@@ -129,7 +136,7 @@ func addMinimalMachineWithMissingModificationStatus(model Model, id string) {
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Series:       "zesty",
+		Base:         "ubuntu:22.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.SetInstance(minimalCloudInstanceArgs())
@@ -144,7 +151,7 @@ func (s *MachineSerializationSuite) machineArgs(id string) MachineArgs {
 		Nonce:         "a nonce",
 		PasswordHash:  "some-hash",
 		Placement:     "placement",
-		Series:        "zesty",
+		Base:          "ubuntu:22.04",
 		ContainerType: "magic",
 		Jobs:          []string{"this", "that"},
 	}
@@ -157,7 +164,7 @@ func (s *MachineSerializationSuite) TestNewMachine(c *gc.C) {
 	c.Assert(m.Nonce(), gc.Equals, "a nonce")
 	c.Assert(m.PasswordHash(), gc.Equals, "some-hash")
 	c.Assert(m.Placement(), gc.Equals, "placement")
-	c.Assert(m.Series(), gc.Equals, "zesty")
+	c.Assert(m.Base(), gc.Equals, "ubuntu:22.04")
 	c.Assert(m.ContainerType(), gc.Equals, "magic")
 	c.Assert(m.Jobs(), jc.DeepEquals, []string{"this", "that"})
 	supportedContainers, ok := m.SupportedContainers()
@@ -253,7 +260,7 @@ func (s *MachineSerializationSuite) TestMinimalMatches(c *gc.C) {
 
 func (*MachineSerializationSuite) TestNestedParsing(c *gc.C) {
 	machines, err := importMachines(map[string]interface{}{
-		"version": 1,
+		"version": 3,
 		"machines": []interface{}{
 			minimalMachineMap("0"),
 			minimalMachineMap("1",
@@ -395,8 +402,12 @@ func (s *MachineSerializationSuite) TestConstraints(c *gc.C) {
 }
 
 func (s *MachineSerializationSuite) exportImport(c *gc.C, machine_ *machine) *machine {
+	return s.exportImportVersion(c, machine_, 3)
+}
+
+func (s *MachineSerializationSuite) exportImportVersion(c *gc.C, machine_ *machine, version int) *machine {
 	initial := machines{
-		Version:   2,
+		Version:   version,
 		Machines_: []*machine{machine_},
 	}
 
@@ -456,7 +467,7 @@ func (s *MachineSerializationSuite) TestConvertPortToPortRangesForV1Payloads(c *
 	c.Assert(yaml.NewDecoder(&buf).Decode(&v1PortPayload), jc.ErrorIsNil)
 
 	// Get a minimal machine map and inject the generated port payload
-	machPayload := minimalMachineMap("1")
+	machPayload := minimalMachineV1Map("1")
 	machPayload["opened-ports"] = v1PortPayload
 	machineListPayload := map[string]interface{}{
 		"version": 1,
@@ -489,7 +500,7 @@ func (s *MachineSerializationSuite) TestConvertPortToPortRangesForV1Payloads(c *
 	assertUnitPortRangeMatches(c, unicornUnitRanges[0], newUnitPortRange(8080, 8080, "tcp"))
 }
 
-func (s *MachineSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
+func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	// TODO: need to fully specify a machine.
 	args := s.machineArgs("0")
 	supported := []string{"kvm", "lxd"}
@@ -521,6 +532,19 @@ func (s *MachineSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 
 	machine := s.exportImport(c, m)
 	c.Assert(machine, jc.DeepEquals, m)
+}
+
+func (s *MachineSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
+	mV1 := minimalMachine("0")
+	mV1.Base_ = ""
+	mV1.Series_ = "focal"
+
+	mLatest := mV1
+	mResult := s.exportImportVersion(c, mV1, 1)
+
+	mLatest.Base_ = "ubuntu:20.04"
+	mLatest.Series_ = ""
+	c.Assert(mResult, jc.DeepEquals, mLatest)
 }
 
 type AgentToolsSerializationSuite struct {
