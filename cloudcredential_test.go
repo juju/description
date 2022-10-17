@@ -97,3 +97,127 @@ func (s *CloudCredentialSerializationSuite) TestParsingSerializedData(c *gc.C) {
 
 	c.Assert(imported, jc.DeepEquals, initial)
 }
+
+func (s *CloudCredentialSerializationSuite) TestV2MigrationSteps(c *gc.C) {
+	tests := []struct {
+		InitialSource  map[string]interface{}
+		PostAuthType   string
+		PostAttributes map[string]string
+	}{
+		{
+			InitialSource: map[string]interface{}{
+				"version":   1,
+				"owner":     "wallyworld",
+				"cloud":     "k8s",
+				"name":      "ipv6rockz",
+				"auth-type": "oauth2withcert",
+				"attributes": map[string]string{
+					"ClientCertificateData": "aa=",
+					"ClientKeyData":         "aa=",
+				},
+			},
+			PostAuthType: "clientcertificate",
+			PostAttributes: map[string]string{
+				"ClientCertificateData": "aa=",
+				"ClientKeyData":         "aa=",
+			},
+		},
+		{
+			InitialSource: map[string]interface{}{
+				"version":   1,
+				"owner":     "wallyworld",
+				"cloud":     "k8s",
+				"name":      "ipv6rockz",
+				"auth-type": "oauth2withcert",
+				"attributes": map[string]string{
+					"Token": "aa=",
+				},
+			},
+			PostAuthType: "oauth2",
+			PostAttributes: map[string]string{
+				"Token": "aa=",
+			},
+		},
+		{
+			InitialSource: map[string]interface{}{
+				"version":   1,
+				"owner":     "wallyworld",
+				"cloud":     "k8s",
+				"name":      "ipv6rockz",
+				"auth-type": "certificate",
+				"attributes": map[string]string{
+					"Token": "aa=",
+				},
+			},
+			PostAuthType: "oauth2",
+			PostAttributes: map[string]string{
+				"Token": "aa=",
+			},
+		},
+		{
+			InitialSource: map[string]interface{}{
+				"version":   1,
+				"owner":     "wallyworld",
+				"cloud":     "k8s",
+				"name":      "ipv6rockz",
+				"auth-type": "certificate",
+				"attributes": map[string]string{
+					"ClientCertificateData": "aa=",
+					"ClientKeyData":         "aa=",
+				},
+			},
+			PostAuthType: "certificate",
+			PostAttributes: map[string]string{
+				"ClientCertificateData": "aa=",
+				"ClientKeyData":         "aa=",
+			},
+		},
+		{
+			InitialSource: map[string]interface{}{
+				"version":   1,
+				"owner":     "wallyworld",
+				"cloud":     "k8s",
+				"name":      "ipv6rockz",
+				"auth-type": "certificate",
+			},
+			PostAuthType:   "certificate",
+			PostAttributes: nil,
+		},
+	}
+
+	for _, test := range tests {
+		cred, err := importCloudCredential(test.InitialSource)
+		c.Assert(err, jc.ErrorIsNil)
+		c.Assert(cred.AuthType(), gc.Equals, test.PostAuthType)
+		c.Assert(cred.Attributes(), jc.DeepEquals, test.PostAttributes)
+	}
+}
+
+func (s *CloudCredentialSerializationSuite) TestV1MigrationToLatest(c *gc.C) {
+	InitialSource := map[string]interface{}{
+		"version":   1,
+		"owner":     "wallyworld",
+		"cloud":     "k8s",
+		"name":      "ipv6rockz",
+		"auth-type": "certificate",
+		"attributes": map[string]string{
+			"ClientCertificateData": "aa=",
+			"ClientKeyData":         "aa=",
+		},
+	}
+
+	cred, err := importCloudCredential(InitialSource)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(cred.Version, gc.Equals, 2)
+	c.Assert(cred, gc.DeepEquals, &cloudCredential{
+		Version:   2,
+		Owner_:    "wallyworld",
+		Cloud_:    "k8s",
+		Name_:     "ipv6rockz",
+		AuthType_: "certificate",
+		Attributes_: map[string]string{
+			"ClientCertificateData": "aa=",
+			"ClientKeyData":         "aa=",
+		},
+	})
+}

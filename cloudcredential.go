@@ -30,7 +30,7 @@ type CloudCredentialArgs struct {
 
 func newCloudCredential(args CloudCredentialArgs) *cloudCredential {
 	return &cloudCredential{
-		Version:     1,
+		Version:     2,
 		Owner_:      args.Owner.Id(),
 		Cloud_:      args.Cloud.Id(),
 		Name_:       args.Name,
@@ -95,9 +95,10 @@ type cloudCredentialDeserializationFunc func(map[string]interface{}) (*cloudCred
 
 var cloudCredentialDeserializationFuncs = map[int]cloudCredentialDeserializationFunc{
 	1: importCloudCredentialV1,
+	2: importCloudCredentialV2,
 }
 
-func importCloudCredentialV1(source map[string]interface{}) (*cloudCredential, error) {
+func cloudCredentialV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"owner":      schema.String(),
 		"cloud":      schema.String(),
@@ -105,28 +106,96 @@ func importCloudCredentialV1(source map[string]interface{}) (*cloudCredential, e
 		"auth-type":  schema.String(),
 		"attributes": schema.StringMap(schema.String()),
 	}
-	// Some values don't have to be there.
 	defaults := schema.Defaults{
 		"attributes": schema.Omit,
 	}
+
+	return fields, defaults
+}
+
+func cloudCredentialV2Fields() (schema.Fields, schema.Defaults) {
+	return cloudCredentialV1Fields()
+}
+
+func importCloudCredentialV1(source map[string]interface{}) (*cloudCredential, error) {
+	fields, defaults := cloudCredentialV2Fields()
+	return importCloudCredentialHandler(fields, defaults, 1, source)
+}
+
+func importCloudCredentialV2(source map[string]interface{}) (*cloudCredential, error) {
+	fields, defaults := cloudCredentialV2Fields()
+	return importCloudCredentialHandler(fields, defaults, 2, source)
+}
+
+func importCloudCredentialHandler(
+	fields schema.Fields,
+	defaults schema.Defaults,
+	importVersion int,
+	source map[string]interface{},
+) (*cloudCredential, error) {
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "cloudCredential v1 schema check failed")
+		return nil, errors.Annotatef(err, "cloudCredential v%d schema check failed", importVersion)
 	}
 	valid := coerced.(map[string]interface{})
-	// From here we know that the map returned from the schema coercion
-	// contains fields of the right type.
+
 	creds := &cloudCredential{
-		Version:   1,
+		Version:   2,
 		Owner_:    valid["owner"].(string),
 		Cloud_:    valid["cloud"].(string),
 		Name_:     valid["name"].(string),
 		AuthType_: valid["auth-type"].(string),
 	}
+
 	if attributes, found := valid["attributes"]; found {
 		creds.Attributes_ = convertToStringMap(attributes)
 	}
-	return creds, nil
+
+	if importVersion >= 2 {
+		return creds, nil
+	}
+
+	switch creds.AuthType_ {
+	case "oauth2withcert":
+		creds, err = migrateOAuth2WithCertAuthType(creds)
+	case "certificate":
+		creds, err = migrateCertificateAuthType(creds)
+	}
+
+	return creds, err
+}
+
+func migrateOAuth2WithCertAuthType(cred *cloudCredential) (*cloudCredential, error) {
+	clientCert, clientCertExists := cred.Attributes_["ClientCertificateData"]
+	clientCertKey, clientCertKeyExists := cred.Attributes_["ClientKeyData"]
+
+	if clientCertExists && clientCertKeyExists {
+		cred.AuthType_ = "clientcertificate"
+		cred.Attributes_ = map[string]string{
+			"ClientCertificateData": clientCert,
+			"ClientKeyData":         clientCertKey,
+		}
+	} else if token, tokenExists := cred.Attributes_["Token"]; tokenExists {
+		cred.AuthType_ = "oauth2"
+		cred.Attributes_ = map[string]string{
+			"Token": token,
+		}
+	} else {
+		return nil, errors.NotValidf("migrating oauth2cert must have either ClientCertificateData & ClientKeyData or Token attribute")
+	}
+
+	return cred, nil
+}
+
+func migrateCertificateAuthType(cred *cloudCredential) (*cloudCredential, error) {
+	_, tokenExists := cred.Attributes_["Token"]
+	if !tokenExists {
+		// This isn't a problem Kubernetes certificate type we need to migrate
+		return cred, nil
+	}
+
+	cred.AuthType_ = "oauth2"
+	return cred, nil
 }
