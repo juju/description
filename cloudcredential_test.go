@@ -146,7 +146,8 @@ func (s *CloudCredentialSerializationSuite) TestV2MigrationSteps(c *gc.C) {
 				"name":      "ipv6rockz",
 				"auth-type": "certificate",
 				"attributes": map[string]string{
-					"Token": "aa=",
+					"Token":                 "aa=",
+					"ClientCertificateData": "aa=",
 				},
 			},
 			PostAuthType: "oauth2",

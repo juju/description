@@ -190,12 +190,15 @@ func migrateOAuth2WithCertAuthType(cred *cloudCredential) (*cloudCredential, err
 }
 
 func migrateCertificateAuthType(cred *cloudCredential) (*cloudCredential, error) {
-	_, tokenExists := cred.Attributes_["Token"]
+	token, tokenExists := cred.Attributes_["Token"]
 	if !tokenExists {
 		// This isn't a problem Kubernetes certificate type we need to migrate
 		return cred, nil
 	}
 
 	cred.AuthType_ = "oauth2"
+	cred.Attributes_ = map[string]string{
+		"Token": token,
+	}
 	return cred, nil
 }
