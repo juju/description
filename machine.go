@@ -373,7 +373,7 @@ func (m *machine) Validate() error {
 		return errors.NotValidf("machine missing id")
 	}
 	if m.Base_ != "" {
-		parts := strings.Split(m.Base_, ":")
+		parts := strings.Split(m.Base_, "@")
 		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 			return errors.NotValidf("machine %q base %q", m.Id_, m.Base_)
 		}
@@ -490,7 +490,7 @@ func importMachine(
 		if err != nil {
 			return nil, errors.NotValidf("base series %q", mSeries)
 		}
-		result.Base_ = fmt.Sprintf("%s:%s", strings.ToLower(os.String()), vers)
+		result.Base_ = fmt.Sprintf("%s@%s", strings.ToLower(os.String()), vers)
 	} else {
 		result.Base_ = valid["base"].(string)
 	}

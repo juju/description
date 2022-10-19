@@ -46,7 +46,7 @@ func minimalMachineMap(id string, containers ...interface{}) map[interface{}]int
 		"nonce":          "a-nonce",
 		"password-hash":  "some-hash",
 		"instance":       minimalCloudInstanceMap(),
-		"base":           "ubuntu:22.04",
+		"base":           "ubuntu@22.04",
 		"tools":          minimalAgentToolsMap(),
 		"jobs":           []interface{}{"host-units"},
 		"containers":     containers,
@@ -84,7 +84,7 @@ func minimalMachine(id string, containers ...*machine) *machine {
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Base:         "ubuntu:22.04",
+		Base:         "ubuntu@22.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.Containers_ = containers
@@ -101,7 +101,7 @@ func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *mach
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Base:         "ubuntu:17.04",
+		Base:         "ubuntu@17.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.Containers_ = containers
@@ -121,7 +121,7 @@ func addMinimalMachine(model Model, id string) {
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Base:         "ubuntu:22.04",
+		Base:         "ubuntu@22.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.SetInstance(minimalCloudInstanceArgs())
@@ -136,7 +136,7 @@ func addMinimalMachineWithMissingModificationStatus(model Model, id string) {
 		Id:           names.NewMachineTag(id),
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
-		Base:         "ubuntu:22.04",
+		Base:         "ubuntu@22.04",
 		Jobs:         []string{"host-units"},
 	})
 	m.SetInstance(minimalCloudInstanceArgs())
@@ -151,7 +151,7 @@ func (s *MachineSerializationSuite) machineArgs(id string) MachineArgs {
 		Nonce:         "a nonce",
 		PasswordHash:  "some-hash",
 		Placement:     "placement",
-		Base:          "ubuntu:22.04",
+		Base:          "ubuntu@22.04",
 		ContainerType: "magic",
 		Jobs:          []string{"this", "that"},
 	}
@@ -164,7 +164,7 @@ func (s *MachineSerializationSuite) TestNewMachine(c *gc.C) {
 	c.Assert(m.Nonce(), gc.Equals, "a nonce")
 	c.Assert(m.PasswordHash(), gc.Equals, "some-hash")
 	c.Assert(m.Placement(), gc.Equals, "placement")
-	c.Assert(m.Base(), gc.Equals, "ubuntu:22.04")
+	c.Assert(m.Base(), gc.Equals, "ubuntu@22.04")
 	c.Assert(m.ContainerType(), gc.Equals, "magic")
 	c.Assert(m.Jobs(), jc.DeepEquals, []string{"this", "that"})
 	supportedContainers, ok := m.SupportedContainers()
@@ -542,7 +542,7 @@ func (s *MachineSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	mLatest := mV1
 	mResult := s.exportImportVersion(c, mV1, 1)
 
-	mLatest.Base_ = "ubuntu:20.04"
+	mLatest.Base_ = "ubuntu@20.04"
 	mLatest.Series_ = ""
 	c.Assert(mResult, jc.DeepEquals, mLatest)
 }
