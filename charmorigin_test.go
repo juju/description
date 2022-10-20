@@ -152,19 +152,19 @@ func (s *CharmOriginSerializationSuite) TestPlatformFromSeries(c *gc.C) {
 		series      string
 	}{
 		{
-			expectedVal: "amd64/ubuntu/20.04",
+			expectedVal: "unknown/ubuntu/20.04",
 			series:      "focal",
 		},
 		{
-			expectedVal: "amd64/ubuntu/22.04",
+			expectedVal: "unknown/ubuntu/22.04",
 			series:      "jammy",
 		},
 		{
-			expectedVal: "amd64/ubuntu/16.04",
+			expectedVal: "unknown/ubuntu/16.04",
 			series:      "xenial",
 		},
 		{
-			expectedVal: "amd64/windows/win2008r2",
+			expectedVal: "unknown/windows/win2008r2",
 			series:      "win2008r2",
 		},
 	}

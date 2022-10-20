@@ -62,7 +62,7 @@ func platformFromSeries(s string) (string, error) {
 		return "", fmt.Errorf("extracting os version from series %q: %w", s, err)
 	}
 
-	return fmt.Sprintf("amd64/%s/%s", strings.ToLower(os.String()), version), nil
+	return fmt.Sprintf("unknown/%s/%s", strings.ToLower(os.String()), version), nil
 }
 
 // Source implements CharmOrigin.
