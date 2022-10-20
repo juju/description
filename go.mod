@@ -1,4 +1,4 @@
-module github.com/juju/description/v3
+module github.com/juju/description/v4
 
 go 1.19
 
@@ -8,8 +8,8 @@ require (
 	github.com/juju/names/v4 v4.0.0
 	github.com/juju/os/v2 v2.2.3
 	github.com/juju/schema v1.0.1
-	github.com/juju/testing v1.0.1
-	github.com/juju/version/v2 v2.0.0
+	github.com/juju/testing v1.0.2
+	github.com/juju/version/v2 v2.0.1
 	github.com/rs/xid v1.4.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v2 v2.4.0
@@ -18,7 +18,7 @@ require (
 require (
 	github.com/juju/clock v1.0.0 // indirect
 	github.com/juju/loggo v1.0.0 // indirect
-	github.com/juju/mgo/v2 v2.0.0-20220111072304-f200228f1090 // indirect
+	github.com/juju/mgo/v3 v3.0.2 // indirect
 	github.com/juju/utils/v3 v3.0.0 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
