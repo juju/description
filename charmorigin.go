@@ -4,6 +4,7 @@
 package description
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/juju/errors"
@@ -45,6 +46,23 @@ type charmOrigin struct {
 	Revision_ int    `yaml:"revision"`
 	Channel_  string `yaml:"channel"`
 	Platform_ string `yaml:"platform"`
+}
+
+func platformFromSeries(s string) (string, error) {
+	if s == "" {
+		return "", errors.New("cannot convert empty series to a platform")
+	}
+
+	os, err := series.GetOSFromSeries(s)
+	if err != nil {
+		return "", fmt.Errorf("extracting os from series %q: %w", s, err)
+	}
+	version, err := series.SeriesVersion(s)
+	if err != nil {
+		return "", fmt.Errorf("extracting os version from series %q: %w", s, err)
+	}
+
+	return fmt.Sprintf("amd64/%s/%s", strings.ToLower(os.String()), version), nil
 }
 
 // Source implements CharmOrigin.

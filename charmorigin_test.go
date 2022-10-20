@@ -138,3 +138,40 @@ func (s *CharmOriginSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	originResult := s.exportImportVersion(c, originV1, 1)
 	c.Assert(*originResult, jc.DeepEquals, originLatest)
 }
+
+func (s *CharmOriginSerializationSuite) TestPlatformFromSeriesErrorsOnEmpty(c *gc.C) {
+	rval, err := platformFromSeries("")
+	c.Assert(err, gc.NotNil)
+	c.Assert(rval, gc.Equals, "")
+	c.Assert(err.Error(), gc.Equals, "cannot convert empty series to a platform")
+}
+
+func (s *CharmOriginSerializationSuite) TestPlatformFromSeries(c *gc.C) {
+	tests := []struct {
+		expectedVal string
+		series      string
+	}{
+		{
+			expectedVal: "amd64/ubuntu/20.04",
+			series:      "focal",
+		},
+		{
+			expectedVal: "amd64/ubuntu/22.04",
+			series:      "jammy",
+		},
+		{
+			expectedVal: "amd64/ubuntu/16.04",
+			series:      "xenial",
+		},
+		{
+			expectedVal: "amd64/windows/win2008r2",
+			series:      "win2008r2",
+		},
+	}
+
+	for _, test := range tests {
+		platform, err := platformFromSeries(test.series)
+		c.Assert(err, jc.ErrorIsNil)
+		c.Assert(platform, gc.Equals, test.expectedVal)
+	}
+}
