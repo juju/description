@@ -641,3 +641,59 @@ func (s *ApplicationSerializationSuite) TestExposeMetadata(c *gc.C) {
 	c.Assert(ep1.ExposeToSpaceIDs(), gc.IsNil)
 	c.Assert(ep1.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
 }
+
+func (s *ApplicationSerializationSuite) TestApplicationSeriesToPlatform(c *gc.C) {
+	appInput := map[string]interface{}{
+		"version": 8,
+		"applications": []map[string]interface{}{{
+			"version":           8,
+			"name":              "ubuntu",
+			"type":              IAAS,
+			"charm-url":         "cs:trusty/ubuntu",
+			"cs-channel":        "stable",
+			"charm-mod-version": 1,
+			"status":            minimalStatusMap(),
+			"status-history":    emptyStatusHistoryMap(),
+			"settings": map[interface{}]interface{}{
+				"key": "value",
+			},
+			"leader":              "ubuntu/0",
+			"leadership-settings": map[interface{}]interface{}{},
+			"metrics-creds":       "c2Vrcml0", // base64 encoded
+			"resources": map[interface{}]interface{}{
+				"version": 1,
+				"resources": []interface{}{
+					minimalResourceMap(),
+				},
+			},
+			"units": map[interface{}]interface{}{
+				"version": 3,
+				"units": []interface{}{
+					minimalUnitMap(),
+				},
+			},
+			"series": "focal",
+			"charm-origin": map[interface{}]interface{}{
+				"version":  2,
+				"source":   "local",
+				"id":       "",
+				"hash":     "",
+				"revision": 0,
+				"channel":  "",
+				"platform": "",
+			},
+		}},
+	}
+
+	bytes, err := yaml.Marshal(appInput)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	app, err := importApplications(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(app[0].CharmOrigin().Platform(), gc.Equals, "amd64/ubuntu/20.04")
+}

@@ -823,6 +823,18 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		}
 	}
 
+	series, hasSeries := valid["series"].(string)
+	if importVersion <= 9 && importVersion >= 7 && hasSeries {
+		// If we have a series but no platform defined lets make a platform from the series
+		if result.CharmOrigin_ != nil && result.CharmOrigin_.Platform_ == "" {
+			platform, err := platformFromSeries(series)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.CharmOrigin_.Platform_ = platform
+		}
+	}
+
 	result.importAnnotations(valid)
 
 	if err := result.importStatusHistory(valid); err != nil {
