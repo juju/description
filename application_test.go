@@ -695,5 +695,5 @@ func (s *ApplicationSerializationSuite) TestApplicationSeriesToPlatform(c *gc.C)
 	app, err := importApplications(source)
 	c.Assert(err, jc.ErrorIsNil)
 
-	c.Assert(app[0].CharmOrigin().Platform(), gc.Equals, "amd64/ubuntu/20.04")
+	c.Assert(app[0].CharmOrigin().Platform(), gc.Equals, "unknown/ubuntu/20.04")
 }
