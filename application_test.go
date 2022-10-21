@@ -356,7 +356,9 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
-	appLatest.CharmOrigin_ = nil
+	appLatest.CharmOrigin_ = newCharmOrigin(CharmOriginArgs{
+		Platform: "unknown/ubuntu/20.04",
+	})
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	appLatest.Series_ = ""
@@ -379,7 +381,9 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.Tools_ = nil
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
-	appLatest.CharmOrigin_ = nil
+	appLatest.CharmOrigin_ = newCharmOrigin(CharmOriginArgs{
+		Platform: "unknown/ubuntu/20.04",
+	})
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	appLatest.Series_ = ""
@@ -398,7 +402,9 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.DesiredScale_ = 0
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
-	appLatest.CharmOrigin_ = nil
+	appLatest.CharmOrigin_ = newCharmOrigin(CharmOriginArgs{
+		Platform: "unknown/ubuntu/20.04",
+	})
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	appLatest.Series_ = ""
@@ -413,7 +419,9 @@ func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
 	// Make an app with fields not in v5 removed.
 	appLatest := appV5
 	appLatest.HasResources_ = false
-	appLatest.CharmOrigin_ = nil
+	appLatest.CharmOrigin_ = newCharmOrigin(CharmOriginArgs{
+		Platform: "unknown/ubuntu/20.04",
+	})
 
 	appResult := s.exportImportVersion(c, appV5, 5)
 	appLatest.Series_ = ""
@@ -427,7 +435,9 @@ func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
 
 	// Make an app with fields not in v6 removed.
 	appLatest := appV6
-	appLatest.CharmOrigin_ = nil
+	appLatest.CharmOrigin_ = newCharmOrigin(CharmOriginArgs{
+		Platform: "unknown/ubuntu/20.04",
+	})
 
 	appResult := s.exportImportVersion(c, appV6, 6)
 	appLatest.Series_ = ""
