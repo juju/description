@@ -48,9 +48,18 @@ type charmOrigin struct {
 	Platform_ string `yaml:"platform"`
 }
 
+const (
+	defaultKubernetesPlatform = "unknown/kubernetes/kubernetes"
+	kubernetesSeries          = "kubernetes"
+)
+
 func platformFromSeries(s string) (string, error) {
 	if s == "" {
 		return "", errors.New("cannot convert empty series to a platform")
+	}
+
+	if s == kubernetesSeries {
+		return defaultKubernetesPlatform, nil
 	}
 
 	os, err := series.GetOSFromSeries(s)

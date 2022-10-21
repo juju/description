@@ -167,6 +167,10 @@ func (s *CharmOriginSerializationSuite) TestPlatformFromSeries(c *gc.C) {
 			expectedVal: "unknown/windows/win2008r2",
 			series:      "win2008r2",
 		},
+		{
+			expectedVal: "unknown/kubernetes/kubernetes",
+			series:      "kubernetes",
+		},
 	}
 
 	for _, test := range tests {
