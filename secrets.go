@@ -583,7 +583,7 @@ type SecretRevision interface {
 	Obsolete() bool
 
 	ExpireTime() *time.Time
-	ProviderId() *string
+	BackendId() *string
 	Content() map[string]string
 }
 
@@ -594,7 +594,7 @@ type secretRevision struct {
 	Obsolete_ bool      `yaml:"obsolete,omitempty"`
 
 	Content_    map[string]string `yaml:"content,omitempty"`
-	ProviderId_ *string           `yaml:"provider-id,omitempty"`
+	BackendId_  *string           `yaml:"backend-id,omitempty"`
 	ExpireTime_ *time.Time        `yaml:"expire-time,omitempty"`
 }
 
@@ -607,18 +607,18 @@ type SecretRevisionArgs struct {
 	Obsolete bool
 
 	Content    map[string]string
-	ProviderId *string
+	BackendId  *string
 	ExpireTime *time.Time
 }
 
 func newSecretRevision(args SecretRevisionArgs) *secretRevision {
 	revision := &secretRevision{
-		Number_:     args.Number,
-		Created_:    args.Created.UTC(),
-		Updated_:    args.Updated.UTC(),
-		Obsolete_:   args.Obsolete,
-		Content_:    args.Content,
-		ProviderId_: args.ProviderId,
+		Number_:    args.Number,
+		Created_:   args.Created.UTC(),
+		Updated_:   args.Updated.UTC(),
+		Obsolete_:  args.Obsolete,
+		Content_:   args.Content,
+		BackendId_: args.BackendId,
 	}
 	if args.ExpireTime != nil {
 		expire := args.ExpireTime.UTC()
@@ -652,9 +652,9 @@ func (i *secretRevision) ExpireTime() *time.Time {
 	return i.ExpireTime_
 }
 
-// ProviderId implements SecretRevision.
-func (i *secretRevision) ProviderId() *string {
-	return i.ProviderId_
+// BackendId implements SecretRevision.
+func (i *secretRevision) BackendId() *string {
+	return i.BackendId_
 }
 
 // Content implements SecretRevision.
@@ -700,11 +700,11 @@ func importSecretRevisionV1(source map[interface{}]interface{}) (*secretRevision
 		"update-time": schema.Time(),
 		"obsolete":    schema.Bool(),
 		"expire-time": schema.Time(),
-		"provider-id": schema.String(),
+		"backend-id":  schema.String(),
 		"content":     schema.StringMap(schema.Any()),
 	}
 	defaults := schema.Defaults{
-		"provider-id": schema.Omit,
+		"backend-id":  schema.Omit,
 		"content":     schema.Omit,
 		"expire-time": schema.Omit,
 		"obsolete":    false,
@@ -728,8 +728,8 @@ func importSecretRevisionV1(source map[interface{}]interface{}) (*secretRevision
 		ExpireTime_: fieldToTimePtr(valid, "expire-time"),
 		Content_:    convertToStringMap(valid["content"]),
 	}
-	if providerId, ok := valid["provider-id"].(string); ok {
-		rev.ProviderId_ = &providerId
+	if backendId, ok := valid["backend-id"].(string); ok {
+		rev.BackendId_ = &backendId
 	}
 	return rev, nil
 }

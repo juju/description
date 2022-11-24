@@ -56,7 +56,7 @@ func testSecretRevisionsArgs() []SecretRevisionArgs {
 	created := time.Now().UTC()
 	updated := created.Add(time.Hour)
 	expire := created.Add(2 * time.Hour)
-	providerID := "provider-id"
+	backendID := "backend-id"
 	return []SecretRevisionArgs{{
 		Number:     1,
 		Created:    created,
@@ -65,10 +65,10 @@ func testSecretRevisionsArgs() []SecretRevisionArgs {
 		Content:    map[string]string{"foo": "bar"},
 		Obsolete:   true,
 	}, {
-		Number:     2,
-		Created:    created,
-		Updated:    updated,
-		ProviderId: &providerID,
+		Number:    2,
+		Created:   created,
+		Updated:   updated,
+		BackendId: &backendID,
 	}}
 }
 
@@ -122,7 +122,7 @@ func (s *SecretsSerializationSuite) TestNewSecret(c *gc.C) {
 	c.Check(secret.Revisions()[0].ExpireTime(), jc.DeepEquals, args.Revisions[0].ExpireTime)
 	c.Check(secret.Revisions()[0].Content(), gc.DeepEquals, map[string]string{"foo": "bar"})
 	c.Check(secret.Revisions()[0].Obsolete(), jc.IsTrue)
-	c.Check(secret.Revisions()[1].ProviderId(), gc.Equals, args.Revisions[1].ProviderId)
+	c.Check(secret.Revisions()[1].BackendId(), gc.Equals, args.Revisions[1].BackendId)
 	c.Check(secret.Revisions()[1].Obsolete(), jc.IsFalse)
 	c.Check(secret.ACL()["application-postgresql"].Role(), gc.Equals, "manage")
 	c.Check(secret.ACL()["application-postgresql"].Scope(), gc.Equals, "application-postgresql")
