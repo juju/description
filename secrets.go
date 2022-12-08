@@ -583,7 +583,7 @@ type SecretRevision interface {
 	Obsolete() bool
 
 	ExpireTime() *time.Time
-	BackendId() *string
+	ValueRef() SecretValueRef
 	Content() map[string]string
 }
 
@@ -594,8 +594,19 @@ type secretRevision struct {
 	Obsolete_ bool      `yaml:"obsolete,omitempty"`
 
 	Content_    map[string]string `yaml:"content,omitempty"`
-	BackendId_  *string           `yaml:"backend-id,omitempty"`
+	ValueRef_   *secretValueRef   `yaml:"value-ref,omitempty"`
 	ExpireTime_ *time.Time        `yaml:"expire-time,omitempty"`
+}
+
+// SecretValueRef represents an external secret revision.
+type SecretValueRef interface {
+	BackendID() string
+	RevisionID() string
+}
+
+type secretValueRef struct {
+	BackendId_  string `yaml:"backend-id"`
+	RevisionId_ string `yaml:"revision-id"`
 }
 
 // SecretRevisionArgs is an argument struct used to create a
@@ -607,22 +618,34 @@ type SecretRevisionArgs struct {
 	Obsolete bool
 
 	Content    map[string]string
-	BackendId  *string
+	ValueRef   *SecretValueRefArgs
 	ExpireTime *time.Time
+}
+
+// SecretValueRefArgs is an argument struct used to create a
+// new internal secret value reference type.
+type SecretValueRefArgs struct {
+	BackendID  string
+	RevisionID string
 }
 
 func newSecretRevision(args SecretRevisionArgs) *secretRevision {
 	revision := &secretRevision{
-		Number_:    args.Number,
-		Created_:   args.Created.UTC(),
-		Updated_:   args.Updated.UTC(),
-		Obsolete_:  args.Obsolete,
-		Content_:   args.Content,
-		BackendId_: args.BackendId,
+		Number_:   args.Number,
+		Created_:  args.Created.UTC(),
+		Updated_:  args.Updated.UTC(),
+		Obsolete_: args.Obsolete,
+		Content_:  args.Content,
 	}
 	if args.ExpireTime != nil {
 		expire := args.ExpireTime.UTC()
 		revision.ExpireTime_ = &expire
+	}
+	if args.ValueRef != nil {
+		revision.ValueRef_ = &secretValueRef{
+			BackendId_:  args.ValueRef.BackendID,
+			RevisionId_: args.ValueRef.RevisionID,
+		}
 	}
 	return revision
 }
@@ -652,14 +675,24 @@ func (i *secretRevision) ExpireTime() *time.Time {
 	return i.ExpireTime_
 }
 
-// BackendId implements SecretRevision.
-func (i *secretRevision) BackendId() *string {
-	return i.BackendId_
+// ValueRef implements SecretRevision.
+func (i *secretRevision) ValueRef() SecretValueRef {
+	return i.ValueRef_
 }
 
 // Content implements SecretRevision.
 func (i *secretRevision) Content() map[string]string {
 	return i.Content_
+}
+
+// BackendID implements SecretValueRef.
+func (i *secretValueRef) BackendID() string {
+	return i.BackendId_
+}
+
+// RevisionID implements SecretValueRef.
+func (i *secretValueRef) RevisionID() string {
+	return i.RevisionId_
 }
 
 func importSecretRevisions(source map[string]interface{}, version int) ([]*secretRevision, error) {
@@ -700,11 +733,11 @@ func importSecretRevisionV1(source map[interface{}]interface{}) (*secretRevision
 		"update-time": schema.Time(),
 		"obsolete":    schema.Bool(),
 		"expire-time": schema.Time(),
-		"backend-id":  schema.String(),
+		"value-ref":   schema.StringMap(schema.Any()),
 		"content":     schema.StringMap(schema.Any()),
 	}
 	defaults := schema.Defaults{
-		"backend-id":  schema.Omit,
+		"value-ref":   schema.Omit,
 		"content":     schema.Omit,
 		"expire-time": schema.Omit,
 		"obsolete":    false,
@@ -728,8 +761,16 @@ func importSecretRevisionV1(source map[interface{}]interface{}) (*secretRevision
 		ExpireTime_: fieldToTimePtr(valid, "expire-time"),
 		Content_:    convertToStringMap(valid["content"]),
 	}
-	if backendId, ok := valid["backend-id"].(string); ok {
-		rev.BackendId_ = &backendId
+	valueRefMap := convertToStringMap(valid["value-ref"])
+	if valueRefMap == nil {
+		return rev, nil
+	}
+	rev.ValueRef_ = &secretValueRef{
+		BackendId_:  valueRefMap["backend-id"],
+		RevisionId_: valueRefMap["revision-id"],
+	}
+	if rev.ValueRef_.BackendId_ == "" || rev.ValueRef_.RevisionId_ == "" {
+		return nil, errors.Errorf("incomplete secret value ref for revision %d", rev.Number_)
 	}
 	return rev, nil
 }
