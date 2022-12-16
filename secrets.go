@@ -581,6 +581,7 @@ type SecretRevision interface {
 	Created() time.Time
 	Updated() time.Time
 	Obsolete() bool
+	PendingDelete() bool
 
 	ExpireTime() *time.Time
 	ValueRef() SecretValueRef
@@ -588,10 +589,11 @@ type SecretRevision interface {
 }
 
 type secretRevision struct {
-	Number_   int       `yaml:"number"`
-	Created_  time.Time `yaml:"create-time"`
-	Updated_  time.Time `yaml:"update-time"`
-	Obsolete_ bool      `yaml:"obsolete,omitempty"`
+	Number_        int       `yaml:"number"`
+	Created_       time.Time `yaml:"create-time"`
+	Updated_       time.Time `yaml:"update-time"`
+	Obsolete_      bool      `yaml:"obsolete,omitempty"`
+	PendingDelete_ bool      `yaml:"pending-delete,omitempty"`
 
 	Content_    map[string]string `yaml:"content,omitempty"`
 	ValueRef_   *secretValueRef   `yaml:"value-ref,omitempty"`
@@ -612,10 +614,11 @@ type secretValueRef struct {
 // SecretRevisionArgs is an argument struct used to create a
 // new internal secret revision type that supports the secret revision interface.
 type SecretRevisionArgs struct {
-	Number   int
-	Created  time.Time
-	Updated  time.Time
-	Obsolete bool
+	Number        int
+	Created       time.Time
+	Updated       time.Time
+	Obsolete      bool
+	PendingDelete bool
 
 	Content    map[string]string
 	ValueRef   *SecretValueRefArgs
@@ -631,11 +634,12 @@ type SecretValueRefArgs struct {
 
 func newSecretRevision(args SecretRevisionArgs) *secretRevision {
 	revision := &secretRevision{
-		Number_:   args.Number,
-		Created_:  args.Created.UTC(),
-		Updated_:  args.Updated.UTC(),
-		Obsolete_: args.Obsolete,
-		Content_:  args.Content,
+		Number_:        args.Number,
+		Created_:       args.Created.UTC(),
+		Updated_:       args.Updated.UTC(),
+		Obsolete_:      args.Obsolete,
+		PendingDelete_: args.PendingDelete,
+		Content_:       args.Content,
 	}
 	if args.ExpireTime != nil {
 		expire := args.ExpireTime.UTC()
@@ -668,6 +672,11 @@ func (i *secretRevision) Updated() time.Time {
 // Obsolete implements SecretRevision.
 func (i *secretRevision) Obsolete() bool {
 	return i.Obsolete_
+}
+
+// PendingDelete implements SecretRevision.
+func (i *secretRevision) PendingDelete() bool {
+	return i.PendingDelete_
 }
 
 // ExpireTime implements SecretRevision.
@@ -728,19 +737,21 @@ var secretRevisionRangeDeserializationFuncs = map[int]secretRevisionDeserializat
 
 func importSecretRevisionV1(source map[interface{}]interface{}) (*secretRevision, error) {
 	fields := schema.Fields{
-		"number":      schema.Int(),
-		"create-time": schema.Time(),
-		"update-time": schema.Time(),
-		"obsolete":    schema.Bool(),
-		"expire-time": schema.Time(),
-		"value-ref":   schema.StringMap(schema.Any()),
-		"content":     schema.StringMap(schema.Any()),
+		"number":         schema.Int(),
+		"create-time":    schema.Time(),
+		"update-time":    schema.Time(),
+		"obsolete":       schema.Bool(),
+		"pending-delete": schema.Bool(),
+		"expire-time":    schema.Time(),
+		"value-ref":      schema.StringMap(schema.Any()),
+		"content":        schema.StringMap(schema.Any()),
 	}
 	defaults := schema.Defaults{
-		"value-ref":   schema.Omit,
-		"content":     schema.Omit,
-		"expire-time": schema.Omit,
-		"obsolete":    false,
+		"value-ref":      schema.Omit,
+		"content":        schema.Omit,
+		"expire-time":    schema.Omit,
+		"obsolete":       false,
+		"pending-delete": false,
 	}
 
 	checker := schema.FieldMap(fields, defaults)
@@ -754,12 +765,13 @@ func importSecretRevisionV1(source map[interface{}]interface{}) (*secretRevision
 	// contains fields of the right type.
 
 	rev := &secretRevision{
-		Number_:     int(valid["number"].(int64)),
-		Created_:    valid["create-time"].(time.Time).UTC(),
-		Updated_:    valid["update-time"].(time.Time).UTC(),
-		Obsolete_:   valid["obsolete"].(bool),
-		ExpireTime_: fieldToTimePtr(valid, "expire-time"),
-		Content_:    convertToStringMap(valid["content"]),
+		Number_:        int(valid["number"].(int64)),
+		Created_:       valid["create-time"].(time.Time).UTC(),
+		Updated_:       valid["update-time"].(time.Time).UTC(),
+		Obsolete_:      valid["obsolete"].(bool),
+		PendingDelete_: valid["pending-delete"].(bool),
+		ExpireTime_:    fieldToTimePtr(valid, "expire-time"),
+		Content_:       convertToStringMap(valid["content"]),
 	}
 	valueRefMap := convertToStringMap(valid["value-ref"])
 	if valueRefMap == nil {
