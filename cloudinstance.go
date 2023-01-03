@@ -24,6 +24,7 @@ type CloudInstance interface {
 	CpuPower() uint64
 	Tags() []string
 	AvailabilityZone() string
+	VirtType() string
 	CharmProfiles() []string
 
 	Validate() error
@@ -41,6 +42,7 @@ type CloudInstanceArgs struct {
 	CpuPower         uint64
 	Tags             []string
 	AvailabilityZone string
+	VirtType         string
 	CharmProfiles    []string
 }
 
@@ -50,7 +52,7 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 	profiles := make([]string, len(args.CharmProfiles))
 	copy(profiles, args.CharmProfiles)
 	return &cloudInstance{
-		Version:           5,
+		Version:           6,
 		InstanceId_:       args.InstanceId,
 		Architecture_:     args.Architecture,
 		Memory_:           args.Memory,
@@ -60,6 +62,7 @@ func newCloudInstance(args CloudInstanceArgs) *cloudInstance {
 		CpuPower_:         args.CpuPower,
 		Tags_:             tags,
 		AvailabilityZone_: args.AvailabilityZone,
+		VirtType_:         args.VirtType,
 		CharmProfiles_:    profiles,
 		StatusHistory_:    newStatusHistory(),
 	}
@@ -91,6 +94,7 @@ type cloudInstance struct {
 	CpuPower_         uint64   `yaml:"cpu-power,omitempty"`
 	Tags_             []string `yaml:"tags,omitempty"`
 	AvailabilityZone_ string   `yaml:"availability-zone,omitempty"`
+	VirtType_         string   `yaml:"virt-type,omitempty"`
 	CharmProfiles_    []string `yaml:"charm-profiles,omitempty"`
 }
 
@@ -169,6 +173,11 @@ func (c *cloudInstance) AvailabilityZone() string {
 	return c.AvailabilityZone_
 }
 
+// VirtType implements CloudInstance.
+func (c *cloudInstance) VirtType() string {
+	return c.VirtType_
+}
+
 // CharmProfiles implements CloudInstance.
 func (c *cloudInstance) CharmProfiles() []string {
 	profiles := make([]string, len(c.CharmProfiles_))
@@ -207,6 +216,7 @@ var cloudInstanceFieldsFuncs = map[int]fieldsFunc{
 	3: cloudInstanceV3Fields,
 	4: cloudInstanceV4Fields,
 	5: cloudInstanceV5Fields,
+	6: cloudInstanceV6Fields,
 }
 
 func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
@@ -259,6 +269,13 @@ func cloudInstanceV5Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := cloudInstanceV4Fields()
 	fields["root-disk-source"] = schema.String()
 	defaults["root-disk-source"] = ""
+	return fields, defaults
+}
+
+func cloudInstanceV6Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := cloudInstanceV5Fields()
+	fields["virt-type"] = schema.String()
+	defaults["virt-type"] = ""
 	return fields, defaults
 }
 
@@ -318,6 +335,10 @@ func newCloudInstanceFromValid(valid map[string]interface{}, importVersion int) 
 
 		if importVersion > 4 {
 			instance.RootDiskSource_ = valid["root-disk-source"].(string)
+		}
+
+		if importVersion > 5 {
+			instance.VirtType_ = valid["virt-type"].(string)
 		}
 	default:
 		return nil, errors.NotValidf("unexpected version: %d", importVersion)
