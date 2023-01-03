@@ -25,7 +25,7 @@ func (s *CloudInstanceSerializationSuite) SetUpTest(c *gc.C) {
 
 func minimalCloudInstanceMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":             5,
+		"version":             6,
 		"instance-id":         "instance id",
 		"status":              minimalStatusMap(),
 		"status-history":      emptyStatusHistoryMap(),
@@ -66,6 +66,7 @@ func (s *CloudInstanceSerializationSuite) TestNewCloudInstance(c *gc.C) {
 	c.Check(instance.RootDiskSource(), gc.Equals, args.RootDiskSource)
 	c.Check(instance.CpuCores(), gc.Equals, args.CpuCores)
 	c.Check(instance.CpuPower(), gc.Equals, args.CpuPower)
+	c.Check(instance.VirtType(), gc.Equals, args.VirtType)
 	c.Check(instance.AvailabilityZone(), gc.Equals, args.AvailabilityZone)
 
 	// Before we check tags, modify args to make sure that the instance ones
@@ -171,6 +172,7 @@ func (s *CloudInstanceSerializationSuite) testArgs() CloudInstanceArgs {
 		CpuPower:         4000,
 		Tags:             []string{"much", "strong"},
 		AvailabilityZone: "everywhere",
+		VirtType:         "container",
 		CharmProfiles:    []string{"much", "strong"},
 	}
 }
@@ -206,6 +208,7 @@ func (s *CloudInstanceSerializationSuite) TestParsingV4Full(c *gc.C) {
 	imported := s.importCloudInstance(c, original)
 	expected := s.testCloudInstance()
 	expected.RootDiskSource_ = ""
+	expected.VirtType_ = ""
 	expected.Version = 4
 	c.Assert(imported, jc.DeepEquals, expected)
 }
@@ -257,12 +260,58 @@ func (s *CloudInstanceSerializationSuite) TestParsingV5Full(c *gc.C) {
 	original := s.allV5Map()
 	imported := s.importCloudInstance(c, original)
 	expected := s.testCloudInstance()
+	expected.VirtType_ = ""
+	expected.Version = 5
 	c.Assert(imported, jc.DeepEquals, expected)
 }
 
 func (s *CloudInstanceSerializationSuite) TestParsingV5Minimal(c *gc.C) {
 	original := map[string]interface{}{
 		"version":             5,
+		"instance-id":         "instance id",
+		"status":              minimalStatusMap(),
+		"status-history":      emptyStatusHistoryMap(),
+		"modification-status": minimalStatusMap(),
+	}
+	imported := s.importCloudInstance(c, original)
+	expected := newCloudInstance(minimalCloudInstanceArgs())
+	expected.SetStatus(minimalStatusArgs())
+	expected.SetModificationStatus(minimalStatusArgs())
+	expected.Version = 5
+	c.Assert(imported, jc.DeepEquals, expected)
+}
+
+func (s *CloudInstanceSerializationSuite) allV6Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":             6,
+		"instance-id":         "instance id",
+		"display-name":        "foo",
+		"status":              minimalStatusMap(),
+		"status-history":      emptyStatusHistoryMap(),
+		"modification-status": minimalStatusMap(),
+		"architecture":        "amd64",
+		"memory":              16 * gig,
+		"root-disk":           200 * gig,
+		"root-disk-source":    "my-house",
+		"cores":               8,
+		"cpu-power":           4000,
+		"tags":                []string{"much", "strong"},
+		"availability-zone":   "everywhere",
+		"virt-type":           "container",
+		"charm-profiles":      []string{"much", "strong"},
+	}
+}
+
+func (s *CloudInstanceSerializationSuite) TestParsingV6Full(c *gc.C) {
+	original := s.allV6Map()
+	imported := s.importCloudInstance(c, original)
+	expected := s.testCloudInstance()
+	c.Assert(imported, jc.DeepEquals, expected)
+}
+
+func (s *CloudInstanceSerializationSuite) TestParsingV6Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version":             6,
 		"instance-id":         "instance id",
 		"status":              minimalStatusMap(),
 		"status-history":      emptyStatusHistoryMap(),
