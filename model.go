@@ -944,7 +944,7 @@ func (m *model) AddRemoteApplication(args RemoteApplicationArgs) RemoteApplicati
 
 func (m *model) setRemoteApplications(appList []*remoteApplication) {
 	m.RemoteApplications_ = remoteApplications{
-		Version:            2,
+		Version:            3,
 		RemoteApplications: appList,
 	}
 }
