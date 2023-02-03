@@ -54,6 +54,7 @@ func minimalRemoteApplicationMapWithoutStatus() map[interface{}]interface{} {
 		"url":               "http://a.url",
 		"source-model-uuid": "abcd-1234",
 		"is-consumer-proxy": true,
+		"consume-version":   666,
 		"endpoints": map[interface{}]interface{}{
 			"version": 1,
 			"endpoints": []interface{}{map[interface{}]interface{}{
@@ -114,6 +115,7 @@ func minimalRemoteApplicationWithoutStatus() *remoteApplication {
 		URL:             "http://a.url",
 		SourceModel:     names.NewModelTag("abcd-1234"),
 		IsConsumerProxy: true,
+		ConsumeVersion:  666,
 		Bindings:        map[string]string{"lana": "private"},
 	})
 	a.AddEndpoint(RemoteEndpointArgs{
@@ -241,20 +243,31 @@ func (*RemoteApplicationSerializationSuite) TestMinimalMatchesWithoutStatus(c *g
 
 func (s *RemoteApplicationSerializationSuite) TestRoundTripVersion1(c *gc.C) {
 	rIn := minimalRemoteApplication()
+	rIn.ConsumeVersion_ = 0
 	rOut := s.exportImport(c, 1, rIn)
+	rIn.ConsumeVersion_ = 1
 	c.Assert(rOut, jc.DeepEquals, rIn)
 }
 
 func (s *RemoteApplicationSerializationSuite) TestRoundTripVersion2(c *gc.C) {
 	rIn := minimalRemoteApplication()
+	rIn.ConsumeVersion_ = 0
 	rIn.Macaroon_ = "mac"
 	rOut := s.exportImport(c, 2, rIn)
+	rIn.ConsumeVersion_ = 1
+	c.Assert(rOut, jc.DeepEquals, rIn)
+}
+
+func (s *RemoteApplicationSerializationSuite) TestRoundTripVersion3(c *gc.C) {
+	rIn := minimalRemoteApplication()
+	rIn.Macaroon_ = "mac"
+	rOut := s.exportImport(c, 3, rIn)
 	c.Assert(rOut, jc.DeepEquals, rIn)
 }
 
 func (s *RemoteApplicationSerializationSuite) TestRoundTripWithoutStatus(c *gc.C) {
 	rIn := minimalRemoteApplicationWithoutStatus()
-	rOut := s.exportImport(c, 1, rIn)
+	rOut := s.exportImport(c, 3, rIn)
 	c.Assert(rOut, jc.DeepEquals, rIn)
 }
 
