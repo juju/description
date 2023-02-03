@@ -20,6 +20,7 @@ type RemoteApplication interface {
 	URL() string
 	SourceModelTag() names.ModelTag
 	IsConsumerProxy() bool
+	ConsumeVersion() int
 	Macaroon() string
 
 	Endpoints() []RemoteEndpoint
@@ -41,6 +42,7 @@ type remoteApplication struct {
 	OfferUUID_       string            `yaml:"offer-uuid"`
 	URL_             string            `yaml:"url"`
 	SourceModelUUID_ string            `yaml:"source-model-uuid"`
+	ConsumeVersion_  int               `yaml:"consume-version,omitempty"`
 	Macaroon_        string            `yaml:"macaroon,omitempty"`
 	Endpoints_       remoteEndpoints   `yaml:"endpoints,omitempty"`
 	IsConsumerProxy_ bool              `yaml:"is-consumer-proxy,omitempty"`
@@ -57,6 +59,7 @@ type RemoteApplicationArgs struct {
 	URL             string
 	SourceModel     names.ModelTag
 	IsConsumerProxy bool
+	ConsumeVersion  int
 	Macaroon        string
 	Bindings        map[string]string
 }
@@ -68,6 +71,7 @@ func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
 		URL_:             args.URL,
 		SourceModelUUID_: args.SourceModel.Id(),
 		IsConsumerProxy_: args.IsConsumerProxy,
+		ConsumeVersion_:  args.ConsumeVersion,
 		Macaroon_:        args.Macaroon,
 		Bindings_:        args.Bindings,
 	}
@@ -104,6 +108,11 @@ func (a *remoteApplication) SourceModelTag() names.ModelTag {
 // IsConsumerProxy implements RemoteApplication.
 func (a *remoteApplication) IsConsumerProxy() bool {
 	return a.IsConsumerProxy_
+}
+
+// ConsumeVersion implements RemoteApplication.
+func (a *remoteApplication) ConsumeVersion() int {
+	return a.ConsumeVersion_
 }
 
 // Macaroon (RemoteApplication) returns the macaroon
@@ -218,6 +227,7 @@ func importRemoteApplicationList(sourceList []interface{}, checker schema.Checke
 var remoteApplicationFieldsFuncs = map[int]fieldsFunc{
 	1: remoteApplicationV1Fields,
 	2: remoteApplicationV2Fields,
+	3: remoteApplicationV3Fields,
 }
 
 func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*remoteApplication, error) {
@@ -262,6 +272,15 @@ func newRemoteApplicationFromValid(valid map[string]interface{}, version int) (*
 	if bindings, ok := valid["bindings"]; ok {
 		result.Bindings_ = convertToStringMap(bindings)
 	}
+
+	if version < 3 {
+		result.ConsumeVersion_ = 1
+	} else {
+		v, ok := valid["consume-version"].(int64)
+		if ok {
+			result.ConsumeVersion_ = int(v)
+		}
+	}
 	return result, nil
 }
 
@@ -292,5 +311,12 @@ func remoteApplicationV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := remoteApplicationV1Fields()
 	fields["macaroon"] = schema.String()
 	defaults["macaroon"] = schema.Omit
+	return fields, defaults
+}
+
+func remoteApplicationV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := remoteApplicationV2Fields()
+	fields["consume-version"] = schema.Int()
+	defaults["consume-version"] = 0
 	return fields, defaults
 }

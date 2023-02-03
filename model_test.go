@@ -828,6 +828,7 @@ func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
 		URL:             "other.mysql",
 		SourceModel:     names.NewModelTag("some-model"),
 		IsConsumerProxy: true,
+		ConsumeVersion:  666,
 	})
 	rapp.AddEndpoint(RemoteEndpointArgs{
 		Name:      "db",
@@ -848,7 +849,8 @@ func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
 
 	expected := `
 remote-applications:
-- endpoints:
+- consume-version: 666
+  endpoints:
     endpoints:
     - interface: mysql
       name: db
@@ -868,7 +870,7 @@ remote-applications:
       value: running
     version: 2
   url: other.mysql
-version: 2
+version: 3
 `[1:]
 	c.Assert(string(bytes), gc.Equals, expected)
 }
