@@ -8,9 +8,8 @@ import (
 	"github.com/juju/schema"
 )
 
-// MachinePortRanges represents a collection of port ranges that are open on a
-// particular machine.
-type MachinePortRanges interface {
+// PortRanges represents a collection of port ranges that are open.
+type PortRanges interface {
 	ByUnit() map[string]UnitPortRanges
 }
 
