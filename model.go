@@ -1047,6 +1047,9 @@ func (m *model) Validate() error {
 		if err := application.Validate(); err != nil {
 			return errors.Trace(err)
 		}
+		for unitName := range application.OpenedPortRanges().ByUnit() {
+			validationCtx.unitsWithOpenPorts.Add(unitName)
+		}
 		validationCtx.allApplications.Add(application.Name())
 		validationCtx.allUnits = validationCtx.allUnits.Union(application.unitNames())
 	}

@@ -53,7 +53,7 @@ type Machine interface {
 	BlockDevices() []BlockDevice
 	AddBlockDevice(BlockDeviceArgs) BlockDevice
 
-	OpenedPortRanges() MachinePortRanges
+	OpenedPortRanges() PortRanges
 	AddOpenedPortRange(OpenedPortRangeArgs)
 
 	Validate() error
@@ -331,7 +331,7 @@ func (m *machine) AddContainer(args MachineArgs) Machine {
 }
 
 // OpenedPortRanges implements Machine.
-func (m *machine) OpenedPortRanges() MachinePortRanges {
+func (m *machine) OpenedPortRanges() PortRanges {
 	if m.OpenedPortRanges_ == nil {
 		m.OpenedPortRanges_ = newMachinePortRanges()
 	}
@@ -443,12 +443,12 @@ var machineDeserializationFuncs = map[int]machineDeserializationFunc{
 }
 
 func importMachineV1(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV2()
+	fields, defaults := machineSchemaV1()
 	return importMachine(fields, defaults, 1, source, importMachineV1)
 }
 
 func importMachineV2(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV1()
+	fields, defaults := machineSchemaV2()
 	return importMachine(fields, defaults, 2, source, importMachineV2)
 }
 
