@@ -21,7 +21,7 @@ func assertUnitPortRangeMatches(c *gc.C, prA, prB UnitPortRange) {
 var _ = gc.Suite(&MachinePortRangeSerializationSuite{})
 
 func (*MachinePortRangeSerializationSuite) TestParsingSerializedData(c *gc.C) {
-	initial := &machinePortRanges{
+	initial := &deployedPortRanges{
 		Version: 1,
 		ByUnit_: map[string]*unitPortRanges{
 			"lorem/0": {
