@@ -137,7 +137,7 @@ type application struct {
 	Tools_          *agentTools   `yaml:"tools,omitempty"`
 	OperatorStatus_ *status       `yaml:"operator-status,omitempty"`
 
-	OpenedPortRanges_ *machinePortRanges `yaml:"opened-port-ranges,omitempty"`
+	OpenedPortRanges_ *deployedPortRanges `yaml:"opened-port-ranges,omitempty"`
 
 	// Offer-related fields
 	Offers_ *applicationOffers `yaml:"offers,omitempty"`
@@ -351,20 +351,18 @@ func (a *application) MetricsCredentials() []byte {
 	return creds
 }
 
-// OpenedPortRanges implements Machine.
+// OpenedPortRanges implements Application.
 func (a *application) OpenedPortRanges() PortRanges {
 	if a.OpenedPortRanges_ == nil {
-		// machinePortRanges is not a good name here anymore.
-		// But we decide to reuse it for application port ranges because the struct format has not changed.
-		a.OpenedPortRanges_ = newMachinePortRanges()
+		a.OpenedPortRanges_ = newDeployedPortRanges()
 	}
 	return a.OpenedPortRanges_
 }
 
-// AddOpenedPortRange implements Machine.
+// AddOpenedPortRange implements Application.
 func (a *application) AddOpenedPortRange(args OpenedPortRangeArgs) {
 	if a.OpenedPortRanges_ == nil {
-		a.OpenedPortRanges_ = newMachinePortRanges()
+		a.OpenedPortRanges_ = newDeployedPortRanges()
 	}
 
 	if a.OpenedPortRanges_.ByUnit_[args.UnitName] == nil {

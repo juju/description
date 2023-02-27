@@ -91,7 +91,7 @@ type machine struct {
 
 	Containers_ []*machine `yaml:"containers"`
 
-	OpenedPortRanges_ *machinePortRanges `yaml:"opened-port-ranges,omitempty"`
+	OpenedPortRanges_ *deployedPortRanges `yaml:"opened-port-ranges,omitempty"`
 
 	Annotations_ `yaml:"annotations,omitempty"`
 
@@ -333,7 +333,7 @@ func (m *machine) AddContainer(args MachineArgs) Machine {
 // OpenedPortRanges implements Machine.
 func (m *machine) OpenedPortRanges() PortRanges {
 	if m.OpenedPortRanges_ == nil {
-		m.OpenedPortRanges_ = newMachinePortRanges()
+		m.OpenedPortRanges_ = newDeployedPortRanges()
 	}
 	return m.OpenedPortRanges_
 }
@@ -341,7 +341,7 @@ func (m *machine) OpenedPortRanges() PortRanges {
 // AddOpenedPortRange implements Machine.
 func (m *machine) AddOpenedPortRange(args OpenedPortRangeArgs) {
 	if m.OpenedPortRanges_ == nil {
-		m.OpenedPortRanges_ = newMachinePortRanges()
+		m.OpenedPortRanges_ = newDeployedPortRanges()
 	}
 
 	if m.OpenedPortRanges_.ByUnit_[args.UnitName] == nil {

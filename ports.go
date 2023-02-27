@@ -12,7 +12,7 @@ import (
 // particular subnet. OpenedPorts are always associated with a Machine.
 //
 // This type is deprecated and retained for backwards-compatibility purposes.
-// The MachinePortRanges interface should be used instead.
+// The PortRange interface should be used instead.
 type OpenedPorts interface {
 	SubnetID() string
 	OpenPorts() []PortRange
