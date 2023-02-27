@@ -8,9 +8,8 @@ import (
 	"github.com/juju/schema"
 )
 
-// MachinePortRanges represents a collection of port ranges that are open on a
-// particular machine.
-type MachinePortRanges interface {
+// PortRanges represents a collection of port ranges that are open.
+type PortRanges interface {
 	ByUnit() map[string]UnitPortRanges
 }
 
@@ -38,22 +37,22 @@ type OpenedPortRangeArgs struct {
 	Protocol string
 }
 
-type machinePortRanges struct {
+type deployedPortRanges struct {
 	Version int `yaml:"version"`
 
 	// The set of opened port ranges by unit.
 	ByUnit_ map[string]*unitPortRanges `yaml:"machine-port-ranges"`
 }
 
-func newMachinePortRanges() *machinePortRanges {
-	return &machinePortRanges{
+func newDeployedPortRanges() *deployedPortRanges {
+	return &deployedPortRanges{
 		Version: 1,
 		ByUnit_: make(map[string]*unitPortRanges),
 	}
 }
 
-// ByUnit implements MachinePortRanges.
-func (p *machinePortRanges) ByUnit() map[string]UnitPortRanges {
+// ByUnit implements deployedPortRanges.
+func (p *deployedPortRanges) ByUnit() map[string]UnitPortRanges {
 	res := make(map[string]UnitPortRanges, len(p.ByUnit_))
 	for unitName, upr := range p.ByUnit_ {
 		res[unitName] = upr
@@ -114,7 +113,7 @@ func (p unitPortRange) Protocol() string {
 	return p.Protocol_
 }
 
-func importMachinePortRanges(source map[string]interface{}) (*machinePortRanges, error) {
+func importMachinePortRanges(source map[string]interface{}) (*deployedPortRanges, error) {
 	checker := versionedMapChecker("machine-port-ranges")
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -131,13 +130,13 @@ func importMachinePortRanges(source map[string]interface{}) (*machinePortRanges,
 	return importFunc(sourceMap)
 }
 
-type machinePortRangeDeserializationFunc func(map[string]interface{}) (*machinePortRanges, error)
+type machinePortRangeDeserializationFunc func(map[string]interface{}) (*deployedPortRanges, error)
 
 var machinePortRangeDeserializationFuncs = map[int]machinePortRangeDeserializationFunc{
 	1: importMachinePortRangeV1,
 }
 
-func importMachinePortRangeV1(source map[string]interface{}) (*machinePortRanges, error) {
+func importMachinePortRangeV1(source map[string]interface{}) (*deployedPortRanges, error) {
 	unitChecker := schema.FieldMap(schema.Fields{
 		"unit-port-ranges": schema.StringMap(
 			schema.List(schema.StringMap(schema.Any())),
@@ -150,7 +149,7 @@ func importMachinePortRangeV1(source map[string]interface{}) (*machinePortRanges
 		"protocol":  schema.String(),
 	}, nil) // no defaults
 
-	mpr := &machinePortRanges{
+	mpr := &deployedPortRanges{
 		Version: 1,
 		ByUnit_: make(map[string]*unitPortRanges),
 	}

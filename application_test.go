@@ -316,6 +316,32 @@ func (s *ApplicationSerializationSuite) TestParsingSerializedDataWithOfferBlock(
 	c.Assert(application, jc.DeepEquals, app)
 }
 
+func (s *ApplicationSerializationSuite) TestAddOpenedPortRange(c *gc.C) {
+	app := minimalApplication()
+	app.AddOpenedPortRange(
+		OpenedPortRangeArgs{
+			UnitName:     "magic/0",
+			EndpointName: "",
+			FromPort:     666,
+			ToPort:       666,
+			Protocol:     "tcp",
+		},
+	)
+	app.AddOpenedPortRange(
+		OpenedPortRangeArgs{
+			UnitName:     "magic/1",
+			EndpointName: "",
+			FromPort:     888,
+			ToPort:       888,
+			Protocol:     "tcp",
+		},
+	)
+	c.Assert(app.OpenedPortRanges().ByUnit(), gc.HasLen, 2)
+
+	application := s.exportImportLatest(c, app)
+	c.Assert(application.OpenedPortRanges().ByUnit(), gc.HasLen, 2)
+}
+
 func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application_ *application, version int) *application {
 	initial := applications{
 		Version:       version,
@@ -336,7 +362,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 9)
+	return s.exportImportVersion(c, application_, 10)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {

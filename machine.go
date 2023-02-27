@@ -53,7 +53,7 @@ type Machine interface {
 	BlockDevices() []BlockDevice
 	AddBlockDevice(BlockDeviceArgs) BlockDevice
 
-	OpenedPortRanges() MachinePortRanges
+	OpenedPortRanges() PortRanges
 	AddOpenedPortRange(OpenedPortRangeArgs)
 
 	Validate() error
@@ -91,7 +91,7 @@ type machine struct {
 
 	Containers_ []*machine `yaml:"containers"`
 
-	OpenedPortRanges_ *machinePortRanges `yaml:"opened-port-ranges,omitempty"`
+	OpenedPortRanges_ *deployedPortRanges `yaml:"opened-port-ranges,omitempty"`
 
 	Annotations_ `yaml:"annotations,omitempty"`
 
@@ -331,9 +331,9 @@ func (m *machine) AddContainer(args MachineArgs) Machine {
 }
 
 // OpenedPortRanges implements Machine.
-func (m *machine) OpenedPortRanges() MachinePortRanges {
+func (m *machine) OpenedPortRanges() PortRanges {
 	if m.OpenedPortRanges_ == nil {
-		m.OpenedPortRanges_ = newMachinePortRanges()
+		m.OpenedPortRanges_ = newDeployedPortRanges()
 	}
 	return m.OpenedPortRanges_
 }
@@ -341,7 +341,7 @@ func (m *machine) OpenedPortRanges() MachinePortRanges {
 // AddOpenedPortRange implements Machine.
 func (m *machine) AddOpenedPortRange(args OpenedPortRangeArgs) {
 	if m.OpenedPortRanges_ == nil {
-		m.OpenedPortRanges_ = newMachinePortRanges()
+		m.OpenedPortRanges_ = newDeployedPortRanges()
 	}
 
 	if m.OpenedPortRanges_.ByUnit_[args.UnitName] == nil {
@@ -443,12 +443,12 @@ var machineDeserializationFuncs = map[int]machineDeserializationFunc{
 }
 
 func importMachineV1(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV2()
+	fields, defaults := machineSchemaV1()
 	return importMachine(fields, defaults, 1, source, importMachineV1)
 }
 
 func importMachineV2(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV1()
+	fields, defaults := machineSchemaV2()
 	return importMachine(fields, defaults, 2, source, importMachineV2)
 }
 

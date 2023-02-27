@@ -68,6 +68,9 @@ type Application interface {
 	AddOffer(ApplicationOfferArgs) ApplicationOffer
 
 	Validate() error
+
+	OpenedPortRanges() PortRanges
+	AddOpenedPortRange(OpenedPortRangeArgs)
 }
 
 // ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
@@ -133,6 +136,8 @@ type application struct {
 	CloudService_   *cloudService `yaml:"cloud-service,omitempty"`
 	Tools_          *agentTools   `yaml:"tools,omitempty"`
 	OperatorStatus_ *status       `yaml:"operator-status,omitempty"`
+
+	OpenedPortRanges_ *deployedPortRanges `yaml:"opened-port-ranges,omitempty"`
 
 	// Offer-related fields
 	Offers_ *applicationOffers `yaml:"offers,omitempty"`
@@ -344,6 +349,30 @@ func (a *application) MetricsCredentials() []byte {
 	// can be decoded.
 	creds, _ := base64.StdEncoding.DecodeString(a.MetricsCredentials_)
 	return creds
+}
+
+// OpenedPortRanges implements Application.
+func (a *application) OpenedPortRanges() PortRanges {
+	if a.OpenedPortRanges_ == nil {
+		a.OpenedPortRanges_ = newDeployedPortRanges()
+	}
+	return a.OpenedPortRanges_
+}
+
+// AddOpenedPortRange implements Application.
+func (a *application) AddOpenedPortRange(args OpenedPortRangeArgs) {
+	if a.OpenedPortRanges_ == nil {
+		a.OpenedPortRanges_ = newDeployedPortRanges()
+	}
+
+	if a.OpenedPortRanges_.ByUnit_[args.UnitName] == nil {
+		a.OpenedPortRanges_.ByUnit_[args.UnitName] = newUnitPortRanges()
+	}
+
+	a.OpenedPortRanges_.ByUnit_[args.UnitName].ByEndpoint_[args.EndpointName] = append(
+		a.OpenedPortRanges_.ByUnit_[args.UnitName].ByEndpoint_[args.EndpointName],
+		newUnitPortRange(args.FromPort, args.ToPort, args.Protocol),
+	)
 }
 
 // OperatorStatus implements Application.
@@ -585,15 +614,16 @@ func importApplicationList(sourceList []interface{}, importFunc applicationDeser
 type applicationDeserializationFunc func(map[string]interface{}) (*application, error)
 
 var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
-	1: importApplicationV1,
-	2: importApplicationV2,
-	3: importApplicationV3,
-	4: importApplicationV4,
-	5: importApplicationV5,
-	6: importApplicationV6,
-	7: importApplicationV7,
-	8: importApplicationV8,
-	9: importApplicationV9,
+	1:  importApplicationV1,
+	2:  importApplicationV2,
+	3:  importApplicationV3,
+	4:  importApplicationV4,
+	5:  importApplicationV5,
+	6:  importApplicationV6,
+	7:  importApplicationV7,
+	8:  importApplicationV8,
+	9:  importApplicationV9,
+	10: importApplicationV10,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -701,6 +731,13 @@ func applicationV9Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV10Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV9Fields()
+	fields["opened-port-ranges"] = schema.StringMap(schema.Any())
+	defaults["opened-port-ranges"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -744,6 +781,11 @@ func importApplicationV8(source map[string]interface{}) (*application, error) {
 func importApplicationV9(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV9Fields()
 	return importApplication(fields, defaults, 9, source)
+}
+
+func importApplicationV10(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV10Fields()
+	return importApplication(fields, defaults, 10, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -833,6 +875,18 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 			}
 			result.CharmOrigin_.Platform_ = platform
 		}
+	}
+
+	if importVersion >= 10 {
+		applicationPortRangesSource, ok := valid["opened-port-ranges"].(map[string]interface{})
+		if ok {
+			machPortRanges, err := importMachinePortRanges(applicationPortRangesSource)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.OpenedPortRanges_ = machPortRanges
+		}
+
 	}
 
 	result.importAnnotations(valid)
