@@ -28,6 +28,7 @@ type Secret interface {
 
 	ACL() map[string]SecretAccess
 	Consumers() []SecretConsumer
+	RemoteConsumers() []SecretRemoteConsumer
 
 	Revisions() []SecretRevision
 	LatestRevision() int
@@ -52,8 +53,9 @@ type secret struct {
 	Updated_      time.Time         `yaml:"update-time"`
 	Revisions_    []*secretRevision `yaml:"revisions"`
 
-	ACL_       map[string]*secretAccess `yaml:"acl"`
-	Consumers_ []*secretConsumer        `yaml:"consumers"`
+	ACL_             map[string]*secretAccess `yaml:"acl"`
+	Consumers_       []*secretConsumer        `yaml:"consumers"`
+	RemoteConsumers_ []*secretRemoteConsumer  `yaml:"remote-consumers"`
 
 	NextRotateTime_ *time.Time `yaml:"next-rotate-time,omitempty"`
 
@@ -93,6 +95,10 @@ func (i *secret) updateComputedFields() {
 		consumer.LatestRevision_ = i.LatestRevision_
 		i.Consumers_[x] = consumer
 	}
+	for x, consumer := range i.RemoteConsumers_ {
+		consumer.LatestRevision_ = i.LatestRevision_
+		i.RemoteConsumers_[x] = consumer
+	}
 }
 
 // LatestExpireTime implements Secret.
@@ -105,27 +111,27 @@ func (i *secret) LatestRevision() int {
 	return i.LatestRevision_
 }
 
-// Id implements secret.
+// Id implements Secret.
 func (i *secret) Id() string {
 	return i.ID_
 }
 
-// Version implements secret.
+// Version implements Secret.
 func (i *secret) Version() int {
 	return i.Version_
 }
 
-// Description implements secret.
+// Description implements Secret.
 func (i *secret) Description() string {
 	return i.Description_
 }
 
-// Label implements secret.
+// Label implements Secret.
 func (i *secret) Label() string {
 	return i.Label_
 }
 
-// RotatePolicy implements secret.
+// RotatePolicy implements Secret.
 func (i *secret) RotatePolicy() string {
 	return i.RotatePolicy_
 }
@@ -187,20 +193,38 @@ func (i *secret) setConsumers(args []SecretConsumerArgs) {
 	}
 }
 
+// RemoteConsumers implements secret.
+func (i *secret) RemoteConsumers() []SecretRemoteConsumer {
+	var result []SecretRemoteConsumer
+	for _, c := range i.RemoteConsumers_ {
+		result = append(result, c)
+	}
+	return result
+}
+
+func (i *secret) setRemoteConsumers(args []SecretRemoteConsumerArgs) {
+	i.RemoteConsumers_ = nil
+	for _, arg := range args {
+		c := newSecretRemoteConsumer(arg)
+		i.RemoteConsumers_ = append(i.RemoteConsumers_, c)
+	}
+}
+
 // SecretArgs is an argument struct used to create a
 // new internal secret type that supports the secret interface.
 type SecretArgs struct {
-	ID           string
-	Version      int
-	Description  string
-	Label        string
-	RotatePolicy string
-	Owner        names.Tag
-	Created      time.Time
-	Updated      time.Time
-	Revisions    []SecretRevisionArgs
-	ACL          map[string]SecretAccessArgs
-	Consumers    []SecretConsumerArgs
+	ID              string
+	Version         int
+	Description     string
+	Label           string
+	RotatePolicy    string
+	Owner           names.Tag
+	Created         time.Time
+	Updated         time.Time
+	Revisions       []SecretRevisionArgs
+	ACL             map[string]SecretAccessArgs
+	Consumers       []SecretConsumerArgs
+	RemoteConsumers []SecretRemoteConsumerArgs
 
 	NextRotateTime *time.Time
 }
@@ -225,6 +249,7 @@ func newSecret(args SecretArgs) *secret {
 	}
 	secret.setRevisions(args.Revisions)
 	secret.setConsumers(args.Consumers)
+	secret.setRemoteConsumers(args.RemoteConsumers)
 	secret.updateComputedFields()
 	return secret
 }
@@ -248,6 +273,11 @@ func (i *secret) Validate() error {
 	for _, consumer := range i.Consumers_ {
 		if _, err := names.ParseTag(consumer.Consumer_); err != nil {
 			return errors.Wrap(err, errors.NotValidf("secret %q invalid consumer", i.ID_))
+		}
+	}
+	for _, consumer := range i.RemoteConsumers_ {
+		if _, err := names.ParseTag(consumer.Consumer_); err != nil {
+			return errors.Wrap(err, errors.NotValidf("secret %q invalid remote consumer", i.ID_))
 		}
 	}
 	return nil
@@ -305,12 +335,14 @@ func secretV1Fields() (schema.Fields, schema.Defaults) {
 		"revisions":        schema.List(schema.Any()),
 		"acl":              schema.Map(schema.String(), schema.Any()),
 		"consumers":        schema.List(schema.Any()),
+		"remote-consumers": schema.List(schema.Any()),
 	}
 	// Some values don't have to be there.
 	defaults := schema.Defaults{
 		"rotate-policy":    schema.Omit,
 		"next-rotate-time": schema.Omit,
 		"consumers":        schema.Omit,
+		"remote-consumers": schema.Omit,
 	}
 	return fields, defaults
 }
@@ -353,6 +385,12 @@ func importSecret(source map[string]interface{}, importVersion int, fieldFunc fu
 		return nil, errors.Trace(err)
 	}
 	secret.Consumers_ = consumerList
+
+	remoteConsumerList, err := importSecretRemoteConsumers(valid, importVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	secret.RemoteConsumers_ = remoteConsumerList
 
 	secret.updateComputedFields()
 	return secret, nil

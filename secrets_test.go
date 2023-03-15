@@ -37,18 +37,19 @@ func testSecretArgs() SecretArgs {
 	updated := created.Add(time.Hour)
 	nextRotate := created.Add(2 * time.Hour)
 	return SecretArgs{
-		ID:             id,
-		Version:        1,
-		Description:    "a secret",
-		Label:          "secret label",
-		RotatePolicy:   "hourly",
-		Owner:          names.NewApplicationTag("postgresql"),
-		Created:        created,
-		Updated:        updated,
-		NextRotateTime: &nextRotate,
-		Revisions:      testSecretRevisionsArgs(),
-		ACL:            testSecretAccessArgs(),
-		Consumers:      testSecretConsumerArgs(),
+		ID:              id,
+		Version:         1,
+		Description:     "a secret",
+		Label:           "secret label",
+		RotatePolicy:    "hourly",
+		Owner:           names.NewApplicationTag("postgresql"),
+		Created:         created,
+		Updated:         updated,
+		NextRotateTime:  &nextRotate,
+		Revisions:       testSecretRevisionsArgs(),
+		ACL:             testSecretAccessArgs(),
+		Consumers:       testSecretConsumerArgs(),
+		RemoteConsumers: testSecretRemoteConsumerArgs(),
 	}
 }
 
@@ -101,6 +102,15 @@ func testSecretConsumerArgs() []SecretConsumerArgs {
 	}}
 }
 
+func testSecretRemoteConsumerArgs() []SecretRemoteConsumerArgs {
+	id := xid.New().String()
+	return []SecretRemoteConsumerArgs{{
+		ID:              id,
+		Consumer:        names.NewApplicationTag("remote-mariadb"),
+		CurrentRevision: 666,
+	}}
+}
+
 func (s *SecretsSerializationSuite) TestNewSecret(c *gc.C) {
 	args := testSecretArgs()
 	secret := newSecret(args)
@@ -142,6 +152,12 @@ func (s *SecretsSerializationSuite) TestNewSecret(c *gc.C) {
 	consumer, err := secret.Consumers()[0].Consumer()
 	c.Check(err, jc.ErrorIsNil)
 	c.Check(consumer, gc.Equals, names.NewApplicationTag("mariadb"))
+	c.Check(secret.RemoteConsumers(), gc.HasLen, 1)
+	c.Check(secret.RemoteConsumers()[0].CurrentRevision(), gc.Equals, 666)
+	c.Check(secret.RemoteConsumers()[0].LatestRevision(), gc.Equals, 2)
+	consumer, err = secret.RemoteConsumers()[0].Consumer()
+	c.Check(err, jc.ErrorIsNil)
+	c.Check(consumer, gc.Equals, names.NewApplicationTag("remote-mariadb"))
 }
 
 func (s *SecretsSerializationSuite) TestNewSecretNoRotatePolicy(c *gc.C) {
