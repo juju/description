@@ -23,6 +23,7 @@ type Constraints interface {
 	Container() string
 	CpuCores() uint64
 	CpuPower() uint64
+	ImageID() string
 	InstanceType() string
 	Memory() uint64
 	RootDisk() uint64
@@ -42,6 +43,7 @@ type ConstraintsArgs struct {
 	Container        string
 	CpuCores         uint64
 	CpuPower         uint64
+	ImageID          string
 	InstanceType     string
 	Memory           uint64
 	RootDisk         uint64
@@ -69,12 +71,13 @@ func newConstraints(args ConstraintsArgs) *constraints {
 	copy(zones, args.Zones)
 
 	return &constraints{
-		Version:           4,
+		Version:           5,
 		AllocatePublicIP_: args.AllocatePublicIP,
 		Architecture_:     args.Architecture,
 		Container_:        args.Container,
 		CpuCores_:         args.CpuCores,
 		CpuPower_:         args.CpuPower,
+		ImageID_:          args.ImageID,
 		InstanceType_:     args.InstanceType,
 		Memory_:           args.Memory,
 		RootDisk_:         args.RootDisk,
@@ -94,6 +97,7 @@ type constraints struct {
 	Container_        string `yaml:"container,omitempty"`
 	CpuCores_         uint64 `yaml:"cores,omitempty"`
 	CpuPower_         uint64 `yaml:"cpu-power,omitempty"`
+	ImageID_          string `yaml:"image-id,omitempty"`
 	InstanceType_     string `yaml:"instance-type,omitempty"`
 	Memory_           uint64 `yaml:"memory,omitempty"`
 	RootDisk_         uint64 `yaml:"root-disk,omitempty"`
@@ -129,6 +133,11 @@ func (c *constraints) CpuCores() uint64 {
 // CpuPower implements Constraints.
 func (c *constraints) CpuPower() uint64 {
 	return c.CpuPower_
+}
+
+// ImageID implements Constraints.
+func (c *constraints) ImageID() string {
+	return c.ImageID_
 }
 
 // InstanceType implements Constraints.
@@ -216,6 +225,7 @@ var constraintsFieldsFuncs = map[int]fieldsFunc{
 	2: constraintsV2Fields,
 	3: constraintsV3Fields,
 	4: constraintsV4Fields,
+	5: constraintsV5Fields,
 }
 
 func constraintsV1Fields() (schema.Fields, schema.Defaults) {
@@ -273,6 +283,13 @@ func constraintsV4Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func constraintsV5Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := constraintsV4Fields()
+	fields["image-id"] = schema.String()
+	defaults["image-id"] = ""
+	return fields, defaults
+}
+
 // constraintsValidCPUCores returns an error if both aliases for CPU core count
 // are present in the list of fields.
 // If correctly specified, the cores value is returned.
@@ -324,6 +341,9 @@ func validatedConstraints(version int, valid map[string]interface{}, cores uint6
 			cons.AllocatePublicIP_ = value.(bool)
 		}
 	}
+	if version > 4 {
+		cons.ImageID_ = valid["image-id"].(string)
+	}
 
 	return cons
 }
@@ -338,6 +358,7 @@ func (c ConstraintsArgs) empty() bool {
 		c.Container == "" &&
 		c.CpuCores == 0 &&
 		c.CpuPower == 0 &&
+		c.ImageID == "" &&
 		c.InstanceType == "" &&
 		c.Memory == 0 &&
 		c.RootDisk == 0 &&

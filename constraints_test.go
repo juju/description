@@ -30,6 +30,7 @@ func (s *ConstraintsSerializationSuite) allArgs() ConstraintsArgs {
 		Container:        "lxd",
 		CpuCores:         8,
 		CpuPower:         4000,
+		ImageID:          "ubuntu-bf2",
 		InstanceType:     "magic",
 		Memory:           16 * gig,
 		RootDisk:         200 * gig,
@@ -49,6 +50,7 @@ func (s *ConstraintsSerializationSuite) TestNewConstraints(c *gc.C) {
 	c.Assert(instance.Container(), gc.Equals, args.Container)
 	c.Assert(instance.CpuCores(), gc.Equals, args.CpuCores)
 	c.Assert(instance.CpuPower(), gc.Equals, args.CpuPower)
+	c.Assert(instance.ImageID(), gc.Equals, args.ImageID)
 	c.Assert(instance.InstanceType(), gc.Equals, args.InstanceType)
 	c.Assert(instance.Memory(), gc.Equals, args.Memory)
 	c.Assert(instance.RootDisk(), gc.Equals, args.RootDisk)
@@ -159,6 +161,7 @@ func (s *ConstraintsSerializationSuite) TestParsingV1Full(c *gc.C) {
 	expected.Zones_ = nil
 	expected.RootDiskSource_ = ""
 	expected.AllocatePublicIP_ = false
+	expected.ImageID_ = ""
 	expected.Version = 1
 	c.Assert(imported, gc.DeepEquals, expected)
 }
@@ -202,6 +205,7 @@ func (s *ConstraintsSerializationSuite) TestParsingV2Full(c *gc.C) {
 	expected := s.testConstraints()
 	expected.RootDiskSource_ = ""
 	expected.AllocatePublicIP_ = false
+	expected.ImageID_ = ""
 	expected.Version = 2
 	c.Assert(imported, gc.DeepEquals, expected)
 }
@@ -245,6 +249,7 @@ func (s *ConstraintsSerializationSuite) TestParsingV3Full(c *gc.C) {
 	imported := s.importConstraints(c, original)
 	expected := s.testConstraints()
 	expected.AllocatePublicIP_ = false
+	expected.ImageID_ = ""
 	expected.Version = 3
 	c.Assert(imported, gc.DeepEquals, expected)
 }
@@ -281,6 +286,8 @@ func (s *ConstraintsSerializationSuite) TestParsingV4Full(c *gc.C) {
 	original := s.allV4Map()
 	imported := s.importConstraints(c, original)
 	expected := s.testConstraints()
+	expected.ImageID_ = ""
+	expected.Version = 4
 	c.Assert(imported, gc.DeepEquals, expected)
 }
 
@@ -290,5 +297,48 @@ func (s *ConstraintsSerializationSuite) TestParsingV4Minimal(c *gc.C) {
 	}
 	imported := s.importConstraints(c, original)
 	expected := &constraints{Version: 4}
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV4IgnoresNewFields(c *gc.C) {
+	original := s.allV4Map()
+	original["image"] = "ubuntu-bf2"
+	imported := s.importConstraints(c, original)
+	c.Assert(imported.ImageID_, gc.Equals, "")
+}
+
+func (s *ConstraintsSerializationSuite) allV5Map() map[string]interface{} {
+	return map[string]interface{}{
+		"version":            5,
+		"allocate-public-ip": true,
+		"architecture":       "amd64",
+		"container":          "lxd",
+		"cores":              8,
+		"cpu-power":          4000,
+		"image-id":           "ubuntu-bf2",
+		"instance-type":      "magic",
+		"memory":             16 * gig,
+		"root-disk":          200 * gig,
+		"root-disk-source":   "somewhere-good",
+		"spaces":             []interface{}{"my", "own"},
+		"tags":               []interface{}{"much", "strong"},
+		"zones":              []interface{}{"az1", "az2"},
+		"virt-type":          "something",
+	}
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV5Full(c *gc.C) {
+	original := s.allV5Map()
+	imported := s.importConstraints(c, original)
+	expected := s.testConstraints()
+	c.Assert(imported, gc.DeepEquals, expected)
+}
+
+func (s *ConstraintsSerializationSuite) TestParsingV5Minimal(c *gc.C) {
+	original := map[string]interface{}{
+		"version": 5,
+	}
+	imported := s.importConstraints(c, original)
+	expected := &constraints{Version: 5}
 	c.Assert(imported, gc.DeepEquals, expected)
 }
