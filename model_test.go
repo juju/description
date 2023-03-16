@@ -1120,7 +1120,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 9)
+	c.Assert(version, gc.Equals, 10)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
@@ -1514,6 +1514,63 @@ func (s *ModelSerializationSuite) TestSecretValidate(c *gc.C) {
 
 	err := initial.Validate()
 	c.Assert(err, gc.ErrorMatches, `secret\[0\] owner \(foo/0\) not valid`)
+}
+
+func (s *ModelSerializationSuite) TestSecretValidateRemoteConsumer(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	addMinimalApplication(initial)
+	initial.AddRemoteApplication(RemoteApplicationArgs{
+		Tag: names.NewApplicationTag("foo"),
+	})
+	secretArgs := testSecretArgs()
+	secretArgs.Owner = names.NewApplicationTag("ubuntu")
+	secretArgs.Consumers[0].Consumer = names.NewApplicationTag("ubuntu")
+	secretArgs.Consumers[1].Consumer = names.NewUnitTag("ubuntu/0")
+	secretArgs.ACL = nil
+	secretArgs.RemoteConsumers[0].Consumer = names.NewUnitTag("bar/0")
+	secret := initial.AddSecret(secretArgs)
+	secrets := initial.Secrets()
+	c.Assert(secrets, gc.HasLen, 1)
+	c.Assert(secrets[0], jc.DeepEquals, secret)
+
+	err := initial.Validate()
+	c.Assert(err, gc.ErrorMatches, `secret\[0\] remote consumer \(bar/0\) not valid`)
+}
+
+func (s *ModelSerializationSuite) TestRemoteSecrets(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	remoteSecretArgs := testRemoteSecretArgs()
+	remoteSecret := initial.AddRemoteSecret(remoteSecretArgs)
+	c.Assert(remoteSecret.ID(), gc.Equals, remoteSecretArgs.ID)
+	c.Assert(remoteSecret.Label(), gc.Equals, remoteSecretArgs.Label)
+	c.Assert(remoteSecret.CurrentRevision(), gc.Equals, remoteSecretArgs.CurrentRevision)
+	c.Assert(remoteSecret.SourceUUID(), gc.Equals, remoteSecretArgs.SourceUUID)
+	consumer, err := remoteSecret.Consumer()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(consumer.String(), gc.Equals, remoteSecretArgs.Consumer.String())
+	remoteSecrets := initial.RemoteSecrets()
+	c.Assert(remoteSecrets, gc.HasLen, 1)
+	c.Assert(remoteSecrets[0], jc.DeepEquals, remoteSecret)
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.RemoteSecrets(), jc.DeepEquals, remoteSecrets)
+}
+
+func (s *ModelSerializationSuite) TestRemoteSecretsValidate(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	remoteSecretArgs := testRemoteSecretArgs()
+	remoteSecretArgs.Consumer = names.NewApplicationTag("foo")
+	remoteSecret := initial.AddRemoteSecret(remoteSecretArgs)
+	remoteSecrets := initial.RemoteSecrets()
+	c.Assert(remoteSecrets, gc.HasLen, 1)
+	c.Assert(remoteSecrets[0], jc.DeepEquals, remoteSecret)
+
+	err := initial.Validate()
+	c.Assert(err, gc.ErrorMatches, `remote secret\[0\] consumer \(foo\) not valid`)
 }
 
 // modelV1example was taken from a Juju 2.1 model dump, which is version

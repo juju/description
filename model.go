@@ -113,6 +113,9 @@ type Model interface {
 	Secrets() []Secret
 	AddSecret(args SecretArgs) Secret
 
+	RemoteSecrets() []RemoteSecret
+	AddRemoteSecret(args RemoteSecretArgs) RemoteSecret
+
 	RemoteApplications() []RemoteApplication
 	AddRemoteApplication(RemoteApplicationArgs) RemoteApplication
 
@@ -150,7 +153,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             9,
+		Version:             10,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
@@ -182,6 +185,7 @@ func NewModel(args ModelArgs) Model {
 	m.setStorages(nil)
 	m.setStoragePools(nil)
 	m.setSecrets(nil)
+	m.setRemoteSecrets(nil)
 	m.setRemoteApplications(nil)
 	m.setFirewallRules(nil)
 	m.setOfferConnections(nil)
@@ -293,7 +297,8 @@ type model struct {
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
 
-	Secrets_ secrets `yaml:"secrets,omitempty"`
+	Secrets_       secrets       `yaml:"secrets"`
+	RemoteSecrets_ remoteSecrets `yaml:"remote-secrets"`
 
 	SLA_         sla         `yaml:"sla"`
 	MeterStatus_ meterStatus `yaml:"meter-status"`
@@ -917,6 +922,29 @@ func (m *model) setSecrets(secretList []*secret) {
 	}
 }
 
+// RemoteSecrets implements Model.
+func (m *model) RemoteSecrets() []RemoteSecret {
+	var result []RemoteSecret
+	for _, remoteSecret := range m.RemoteSecrets_.RemoteSecrets_ {
+		result = append(result, remoteSecret)
+	}
+	return result
+}
+
+// AddRemoteSecret implements Model.
+func (m *model) AddRemoteSecret(args RemoteSecretArgs) RemoteSecret {
+	remoteSecret := newRemoteSecret(args)
+	m.RemoteSecrets_.RemoteSecrets_ = append(m.RemoteSecrets_.RemoteSecrets_, remoteSecret)
+	return remoteSecret
+}
+
+func (m *model) setRemoteSecrets(remoteSecretsList []*remoteSecret) {
+	m.RemoteSecrets_ = remoteSecrets{
+		Version:        1,
+		RemoteSecrets_: remoteSecretsList,
+	}
+}
+
 // RemoteApplications implements Model.
 func (m *model) RemoteApplications() []RemoteApplication {
 	var result []RemoteApplication
@@ -1012,6 +1040,7 @@ func (m *model) setMeterStatus(ms meterStatus) {
 type validationContext struct {
 	allMachines           set.Strings
 	allApplications       set.Strings
+	allRemoteApplications set.Strings
 	allUnits              set.Strings
 	unitsWithOpenPorts    set.Strings
 	unknownUnitsWithPorts set.Strings
@@ -1021,6 +1050,7 @@ func newValidationContext() *validationContext {
 	return &validationContext{
 		allMachines:           set.NewStrings(),
 		allApplications:       set.NewStrings(),
+		allRemoteApplications: set.NewStrings(),
 		allUnits:              set.NewStrings(),
 		unitsWithOpenPorts:    set.NewStrings(),
 		unknownUnitsWithPorts: set.NewStrings(),
@@ -1058,6 +1088,9 @@ func (m *model) Validate() error {
 	unknownUnitsWithPorts := validationCtx.unitsWithOpenPorts.Difference(validationCtx.allUnits)
 	if len(unknownUnitsWithPorts) > 0 {
 		return errors.Errorf("unknown unit names in open ports: %s", unknownUnitsWithPorts.SortedValues())
+	}
+	for _, application := range m.RemoteApplications_.RemoteApplications {
+		validationCtx.allRemoteApplications.Add(application.Name())
 	}
 
 	err := m.validateRelations()
@@ -1197,14 +1230,31 @@ func (m *model) validateSubnets() error {
 func (m *model) validateSecrets(validationCtx *validationContext) error {
 	appsAndUnits := validationCtx.allApplications.Union(validationCtx.allUnits)
 
-	checkValidAppOrUnit := func(i int, label string, entity names.Tag) error {
+	checkValidAppOrUnit := func(i int, entityName string, label string, entity names.Tag) error {
 		if entity.Kind() == names.ApplicationTagKind || entity.Kind() == names.UnitTagKind {
 			entityID := entity.Id()
 			if !appsAndUnits.Contains(entityID) {
-				return errors.NotValidf("secret[%d] %s (%s)", i, label, entityID)
+				return errors.NotValidf("%s[%d] %s (%s)", entityName, i, label, entityID)
 			}
 		}
 		return nil
+	}
+	checkValidRemoteEntity := func(i int, label string, entity names.Tag) error {
+		valid := false
+		for _, app := range validationCtx.allRemoteApplications.Values() {
+			valid = entity.Kind() == names.ApplicationTagKind && app == entity.Id()
+			if !valid && entity.Kind() == names.UnitTagKind {
+				consumerApp, _ := names.UnitApplication(entity.Id())
+				valid = app == consumerApp
+			}
+			if valid {
+				break
+			}
+		}
+		if valid {
+			return nil
+		}
+		return errors.NotValidf("secret[%d] %s (%s)", i, label, entity.Id())
 	}
 
 	for i, secret := range m.Secrets_.Secrets_ {
@@ -1215,7 +1265,7 @@ func (m *model) validateSecrets(validationCtx *validationContext) error {
 		if err != nil {
 			return errors.Wrap(err, errors.NotValidf("secret[%d] owner (%s)", i, owner))
 		}
-		if err := checkValidAppOrUnit(i, "owner", owner); err != nil {
+		if err := checkValidAppOrUnit(i, "secret", "owner", owner); err != nil {
 			return err
 		}
 		for _, c := range secret.Consumers_ {
@@ -1223,7 +1273,16 @@ func (m *model) validateSecrets(validationCtx *validationContext) error {
 			if err != nil {
 				return errors.Wrap(err, errors.NotValidf("secret[%d] consumer (%s)", i, c))
 			}
-			if err := checkValidAppOrUnit(i, "consumer", consumer); err != nil {
+			if err := checkValidAppOrUnit(i, "secret", "consumer", consumer); err != nil {
+				return err
+			}
+		}
+		for _, c := range secret.RemoteConsumers_ {
+			consumer, err := c.Consumer()
+			if err != nil {
+				return errors.Wrap(err, errors.NotValidf("secret[%d] remote consumer (%s)", i, c))
+			}
+			if err := checkValidRemoteEntity(i, "remote consumer", consumer); err != nil {
 				return err
 			}
 		}
@@ -1232,9 +1291,25 @@ func (m *model) validateSecrets(validationCtx *validationContext) error {
 			if err != nil {
 				return errors.Wrap(err, errors.NotValidf("secret[%d] accessor (%s)", i, s))
 			}
-			if err := checkValidAppOrUnit(i, "accessor", subject); err != nil {
-				return err
+			if err := checkValidAppOrUnit(i, "secret", "accessor", subject); err != nil {
+				// Not a local entity, so check if it's a remote cmr one.
+				if err2 := checkValidRemoteEntity(i, "accessor", subject); err2 != nil {
+					return err2
+				}
 			}
+		}
+	}
+
+	for i, remoteSecret := range m.RemoteSecrets_.RemoteSecrets_ {
+		if err := remoteSecret.Validate(); err != nil {
+			return errors.Annotatef(err, "remote secret[%d]", i)
+		}
+		consumer, err := remoteSecret.Consumer()
+		if err != nil {
+			return errors.Wrap(err, errors.NotValidf("remote secret[%d] consumer (%s)", i, consumer))
+		}
+		if err := checkValidAppOrUnit(i, "remote secret", "consumer", consumer); err != nil {
+			return err
 		}
 	}
 
@@ -1412,15 +1487,16 @@ func importModel(source map[string]interface{}) (*model, error) {
 type modelDeserializationFunc func(map[string]interface{}) (*model, error)
 
 var modelDeserializationFuncs = map[int]modelDeserializationFunc{
-	1: newModelImporter(1, schema.FieldMap(modelV1Fields())),
-	2: newModelImporter(2, schema.FieldMap(modelV2Fields())),
-	3: newModelImporter(3, schema.FieldMap(modelV3Fields())),
-	4: newModelImporter(4, schema.FieldMap(modelV4Fields())),
-	5: newModelImporter(5, schema.FieldMap(modelV5Fields())),
-	6: newModelImporter(6, schema.FieldMap(modelV6Fields())),
-	7: newModelImporter(7, schema.FieldMap(modelV7Fields())),
-	8: newModelImporter(8, schema.FieldMap(modelV8Fields())),
-	9: newModelImporter(9, schema.FieldMap(modelV9Fields())),
+	1:  newModelImporter(1, schema.FieldMap(modelV1Fields())),
+	2:  newModelImporter(2, schema.FieldMap(modelV2Fields())),
+	3:  newModelImporter(3, schema.FieldMap(modelV3Fields())),
+	4:  newModelImporter(4, schema.FieldMap(modelV4Fields())),
+	5:  newModelImporter(5, schema.FieldMap(modelV5Fields())),
+	6:  newModelImporter(6, schema.FieldMap(modelV6Fields())),
+	7:  newModelImporter(7, schema.FieldMap(modelV7Fields())),
+	8:  newModelImporter(8, schema.FieldMap(modelV8Fields())),
+	9:  newModelImporter(9, schema.FieldMap(modelV9Fields())),
+	10: newModelImporter(10, schema.FieldMap(modelV10Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1526,11 +1602,17 @@ func modelV9Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV10Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV9Fields()
+	fields["remote-secrets"] = schema.StringMap(schema.Any())
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
 	// We're always making a version 8 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        9,
+		Version:        10,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1782,6 +1864,15 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 			return nil, errors.Annotate(err, "secrets")
 		}
 		result.setSecrets(secrets)
+	}
+
+	if importVersion >= 10 {
+		remoteSecretsMap := valid["remote-secrets"].(map[string]interface{})
+		remoteSecrets, err := importRemoteSecrets(remoteSecretsMap)
+		if err != nil {
+			return nil, errors.Annotate(err, "remote secrets")
+		}
+		result.setRemoteSecrets(remoteSecrets)
 	}
 
 	return result, nil
