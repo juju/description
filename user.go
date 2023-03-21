@@ -20,6 +20,7 @@ type User interface {
 	DateCreated() time.Time
 	LastConnection() time.Time
 	Access() string
+	UserRemovedLogEntry() []UserRemovedLogEntry
 }
 
 type users struct {
@@ -34,6 +35,22 @@ type UserArgs struct {
 	DateCreated    time.Time
 	LastConnection time.Time
 	Access         string
+	// RemovalLog keeps a track of removals for this user
+	RemovalLog []UserRemovedLogEntryArgs
+}
+
+// userRemovedLogEntryArgs is an argument struct used to create a
+// new internal UserRemovedLogEntry
+type UserRemovedLogEntryArgs struct {
+	RemovedBy   string
+	DateCreated time.Time
+	DateRemoved time.Time
+}
+
+type UserRemovedLogEntry struct {
+	RemovedBy   string
+	DateCreated time.Time
+	DateRemoved time.Time
 }
 
 func newUser(args UserArgs) *user {
@@ -48,6 +65,9 @@ func newUser(args UserArgs) *user {
 		value := args.LastConnection
 		u.LastConnection_ = &value
 	}
+	if args.RemovalLog != nil {
+		u.setUserRemovedLogEntry(args.RemovalLog)
+	}
 	return u
 }
 
@@ -59,7 +79,34 @@ type user struct {
 	Access_      string    `yaml:"access"`
 	// Can't use omitempty with time.Time, it just doesn't work,
 	// so use a pointer in the struct.
-	LastConnection_ *time.Time `yaml:"last-connection,omitempty"`
+	LastConnection_ *time.Time            `yaml:"last-connection,omitempty"`
+	RemovalLog_     []userRemovedLogEntry `yaml:"user-removed-log,omitempty"`
+}
+
+type userRemovedLogEntry struct {
+	RemovedBy_   string    `yaml:"removed-by,omitempty"`
+	DateCreated_ time.Time `yaml:"date-created,omitempty"`
+	DateRemoved_ time.Time `yaml:"date-removed,omitempty"`
+}
+
+func newUserRemovedLogEntry(args UserRemovedLogEntryArgs) userRemovedLogEntry {
+	return userRemovedLogEntry{
+		RemovedBy_:   args.RemovedBy,
+		DateCreated_: args.DateCreated,
+		DateRemoved_: args.DateRemoved,
+	}
+}
+
+func (u *userRemovedLogEntry) RemovedBy() string {
+	return u.RemovedBy_
+}
+
+func (u *userRemovedLogEntry) DateCreated() time.Time {
+	return u.DateCreated_
+}
+
+func (u *userRemovedLogEntry) DateRemoved() time.Time {
+	return u.DateRemoved_
 }
 
 // Name implements User.
@@ -94,6 +141,27 @@ func (u *user) LastConnection() time.Time {
 // Access implements User.
 func (u *user) Access() string {
 	return u.Access_
+}
+
+func (u *user) setUserRemovedLogEntry(args []UserRemovedLogEntryArgs) {
+	u.RemovalLog_ = make([]userRemovedLogEntry, len(args))
+	for i, entry := range args {
+		u.RemovalLog_[i] = newUserRemovedLogEntry(entry)
+	}
+}
+
+// UserRemovedLogEntry implements User.
+func (u *user) UserRemovedLogEntry() []UserRemovedLogEntry {
+	var result []UserRemovedLogEntry
+	for _, entry := range u.RemovalLog_ {
+		aux := UserRemovedLogEntry{
+			RemovedBy:   entry.RemovedBy_,
+			DateCreated: entry.DateCreated_,
+			DateRemoved: entry.DateRemoved_,
+		}
+		result = append(result, aux)
+	}
+	return result
 }
 
 func importUsers(source map[string]interface{}) ([]*user, error) {
@@ -133,6 +201,7 @@ type userDeserializationFunc func(map[string]interface{}) (*user, error)
 
 var userDeserializationFuncs = map[int]userDeserializationFunc{
 	1: importUserV1,
+	2: importUserV2,
 }
 
 func importUserV1(source map[string]interface{}) (*user, error) {
@@ -171,4 +240,93 @@ func importUserV1(source map[string]interface{}) (*user, error) {
 	}
 	return result, nil
 
+}
+
+func importUserV2(source map[string]interface{}) (*user, error) {
+	fields := schema.Fields{
+		"name":             schema.String(),
+		"display-name":     schema.String(),
+		"created-by":       schema.String(),
+		"read-only":        schema.Bool(),
+		"date-created":     schema.Time(),
+		"last-connection":  schema.Time(),
+		"access":           schema.String(),
+		"user-removed-log": schema.List(schema.Any()),
+	}
+
+	// Some values don't have to be there.
+	defaults := schema.Defaults{
+		"display-name":     "",
+		"last-connection":  schema.Omit,
+		"read-only":        false,
+		"user-removed-log": schema.Omit,
+	}
+	checker := schema.FieldMap(fields, defaults)
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "user v2 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+
+	result := &user{
+		Name_:           valid["name"].(string),
+		DisplayName_:    valid["display-name"].(string),
+		CreatedBy_:      valid["created-by"].(string),
+		DateCreated_:    valid["date-created"].(time.Time),
+		Access_:         valid["access"].(string),
+		LastConnection_: fieldToTimePtr(valid, "last-connection"),
+	}
+
+	// the removed-log can be empty
+	removedEntry, ok := valid["user-removed-log"]
+	if !ok {
+		result.RemovalLog_ = []userRemovedLogEntry{}
+	} else {
+		removed, err := importUsersRemovedLog(removedEntry.([]any))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.RemovalLog_ = removed
+	}
+
+	return result, nil
+}
+
+func importUsersRemovedLogEntry(source map[any]any) (*userRemovedLogEntry, error) {
+	fields := schema.Fields{
+		"removed-by":   schema.String(),
+		"date-created": schema.Time(),
+		"date-removed": schema.Time(),
+	}
+	defaults := schema.Defaults{}
+	checker := schema.FieldMap(fields, defaults)
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "usersRemovedLogEntry v2 failed")
+	}
+	valid := coerced.(map[string]any)
+	result := &userRemovedLogEntry{
+		RemovedBy_:   valid["removed-by"].(string),
+		DateCreated_: valid["date-created"].(time.Time),
+		DateRemoved_: valid["date-removed"].(time.Time),
+	}
+	return result, nil
+}
+
+func importUsersRemovedLog(sourceInput []any) ([]userRemovedLogEntry, error) {
+	result := make([]userRemovedLogEntry, len(sourceInput))
+	for i, value := range sourceInput {
+		source, ok := value.(map[any]any)
+		if !ok {
+			return nil, errors.Errorf("unexpected value for revision %d, %T", i, value)
+		}
+		entry, err := importUsersRemovedLogEntry(source)
+		if err != nil {
+			return nil, errors.Annotatef(err, "UserRemovedLogEntry %d", i)
+		}
+		result[i] = *entry
+	}
+	return result, nil
 }
