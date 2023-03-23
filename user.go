@@ -204,7 +204,7 @@ var userDeserializationFuncs = map[int]userDeserializationFunc{
 	2: importUserV2,
 }
 
-func importUserV1(source map[string]interface{}) (*user, error) {
+func userV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"name":            schema.String(),
 		"display-name":    schema.String(),
@@ -221,6 +221,11 @@ func importUserV1(source map[string]interface{}) (*user, error) {
 		"last-connection": schema.Omit,
 		"read-only":       false,
 	}
+	return fields, defaults
+}
+
+func importUserV1(source map[string]interface{}) (*user, error) {
+	fields, defaults := userV1Fields()
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -242,25 +247,16 @@ func importUserV1(source map[string]interface{}) (*user, error) {
 
 }
 
-func importUserV2(source map[string]interface{}) (*user, error) {
-	fields := schema.Fields{
-		"name":             schema.String(),
-		"display-name":     schema.String(),
-		"created-by":       schema.String(),
-		"read-only":        schema.Bool(),
-		"date-created":     schema.Time(),
-		"last-connection":  schema.Time(),
-		"access":           schema.String(),
-		"user-removed-log": schema.List(schema.Any()),
-	}
+func userV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := userV1Fields()
+	// add the user-removed-log field
+	fields["user-removed-log"] = schema.List(schema.Any())
+	defaults["user-removed-log"] = schema.Omit
+	return fields, defaults
+}
 
-	// Some values don't have to be there.
-	defaults := schema.Defaults{
-		"display-name":     "",
-		"last-connection":  schema.Omit,
-		"read-only":        false,
-		"user-removed-log": schema.Omit,
-	}
+func importUserV2(source map[string]interface{}) (*user, error) {
+	fields, defaults := userV2Fields()
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
