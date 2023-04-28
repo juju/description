@@ -587,6 +587,19 @@ func (s *ApplicationSerializationSuite) TestDesiredScale(c *gc.C) {
 	c.Assert(application.DesiredScale(), gc.Equals, 3)
 }
 
+func (s *ApplicationSerializationSuite) TestProvisioningState(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	args.ProvisioningState = &ProvisioningStateArgs{
+		Scaling:     true,
+		ScaleTarget: 10,
+	}
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.ProvisioningState().Scaling(), jc.IsTrue)
+	c.Assert(application.ProvisioningState().ScaleTarget(), gc.Equals, 10)
+}
+
 func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {
 	args := minimalApplicationArgs(CAAS)
 	initial := minimalApplication(args)
