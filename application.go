@@ -68,6 +68,8 @@ type Application interface {
 	AddOffer(ApplicationOfferArgs) ApplicationOffer
 
 	Validate() error
+
+	ProvisioningState() ProvisioningState
 }
 
 // ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
@@ -125,14 +127,15 @@ type application struct {
 	StorageConstraints_ map[string]*storageconstraint `yaml:"storage-constraints,omitempty"`
 
 	// CAAS application fields.
-	PasswordHash_   string        `yaml:"password-hash,omitempty"`
-	PodSpec_        string        `yaml:"pod-spec,omitempty"`
-	Placement_      string        `yaml:"placement,omitempty"`
-	HasResources_   bool          `yaml:"has-resources,omitempty"`
-	DesiredScale_   int           `yaml:"desired-scale,omitempty"`
-	CloudService_   *cloudService `yaml:"cloud-service,omitempty"`
-	Tools_          *agentTools   `yaml:"tools,omitempty"`
-	OperatorStatus_ *status       `yaml:"operator-status,omitempty"`
+	PasswordHash_      string             `yaml:"password-hash,omitempty"`
+	PodSpec_           string             `yaml:"pod-spec,omitempty"`
+	Placement_         string             `yaml:"placement,omitempty"`
+	HasResources_      bool               `yaml:"has-resources,omitempty"`
+	DesiredScale_      int                `yaml:"desired-scale,omitempty"`
+	CloudService_      *cloudService      `yaml:"cloud-service,omitempty"`
+	Tools_             *agentTools        `yaml:"tools,omitempty"`
+	OperatorStatus_    *status            `yaml:"operator-status,omitempty"`
+	ProvisioningState_ *provisioningState `yaml:"provisioning-state,omitempty"`
 
 	// Offer-related fields
 	Offers_ *applicationOffers `yaml:"offers,omitempty"`
@@ -168,6 +171,7 @@ type ApplicationArgs struct {
 	LeadershipSettings   map[string]interface{}
 	StorageConstraints   map[string]StorageConstraintArgs
 	MetricsCredentials   []byte
+	ProvisioningState    *ProvisioningStateArgs
 }
 
 func newApplication(args ApplicationArgs) *application {
@@ -196,6 +200,7 @@ func newApplication(args ApplicationArgs) *application {
 		LeadershipSettings_:   args.LeadershipSettings,
 		MetricsCredentials_:   creds,
 		StatusHistory_:        newStatusHistory(),
+		ProvisioningState_:    newProvisioningState(args.ProvisioningState),
 	}
 	app.setUnits(nil)
 	app.setResources(nil)
@@ -549,6 +554,11 @@ func (a *application) Validate() error {
 	return nil
 }
 
+// ProvisioningState implements Application.
+func (a *application) ProvisioningState() ProvisioningState {
+	return a.ProvisioningState_
+}
+
 func importApplications(source map[string]interface{}) ([]*application, error) {
 	checker := versionedChecker("applications")
 	coerced, err := checker.Coerce(source, nil)
@@ -585,15 +595,16 @@ func importApplicationList(sourceList []interface{}, importFunc applicationDeser
 type applicationDeserializationFunc func(map[string]interface{}) (*application, error)
 
 var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
-	1: importApplicationV1,
-	2: importApplicationV2,
-	3: importApplicationV3,
-	4: importApplicationV4,
-	5: importApplicationV5,
-	6: importApplicationV6,
-	7: importApplicationV7,
-	8: importApplicationV8,
-	9: importApplicationV9,
+	1:  importApplicationV1,
+	2:  importApplicationV2,
+	3:  importApplicationV3,
+	4:  importApplicationV4,
+	5:  importApplicationV5,
+	6:  importApplicationV6,
+	7:  importApplicationV7,
+	8:  importApplicationV8,
+	9:  importApplicationV9,
+	10: importApplicationV10,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -701,6 +712,13 @@ func applicationV9Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV10Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV9Fields()
+	fields["provisioning-state"] = schema.StringMap(schema.Any())
+	defaults["provisioning-state"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -744,6 +762,11 @@ func importApplicationV8(source map[string]interface{}) (*application, error) {
 func importApplicationV9(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV9Fields()
 	return importApplication(fields, defaults, 9, source)
+}
+
+func importApplicationV10(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV10Fields()
+	return importApplication(fields, defaults, 10, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -818,6 +841,14 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	if importVersion >= 8 {
 		if exposedEndpoints, ok := valid["exposed-endpoints"].(map[string]interface{}); ok {
 			if result.ExposedEndpoints_, err = importExposedEndpointsMap(exposedEndpoints); err != nil {
+				return nil, errors.Trace(err)
+			}
+		}
+	}
+
+	if importVersion >= 10 {
+		if provisioningState, ok := valid["provisioning-state"].(map[string]interface{}); ok {
+			if result.ProvisioningState_, err = importProvisioningState(provisioningState); err != nil {
 				return nil, errors.Trace(err)
 			}
 		}
