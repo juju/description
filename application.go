@@ -585,6 +585,9 @@ func (a *application) Validate() error {
 
 // ProvisioningState implements Application.
 func (a *application) ProvisioningState() ProvisioningState {
+	if a.ProvisioningState_ == nil {
+		return nil
+	}
 	return a.ProvisioningState_
 }
 
