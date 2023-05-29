@@ -607,7 +607,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	7:  importApplicationV7,
 	8:  importApplicationV8,
 	9:  importApplicationV9,
-	10: importApplicationV10,
+	11: importApplicationV11,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -715,7 +715,7 @@ func applicationV9Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
-func applicationV10Fields() (schema.Fields, schema.Defaults) {
+func applicationV11Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV9Fields()
 	fields["provisioning-state"] = schema.StringMap(schema.Any())
 	defaults["provisioning-state"] = schema.Omit
@@ -767,8 +767,8 @@ func importApplicationV9(source map[string]interface{}) (*application, error) {
 	return importApplication(fields, defaults, 9, source)
 }
 
-func importApplicationV10(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV10Fields()
+func importApplicationV11(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV11Fields()
 	return importApplication(fields, defaults, 10, source)
 }
 
