@@ -891,7 +891,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		}
 	}
 
-	if importVersion >= 10 {
+	if importVersion >= 11 {
 		if provisioningState, ok := valid["provisioning-state"].(map[string]interface{}); ok {
 			if result.ProvisioningState_, err = importProvisioningState(provisioningState); err != nil {
 				return nil, errors.Trace(err)
