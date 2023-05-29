@@ -362,7 +362,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 10)
+	return s.exportImportVersion(c, application_, 11)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {

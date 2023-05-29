@@ -753,7 +753,7 @@ func applicationV10Fields() (schema.Fields, schema.Defaults) {
 }
 
 func applicationV11Fields() (schema.Fields, schema.Defaults) {
-	fields, defaults := applicationV9Fields()
+	fields, defaults := applicationV10Fields()
 	fields["provisioning-state"] = schema.StringMap(schema.Any())
 	defaults["provisioning-state"] = schema.Omit
 	return fields, defaults
@@ -891,7 +891,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		}
 	}
 
-	if importVersion >= 10 {
+	if importVersion >= 11 {
 		if provisioningState, ok := valid["provisioning-state"].(map[string]interface{}); ok {
 			if result.ProvisioningState_, err = importProvisioningState(provisioningState); err != nil {
 				return nil, errors.Trace(err)
