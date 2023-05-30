@@ -69,6 +69,9 @@ type Application interface {
 
 	Validate() error
 
+	OpenedPortRanges() PortRanges
+	AddOpenedPortRange(OpenedPortRangeArgs)
+
 	ProvisioningState() ProvisioningState
 }
 
@@ -136,6 +139,8 @@ type application struct {
 	Tools_             *agentTools        `yaml:"tools,omitempty"`
 	OperatorStatus_    *status            `yaml:"operator-status,omitempty"`
 	ProvisioningState_ *provisioningState `yaml:"provisioning-state,omitempty"`
+
+	OpenedPortRanges_ *deployedPortRanges `yaml:"opened-port-ranges,omitempty"`
 
 	// Offer-related fields
 	Offers_ *applicationOffers `yaml:"offers,omitempty"`
@@ -349,6 +354,30 @@ func (a *application) MetricsCredentials() []byte {
 	// can be decoded.
 	creds, _ := base64.StdEncoding.DecodeString(a.MetricsCredentials_)
 	return creds
+}
+
+// OpenedPortRanges implements Application.
+func (a *application) OpenedPortRanges() PortRanges {
+	if a.OpenedPortRanges_ == nil {
+		a.OpenedPortRanges_ = newDeployedPortRanges()
+	}
+	return a.OpenedPortRanges_
+}
+
+// AddOpenedPortRange implements Application.
+func (a *application) AddOpenedPortRange(args OpenedPortRangeArgs) {
+	if a.OpenedPortRanges_ == nil {
+		a.OpenedPortRanges_ = newDeployedPortRanges()
+	}
+
+	if a.OpenedPortRanges_.ByUnit_[args.UnitName] == nil {
+		a.OpenedPortRanges_.ByUnit_[args.UnitName] = newUnitPortRanges()
+	}
+
+	a.OpenedPortRanges_.ByUnit_[args.UnitName].ByEndpoint_[args.EndpointName] = append(
+		a.OpenedPortRanges_.ByUnit_[args.UnitName].ByEndpoint_[args.EndpointName],
+		newUnitPortRange(args.FromPort, args.ToPort, args.Protocol),
+	)
 }
 
 // OperatorStatus implements Application.
@@ -608,6 +637,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	8:  importApplicationV8,
 	9:  importApplicationV9,
 	10: importApplicationV10,
+	11: importApplicationV11,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -717,6 +747,13 @@ func applicationV9Fields() (schema.Fields, schema.Defaults) {
 
 func applicationV10Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV9Fields()
+	fields["opened-port-ranges"] = schema.StringMap(schema.Any())
+	defaults["opened-port-ranges"] = schema.Omit
+	return fields, defaults
+}
+
+func applicationV11Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV10Fields()
 	fields["provisioning-state"] = schema.StringMap(schema.Any())
 	defaults["provisioning-state"] = schema.Omit
 	return fields, defaults
@@ -770,6 +807,11 @@ func importApplicationV9(source map[string]interface{}) (*application, error) {
 func importApplicationV10(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV10Fields()
 	return importApplication(fields, defaults, 10, source)
+}
+
+func importApplicationV11(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV11Fields()
+	return importApplication(fields, defaults, 11, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -849,7 +891,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		}
 	}
 
-	if importVersion >= 10 {
+	if importVersion >= 11 {
 		if provisioningState, ok := valid["provisioning-state"].(map[string]interface{}); ok {
 			if result.ProvisioningState_, err = importProvisioningState(provisioningState); err != nil {
 				return nil, errors.Trace(err)
@@ -872,6 +914,18 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		} else {
 			result.CharmOrigin_.Platform_ = platform
 		}
+	}
+
+	if importVersion >= 10 {
+		applicationPortRangesSource, ok := valid["opened-port-ranges"].(map[string]interface{})
+		if ok {
+			machPortRanges, err := importMachinePortRanges(applicationPortRangesSource)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.OpenedPortRanges_ = machPortRanges
+		}
+
 	}
 
 	result.importAnnotations(valid)

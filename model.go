@@ -448,7 +448,7 @@ func (m *model) AddApplication(args ApplicationArgs) Application {
 
 func (m *model) setApplications(applicationList []*application) {
 	m.Applications_ = applications{
-		Version:       10,
+		Version:       11,
 		Applications_: applicationList,
 	}
 }
@@ -1046,6 +1046,9 @@ func (m *model) Validate() error {
 	for _, application := range m.Applications_.Applications_ {
 		if err := application.Validate(); err != nil {
 			return errors.Trace(err)
+		}
+		for unitName := range application.OpenedPortRanges().ByUnit() {
+			validationCtx.unitsWithOpenPorts.Add(unitName)
 		}
 		validationCtx.allApplications.Add(application.Name())
 		validationCtx.allUnits = validationCtx.allUnits.Union(application.unitNames())
