@@ -362,7 +362,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 10)
+	return s.exportImportVersion(c, application_, 11)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -585,6 +585,19 @@ func (s *ApplicationSerializationSuite) TestDesiredScale(c *gc.C) {
 
 	application := s.exportImportLatest(c, initial)
 	c.Assert(application.DesiredScale(), gc.Equals, 3)
+}
+
+func (s *ApplicationSerializationSuite) TestProvisioningState(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	args.ProvisioningState = &ProvisioningStateArgs{
+		Scaling:     true,
+		ScaleTarget: 10,
+	}
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.ProvisioningState().Scaling(), jc.IsTrue)
+	c.Assert(application.ProvisioningState().ScaleTarget(), gc.Equals, 10)
 }
 
 func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {
