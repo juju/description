@@ -110,6 +110,8 @@ type Model interface {
 	StoragePools() []StoragePool
 	AddStoragePool(StoragePoolArgs) StoragePool
 
+	SecretBackendID() string
+
 	Secrets() []Secret
 	AddSecret(args SecretArgs) Secret
 
@@ -148,6 +150,7 @@ type ModelArgs struct {
 	Cloud              string
 	CloudRegion        string
 	PasswordHash       string
+	SecretBackendID    string
 }
 
 // NewModel returns a Model based on the args specified.
@@ -164,6 +167,7 @@ func NewModel(args ModelArgs) Model {
 		Cloud_:              args.Cloud,
 		CloudRegion_:        args.CloudRegion,
 		PasswordHash_:       args.PasswordHash,
+		SecretBackendID_:    args.SecretBackendID,
 		StatusHistory_:      newStatusHistory(),
 	}
 	m.setUsers(nil)
@@ -297,8 +301,9 @@ type model struct {
 
 	RemoteApplications_ remoteApplications `yaml:"remote-applications"`
 
-	Secrets_       secrets       `yaml:"secrets"`
-	RemoteSecrets_ remoteSecrets `yaml:"remote-secrets"`
+	SecretBackendID_ string        `yaml:"secret-backend-id,omitempty"`
+	Secrets_         secrets       `yaml:"secrets"`
+	RemoteSecrets_   remoteSecrets `yaml:"remote-secrets"`
 
 	SLA_         sla         `yaml:"sla"`
 	MeterStatus_ meterStatus `yaml:"meter-status"`
@@ -897,6 +902,11 @@ func (m *model) setStoragePools(poolList []*storagepool) {
 		Version: 1,
 		Pools_:  poolList,
 	}
+}
+
+// SecretBackendID implements Model.
+func (m *model) SecretBackendID() string {
+	return m.SecretBackendID_
 }
 
 // Secrets implements Model.
@@ -1605,6 +1615,8 @@ func modelV9Fields() (schema.Fields, schema.Defaults) {
 func modelV10Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := modelV9Fields()
 	fields["remote-secrets"] = schema.StringMap(schema.Any())
+	fields["secret-backend-id"] = schema.String()
+	defaults["secret-backend-id"] = ""
 	return fields, defaults
 }
 
@@ -1873,8 +1885,9 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 			return nil, errors.Annotate(err, "remote secrets")
 		}
 		result.setRemoteSecrets(remoteSecrets)
-	}
 
+		result.SecretBackendID_ = valid["secret-backend-id"].(string)
+	}
 	return result, nil
 }
 

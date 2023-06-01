@@ -1476,6 +1476,21 @@ func (s *ModelSerializationSuite) TestStatus(c *gc.C) {
 	c.Check(model.Status(), jc.DeepEquals, expected)
 }
 
+func (s *ModelSerializationSuite) TestSecretBackend(c *gc.C) {
+	initial := s.newModel(ModelArgs{
+		Owner:           names.NewUserTag("owner"),
+		SecretBackendID: "backend-id",
+	})
+	c.Assert(initial.SecretBackendID(), gc.Equals, "backend-id")
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.SecretBackendID(), jc.DeepEquals, "backend-id")
+}
+
 func (s *ModelSerializationSuite) TestSecrets(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
 	secretArgs := testSecretArgs()
