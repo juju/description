@@ -49,6 +49,9 @@ type Application interface {
 	Leader() string
 	LeadershipSettings() map[string]interface{}
 
+	Lease() Lease
+	SetLease(LeaseArgs)
+
 	MetricsCredentials() []byte
 	StorageConstraints() map[string]StorageConstraint
 
@@ -117,6 +120,8 @@ type application struct {
 	Leader_             string                 `yaml:"leader,omitempty"`
 	LeadershipSettings_ map[string]interface{} `yaml:"leadership-settings"`
 
+	Lease_ *lease `yaml:"lease,omitempty"`
+
 	MetricsCredentials_ string `yaml:"metrics-creds,omitempty"`
 
 	// unit count will be assumed by the number of units associated.
@@ -177,6 +182,7 @@ type ApplicationArgs struct {
 	StorageConstraints   map[string]StorageConstraintArgs
 	MetricsCredentials   []byte
 	ProvisioningState    *ProvisioningStateArgs
+	Lease                *LeaseArgs
 }
 
 func newApplication(args ApplicationArgs) *application {
@@ -206,6 +212,7 @@ func newApplication(args ApplicationArgs) *application {
 		MetricsCredentials_:   creds,
 		StatusHistory_:        newStatusHistory(),
 		ProvisioningState_:    newProvisioningState(args.ProvisioningState),
+		Lease_:                newLease(args.Lease),
 	}
 	app.setUnits(nil)
 	app.setResources(nil)
@@ -335,6 +342,16 @@ func (a *application) Leader() string {
 // LeadershipSettings implements Application.
 func (a *application) LeadershipSettings() map[string]interface{} {
 	return a.LeadershipSettings_
+}
+
+// Lease implements Application.
+func (a *application) Lease() Lease {
+	return a.Lease_
+}
+
+// SetLease implements Application.
+func (a *application) SetLease(args LeaseArgs) {
+	a.Lease_ = newLease(&args)
 }
 
 // StorageConstraints implements Application.
@@ -638,6 +655,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	9:  importApplicationV9,
 	10: importApplicationV10,
 	11: importApplicationV11,
+	12: importApplicationV12,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -759,6 +777,13 @@ func applicationV11Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV12Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV11Fields()
+	fields["lease"] = schema.StringMap(schema.Any())
+	defaults["lease"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -812,6 +837,11 @@ func importApplicationV10(source map[string]interface{}) (*application, error) {
 func importApplicationV11(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV11Fields()
 	return importApplication(fields, defaults, 11, source)
+}
+
+func importApplicationV12(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV12Fields()
+	return importApplication(fields, defaults, 12, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -894,6 +924,14 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	if importVersion >= 11 {
 		if provisioningState, ok := valid["provisioning-state"].(map[string]interface{}); ok {
 			if result.ProvisioningState_, err = importProvisioningState(provisioningState); err != nil {
+				return nil, errors.Trace(err)
+			}
+		}
+	}
+
+	if importVersion >= 12 {
+		if lease, ok := valid["lease"].(map[string]interface{}); ok {
+			if result.Lease_, err = importLease(lease); err != nil {
 				return nil, errors.Trace(err)
 			}
 		}

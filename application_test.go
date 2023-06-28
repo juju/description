@@ -4,6 +4,8 @@
 package description
 
 import (
+	"time"
+
 	"github.com/juju/names/v4"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
@@ -362,7 +364,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 11)
+	return s.exportImportVersion(c, application_, 12)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -598,6 +600,26 @@ func (s *ApplicationSerializationSuite) TestProvisioningState(c *gc.C) {
 	application := s.exportImportLatest(c, initial)
 	c.Assert(application.ProvisioningState().Scaling(), jc.IsTrue)
 	c.Assert(application.ProvisioningState().ScaleTarget(), gc.Equals, 10)
+}
+
+func (s *ApplicationSerializationSuite) TestLease(c *gc.C) {
+	now := time.Now().UTC().Round(time.Second)
+	args := minimalApplicationArgs(CAAS)
+	args.Lease = &LeaseArgs{
+		Name:   "name",
+		Holder: "holder",
+		Start:  now,
+		Expiry: now.Add(10 * time.Minute),
+		Pinned: true,
+	}
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.Lease().Name(), gc.Equals, "name")
+	c.Assert(application.Lease().Holder(), gc.Equals, "holder")
+	c.Assert(application.Lease().Start(), gc.DeepEquals, now)
+	c.Assert(application.Lease().Expiry(), gc.DeepEquals, now.Add(10*time.Minute))
+	c.Assert(application.Lease().Pinned(), jc.IsTrue)
 }
 
 func (s *ApplicationSerializationSuite) TestCloudService(c *gc.C) {

@@ -103,17 +103,3 @@ func (s *ProvisioningStateSerializationSuite) TestParsingSerializedData(c *gc.C)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(instance, jc.DeepEquals, initial)
 }
-
-func (s *ProvisioningStateSerializationSuite) exportImportVersion(c *gc.C, origin_ *provisioningState, version int) *provisioningState {
-	origin_.Version_ = version
-	bytes, err := yaml.Marshal(origin_)
-	c.Assert(err, jc.ErrorIsNil)
-
-	var source map[string]interface{}
-	err = yaml.Unmarshal(bytes, &source)
-	c.Assert(err, jc.ErrorIsNil)
-
-	origin, err := importProvisioningState(source)
-	c.Assert(err, jc.ErrorIsNil)
-	return origin
-}
