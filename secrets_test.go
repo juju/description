@@ -42,6 +42,7 @@ func testSecretArgs() SecretArgs {
 		Description:     "a secret",
 		Label:           "secret label",
 		RotatePolicy:    "hourly",
+		AutoPrune:       true,
 		Owner:           names.NewApplicationTag("postgresql"),
 		Created:         created,
 		Updated:         updated,
@@ -120,6 +121,7 @@ func (s *SecretsSerializationSuite) TestNewSecret(c *gc.C) {
 	c.Check(secret.Description(), gc.Equals, "a secret")
 	c.Check(secret.Label(), gc.Equals, "secret label")
 	c.Check(secret.RotatePolicy(), gc.Equals, "hourly")
+	c.Check(secret.AutoPrune(), jc.IsTrue)
 	c.Check(secret.Created(), jc.DeepEquals, args.Created)
 	c.Check(secret.Updated(), jc.DeepEquals, args.Updated)
 	c.Check(secret.NextRotateTime(), jc.DeepEquals, args.NextRotateTime)
@@ -166,6 +168,14 @@ func (s *SecretsSerializationSuite) TestNewSecretNoRotatePolicy(c *gc.C) {
 	secret := newSecret(args)
 
 	c.Assert(secret.RotatePolicy(), gc.Equals, "")
+}
+
+func (s *SecretsSerializationSuite) TestNewSecretNoAutoPrune(c *gc.C) {
+	args := testSecretArgs()
+	args.AutoPrune = false
+	secret := newSecret(args)
+
+	c.Assert(secret.AutoPrune(), jc.IsFalse)
 }
 
 func (s *SecretsSerializationSuite) TestNewSecretNoNextRotateTime(c *gc.C) {

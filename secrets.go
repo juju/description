@@ -20,6 +20,7 @@ type Secret interface {
 	Description() string
 	Label() string
 	RotatePolicy() string
+	AutoPrune() bool
 	Owner() (names.Tag, error)
 	Created() time.Time
 	Updated() time.Time
@@ -49,6 +50,7 @@ type secret struct {
 	Label_        string            `yaml:"label"`
 	RotatePolicy_ string            `yaml:"rotate-policy,omitempty"`
 	Owner_        string            `yaml:"owner"`
+	AutoPrune_    bool              `yaml:"auto-prune"`
 	Created_      time.Time         `yaml:"create-time"`
 	Updated_      time.Time         `yaml:"update-time"`
 	Revisions_    []*secretRevision `yaml:"revisions"`
@@ -134,6 +136,11 @@ func (i *secret) Label() string {
 // RotatePolicy implements Secret.
 func (i *secret) RotatePolicy() string {
 	return i.RotatePolicy_
+}
+
+// AutoPrune implements Secret.
+func (i *secret) AutoPrune() bool {
+	return i.AutoPrune_
 }
 
 // Owner implements Secret.
@@ -227,6 +234,7 @@ type SecretArgs struct {
 	RemoteConsumers []SecretRemoteConsumerArgs
 
 	NextRotateTime *time.Time
+	AutoPrune      bool
 }
 
 func newSecret(args SecretArgs) *secret {
@@ -236,6 +244,7 @@ func newSecret(args SecretArgs) *secret {
 		Description_:  args.Description,
 		Label_:        args.Label,
 		RotatePolicy_: args.RotatePolicy,
+		AutoPrune_:    args.AutoPrune,
 		Created_:      args.Created.UTC(),
 		Updated_:      args.Updated.UTC(),
 		ACL_:          newSecretAccess(args.ACL),
@@ -328,6 +337,7 @@ func secretV1Fields() (schema.Fields, schema.Defaults) {
 		"description":      schema.String(),
 		"label":            schema.String(),
 		"rotate-policy":    schema.String(),
+		"auto-prune":       schema.Bool(),
 		"owner":            schema.String(),
 		"create-time":      schema.Time(),
 		"update-time":      schema.Time(),
@@ -340,6 +350,7 @@ func secretV1Fields() (schema.Fields, schema.Defaults) {
 	// Some values don't have to be there.
 	defaults := schema.Defaults{
 		"rotate-policy":    schema.Omit,
+		"auto-prune":       schema.Omit,
 		"next-rotate-time": schema.Omit,
 		"consumers":        schema.Omit,
 		"remote-consumers": schema.Omit,
@@ -362,6 +373,7 @@ func importSecret(source map[string]interface{}, importVersion int, fieldFunc fu
 		Description_:    valid["description"].(string),
 		Label_:          valid["label"].(string),
 		RotatePolicy_:   valid["rotate-policy"].(string),
+		AutoPrune_:      valid["auto-prune"].(bool),
 		Owner_:          valid["owner"].(string),
 		Created_:        valid["create-time"].(time.Time).UTC(),
 		Updated_:        valid["update-time"].(time.Time).UTC(),
