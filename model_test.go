@@ -1500,6 +1500,7 @@ func (s *ModelSerializationSuite) TestSecrets(c *gc.C) {
 	c.Assert(secret.Description(), gc.Equals, secretArgs.Description)
 	c.Assert(secret.Label(), gc.Equals, secretArgs.Label)
 	c.Assert(secret.RotatePolicy(), gc.Equals, secretArgs.RotatePolicy)
+	c.Assert(secret.AutoPrune(), gc.Equals, secretArgs.AutoPrune)
 	owner, err := secret.Owner()
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(owner.String(), gc.Equals, secretArgs.Owner.String())
