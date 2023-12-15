@@ -6,7 +6,7 @@ package description
 import (
 	"time"
 
-	"github.com/juju/names/v4"
+	"github.com/juju/names/v5"
 	jc "github.com/juju/testing/checkers"
 	"github.com/rs/xid"
 	gc "gopkg.in/check.v1"
