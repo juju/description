@@ -34,6 +34,7 @@ func allBlockDeviceArgs() BlockDeviceArgs {
 		Label:          "sda",
 		UUID:           "some-uuid",
 		HardwareID:     "magic",
+		SerialID:       "coco-pops",
 		WWN:            "drbr",
 		BusAddress:     "bus stop",
 		Size:           16 * 1024 * 1024 * 1024,
@@ -50,6 +51,7 @@ func (s *BlockDeviceSerializationSuite) TestNewBlockDevice(c *gc.C) {
 	c.Check(d.Label(), gc.Equals, "sda")
 	c.Check(d.UUID(), gc.Equals, "some-uuid")
 	c.Check(d.HardwareID(), gc.Equals, "magic")
+	c.Check(d.SerialID(), gc.Equals, "coco-pops")
 	c.Check(d.WWN(), gc.Equals, "drbr")
 	c.Check(d.BusAddress(), gc.Equals, "bus stop")
 	c.Check(d.Size(), gc.Equals, uint64(16*1024*1024*1024))
@@ -58,9 +60,9 @@ func (s *BlockDeviceSerializationSuite) TestNewBlockDevice(c *gc.C) {
 	c.Check(d.MountPoint(), gc.Equals, "/")
 }
 
-func (s *BlockDeviceSerializationSuite) exportImport(c *gc.C, dev *blockdevice) *blockdevice {
+func (s *BlockDeviceSerializationSuite) exportImport(c *gc.C, dev *blockdevice, version int) *blockdevice {
 	initial := blockdevices{
-		Version:       1,
+		Version:       version,
 		BlockDevices_: []*blockdevice{dev},
 	}
 
@@ -77,9 +79,20 @@ func (s *BlockDeviceSerializationSuite) exportImport(c *gc.C, dev *blockdevice) 
 	return devices[0]
 }
 
+func (s *BlockDeviceSerializationSuite) exportImportLatest(c *gc.C, dev *blockdevice) *blockdevice {
+	return s.exportImport(c, dev, 2)
+}
+
 func (s *BlockDeviceSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := newBlockDevice(allBlockDeviceArgs())
-	imported := s.exportImport(c, initial)
+	imported := s.exportImportLatest(c, initial)
+	c.Assert(imported, jc.DeepEquals, initial)
+}
+
+func (s *BlockDeviceSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
+	initial := newBlockDevice(allBlockDeviceArgs())
+	imported := s.exportImport(c, initial, 1)
+	initial.SerialID_ = ""
 	c.Assert(imported, jc.DeepEquals, initial)
 }
 
@@ -91,7 +104,7 @@ func (s *BlockDeviceSerializationSuite) TestImportEmpty(c *gc.C) {
 
 func emptyBlockDeviceMap() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"version":       1,
+		"version":       2,
 		"block-devices": []interface{}{},
 	}
 }

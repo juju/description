@@ -4,6 +4,7 @@
 package description
 
 import (
+	"fmt"
 	"net"
 	"sort"
 	"strings"
@@ -136,6 +137,8 @@ type Model interface {
 	MeterStatus() MeterStatus
 
 	PasswordHash() string
+
+	AddBlockDevice(string, BlockDeviceArgs) error
 }
 
 // ModelArgs represent the bare minimum information that is needed
@@ -429,6 +432,18 @@ func (m *model) setMachines(machineList []*machine) {
 		Version:   3,
 		Machines_: machineList,
 	}
+}
+
+// AddBlockDevice adds a block device for the specified machine.
+func (m *model) AddBlockDevice(machineId string, bdArgs BlockDeviceArgs) error {
+	for i := range m.Machines_.Machines_ {
+		if m.Machines_.Machines_[i].Id_ != machineId {
+			continue
+		}
+		m.Machines_.Machines_[i].AddBlockDevice(bdArgs)
+		return nil
+	}
+	return fmt.Errorf("machine %q %w", machineId, errors.NotFound)
 }
 
 // Applications implements Model.

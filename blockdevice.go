@@ -15,6 +15,7 @@ type BlockDevice interface {
 	Label() string
 	UUID() string
 	HardwareID() string
+	SerialID() string
 	WWN() string
 	BusAddress() string
 	Size() uint64
@@ -40,6 +41,7 @@ type blockdevice struct {
 	Label_          string   `yaml:"label,omitempty"`
 	UUID_           string   `yaml:"uuid,omitempty"`
 	HardwareID_     string   `yaml:"hardware-id,omitempty"`
+	SerialID_       string   `yaml:"serial-id,omitempty"`
 	WWN_            string   `yaml:"wwn,omitempty"`
 	BusAddress_     string   `yaml:"bus-address,omitempty"`
 	Size_           uint64   `yaml:"size"`
@@ -57,6 +59,7 @@ type BlockDeviceArgs struct {
 	HardwareID     string
 	WWN            string
 	BusAddress     string
+	SerialID       string
 	Size           uint64
 	FilesystemType string
 	InUse          bool
@@ -70,6 +73,7 @@ func newBlockDevice(args BlockDeviceArgs) *blockdevice {
 		Label_:          args.Label,
 		UUID_:           args.UUID,
 		HardwareID_:     args.HardwareID,
+		SerialID_:       args.SerialID,
 		WWN_:            args.WWN,
 		BusAddress_:     args.BusAddress,
 		Size_:           args.Size,
@@ -104,6 +108,11 @@ func (b *blockdevice) UUID() string {
 // HardwareID implements BlockDevice.
 func (b *blockdevice) HardwareID() string {
 	return b.HardwareID_
+}
+
+// SerialID implements BlockDevice.
+func (b *blockdevice) SerialID() string {
+	return b.SerialID_
 }
 
 // WWN implements BlockDevice.
@@ -173,9 +182,10 @@ type blockdeviceDeserializationFunc func(map[string]interface{}) (*blockdevice, 
 
 var blockdeviceDeserializationFuncs = map[int]blockdeviceDeserializationFunc{
 	1: importBlockDeviceV1,
+	2: importBlockDeviceV2,
 }
 
-func importBlockDeviceV1(source map[string]interface{}) (*blockdevice, error) {
+func blockDeviceV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"name":        schema.String(),
 		"links":       schema.List(schema.String()),
@@ -200,6 +210,27 @@ func importBlockDeviceV1(source map[string]interface{}) (*blockdevice, error) {
 		"fs-type":     "",
 		"mount-point": "",
 	}
+	return fields, defaults
+}
+
+func blockDeviceV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := blockDeviceV1Fields()
+	fields["serial-id"] = schema.String()
+	defaults["serial-id"] = ""
+	return fields, defaults
+}
+
+func importBlockDeviceV1(source map[string]interface{}) (*blockdevice, error) {
+	fields, defaults := blockDeviceV1Fields()
+	return importBlockDevice(fields, defaults, 1, source)
+}
+
+func importBlockDeviceV2(source map[string]interface{}) (*blockdevice, error) {
+	fields, defaults := blockDeviceV2Fields()
+	return importBlockDevice(fields, defaults, 2, source)
+}
+
+func importBlockDevice(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*blockdevice, error) {
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
@@ -221,6 +252,10 @@ func importBlockDeviceV1(source map[string]interface{}) (*blockdevice, error) {
 		FilesystemType_: valid["fs-type"].(string),
 		InUse_:          valid["in-use"].(bool),
 		MountPoint_:     valid["mount-point"].(string),
+	}
+
+	if importVersion >= 2 {
+		result.SerialID_ = valid["serial-id"].(string)
 	}
 
 	return result, nil
