@@ -318,7 +318,7 @@ func (m *machine) AddBlockDevice(args BlockDeviceArgs) BlockDevice {
 
 func (m *machine) setBlockDevices(devices []*blockdevice) {
 	m.BlockDevices_ = blockdevices{
-		Version:       1,
+		Version:       2,
 		BlockDevices_: devices,
 	}
 }

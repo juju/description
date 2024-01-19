@@ -324,6 +324,51 @@ func (s *ModelSerializationSuite) addMachineToModel(model Model, id string) Mach
 	return machine
 }
 
+func (s *ModelSerializationSuite) TestAddBlockDevices(c *gc.C) {
+	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
+	model.AddMachine(MachineArgs{Id: names.NewMachineTag("666")})
+	err := model.AddBlockDevice("666", BlockDeviceArgs{
+		Name:           "foo",
+		Links:          []string{"a-link"},
+		Label:          "label",
+		UUID:           "device-uuid",
+		HardwareID:     "hardware-id",
+		WWN:            "wwn",
+		BusAddress:     "bus-address",
+		SerialID:       "serial-id",
+		Size:           100,
+		FilesystemType: "ext4",
+		InUse:          true,
+		MountPoint:     "/path/to/here",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	m := model.Machines()
+	c.Assert(m, gc.HasLen, 1)
+	blockDevices := m[0].BlockDevices()
+	c.Assert(blockDevices, gc.HasLen, 1)
+	bd := blockDevices[0]
+	c.Assert(bd.Name(), gc.Equals, "foo")
+	c.Assert(bd.Links(), jc.DeepEquals, []string{"a-link"})
+	c.Assert(bd.Label(), gc.Equals, "label")
+	c.Assert(bd.UUID(), gc.Equals, "device-uuid")
+	c.Assert(bd.HardwareID(), gc.Equals, "hardware-id")
+	c.Assert(bd.WWN(), gc.Equals, "wwn")
+	c.Assert(bd.BusAddress(), gc.Equals, "bus-address")
+	c.Assert(bd.SerialID(), gc.Equals, "serial-id")
+	c.Assert(bd.Size(), gc.Equals, uint64(100))
+	c.Assert(bd.FilesystemType(), gc.Equals, "ext4")
+	c.Assert(bd.InUse(), jc.IsTrue)
+	c.Assert(bd.MountPoint(), gc.Equals, "/path/to/here")
+}
+
+func (s *ModelSerializationSuite) TestAddBlockDevicesMachineNotFound(c *gc.C) {
+	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
+	err := model.AddBlockDevice("666", BlockDeviceArgs{
+		Name: "foo",
+	})
+	c.Assert(err, jc.ErrorIs, errors.NotFound)
+}
+
 func (s *ModelSerializationSuite) TestModelValidationChecksMachinesGood(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
 	s.addMachineToModel(model, "0")
