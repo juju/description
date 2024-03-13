@@ -64,3 +64,19 @@ func (s *CloudServiceSerializationSuite) TestParsingSerializedData(c *gc.C) {
 
 	c.Assert(imported, jc.DeepEquals, initial)
 }
+
+func (s *CloudServiceSerializationSuite) TestParsingMinimalSerializedData(c *gc.C) {
+	initial := newCloudService(&CloudServiceArgs{})
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	imported, err := importCloudService(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(imported, jc.DeepEquals, initial)
+}
