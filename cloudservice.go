@@ -102,9 +102,10 @@ func importCloudServiceV1(source map[string]interface{}) (*cloudService, error) 
 	}
 	valid := coerced.(map[string]interface{})
 
+	providerId, _ := valid["provider-id"].(string)
 	cloudService := &cloudService{
 		Version:     1,
-		ProviderId_: valid["provider-id"].(string),
+		ProviderId_: providerId,
 	}
 	if addresses, ok := valid["addresses"]; ok {
 		serviceAddresses, err := importAddresses(addresses.([]interface{}))
