@@ -9,17 +9,17 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type StorageConstraintSerializationSuite struct {
+type StorageDirectiveSerializationSuite struct {
 	SerializationSuite
 }
 
-var _ = gc.Suite(&StorageConstraintSerializationSuite{})
+var _ = gc.Suite(&StorageDirectiveSerializationSuite{})
 
-func (s *StorageConstraintSerializationSuite) SetUpTest(c *gc.C) {
+func (s *StorageDirectiveSerializationSuite) SetUpTest(c *gc.C) {
 	s.SerializationSuite.SetUpTest(c)
-	s.importName = "storageconstraint"
+	s.importName = "storage directive"
 	s.importFunc = func(m map[string]interface{}) (interface{}, error) {
-		return importStorageConstraint(m)
+		return importStorageDirective(m)
 	}
 	s.testFields = func(m map[string]interface{}) {
 		m["pool"] = ""
@@ -28,22 +28,22 @@ func (s *StorageConstraintSerializationSuite) SetUpTest(c *gc.C) {
 	}
 }
 
-func (s *StorageConstraintSerializationSuite) TestMissingValue(c *gc.C) {
+func (s *StorageDirectiveSerializationSuite) TestMissingValue(c *gc.C) {
 	testMap := s.makeMap(1)
 	delete(testMap, "pool")
-	_, err := importStorageConstraint(testMap)
-	c.Check(err.Error(), gc.Equals, "storageconstraint v1 schema check failed: pool: expected string, got nothing")
+	_, err := importStorageDirective(testMap)
+	c.Check(err.Error(), gc.Equals, "storage directive v1 schema check failed: pool: expected string, got nothing")
 }
 
-func (*StorageConstraintSerializationSuite) TestParsing(c *gc.C) {
-	addr, err := importStorageConstraint(map[string]interface{}{
+func (*StorageDirectiveSerializationSuite) TestParsing(c *gc.C) {
+	addr, err := importStorageDirective(map[string]interface{}{
 		"version": 1,
 		"pool":    "olympic",
 		"size":    50,
 		"count":   2,
 	})
 	c.Assert(err, jc.ErrorIsNil)
-	expected := &storageconstraint{
+	expected := &storageDirective{
 		Version: 1,
 		Pool_:   "olympic",
 		Size_:   50,
@@ -52,8 +52,8 @@ func (*StorageConstraintSerializationSuite) TestParsing(c *gc.C) {
 	c.Assert(addr, jc.DeepEquals, expected)
 }
 
-func (*StorageConstraintSerializationSuite) TestParsingSerializedData(c *gc.C) {
-	initial := &storageconstraint{
+func (*StorageDirectiveSerializationSuite) TestParsingSerializedData(c *gc.C) {
+	initial := &storageDirective{
 		Version: 1,
 		Pool_:   "olympic",
 		Size_:   50,
@@ -67,8 +67,8 @@ func (*StorageConstraintSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	err = yaml.Unmarshal(bytes, &source)
 	c.Assert(err, jc.ErrorIsNil)
 
-	storageconstraints, err := importStorageConstraint(source)
+	directives, err := importStorageDirective(source)
 	c.Assert(err, jc.ErrorIsNil)
 
-	c.Assert(storageconstraints, jc.DeepEquals, initial)
+	c.Assert(directives, jc.DeepEquals, initial)
 }

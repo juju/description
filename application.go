@@ -50,7 +50,7 @@ type Application interface {
 	LeadershipSettings() map[string]interface{}
 
 	MetricsCredentials() []byte
-	StorageConstraints() map[string]StorageConstraint
+	StorageDirectives() map[string]StorageDirective
 
 	Resources() []Resource
 	AddResource(ResourceArgs) Resource
@@ -126,8 +126,8 @@ type application struct {
 
 	Annotations_ `yaml:"annotations,omitempty"`
 
-	Constraints_        *constraints                  `yaml:"constraints,omitempty"`
-	StorageConstraints_ map[string]*storageconstraint `yaml:"storage-constraints,omitempty"`
+	Constraints_       *constraints                 `yaml:"constraints,omitempty"`
+	StorageDirectives_ map[string]*storageDirective `yaml:"storage-directives,omitempty"`
 
 	// CAAS application fields.
 	PasswordHash_      string             `yaml:"password-hash,omitempty"`
@@ -174,7 +174,7 @@ type ApplicationArgs struct {
 	CharmConfig          map[string]interface{}
 	Leader               string
 	LeadershipSettings   map[string]interface{}
-	StorageConstraints   map[string]StorageConstraintArgs
+	StorageDirectives    map[string]StorageDirectiveArgs
 	MetricsCredentials   []byte
 	ProvisioningState    *ProvisioningStateArgs
 }
@@ -209,10 +209,10 @@ func newApplication(args ApplicationArgs) *application {
 	}
 	app.setUnits(nil)
 	app.setResources(nil)
-	if len(args.StorageConstraints) > 0 {
-		app.StorageConstraints_ = make(map[string]*storageconstraint)
-		for key, value := range args.StorageConstraints {
-			app.StorageConstraints_[key] = newStorageConstraint(value)
+	if len(args.StorageDirectives) > 0 {
+		app.StorageDirectives_ = make(map[string]*storageDirective)
+		for key, value := range args.StorageDirectives {
+			app.StorageDirectives_[key] = newStorageDirective(value)
 		}
 	}
 	if len(args.ExposedEndpoints) > 0 {
@@ -337,10 +337,10 @@ func (a *application) LeadershipSettings() map[string]interface{} {
 	return a.LeadershipSettings_
 }
 
-// StorageConstraints implements Application.
-func (a *application) StorageConstraints() map[string]StorageConstraint {
-	result := make(map[string]StorageConstraint)
-	for key, value := range a.StorageConstraints_ {
+// StorageDirectives implements Application.
+func (a *application) StorageDirectives() map[string]StorageDirective {
+	result := make(map[string]StorageDirective)
+	for key, value := range a.StorageDirectives_ {
 		result[key] = value
 	}
 	return result
@@ -638,6 +638,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	9:  importApplicationV9,
 	10: importApplicationV10,
 	11: importApplicationV11,
+	12: importApplicationV12,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -759,6 +760,15 @@ func applicationV11Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV12Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV11Fields()
+	delete(fields, "storage-constraints")
+	defaults["storage-constraints"] = schema.Omit
+	fields["storage-directives"] = schema.StringMap(schema.StringMap(schema.Any()))
+	defaults["storage-directives"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -812,6 +822,11 @@ func importApplicationV10(source map[string]interface{}) (*application, error) {
 func importApplicationV11(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV11Fields()
 	return importApplication(fields, defaults, 11, source)
+}
+
+func importApplicationV12(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV12Fields()
+	return importApplication(fields, defaults, 12, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -945,12 +960,16 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		result.Constraints_ = constraints
 	}
 
-	if constraintsMap, ok := valid["storage-constraints"]; ok {
-		constraints, err := importStorageConstraints(constraintsMap.(map[string]interface{}))
+	storageKey := "storage-directives"
+	if importVersion < 12 {
+		storageKey = "storage-constraints"
+	}
+	if constraintsMap, ok := valid[storageKey]; ok {
+		directives, err := importStorageDirectives(constraintsMap.(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
-		result.StorageConstraints_ = constraints
+		result.StorageDirectives_ = directives
 	}
 
 	if cloudServiceMap, ok := valid["cloud-service"]; ok {
