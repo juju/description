@@ -182,9 +182,9 @@ type StoragePool interface {
 	Attributes() map[string]interface{}
 }
 
-// StorageConstraint represents the user-specified constraints for
+// StorageDirective represents the user-specified storage directive for
 // provisioning storage instances for an application unit.
-type StorageConstraint interface {
+type StorageDirective interface {
 	// Pool is the name of the storage pool from which to provision the
 	// storage instances.
 	Pool() string

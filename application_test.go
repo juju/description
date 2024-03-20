@@ -259,7 +259,7 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.HasResources(), jc.IsTrue)
 	c.Assert(application.DesiredScale(), gc.Equals, 2)
 	c.Assert(application.CloudService(), gc.IsNil)
-	c.Assert(application.StorageConstraints(), gc.HasLen, 0)
+	c.Assert(application.StorageDirectives(), gc.HasLen, 0)
 	c.Assert(application.MinUnits(), gc.Equals, 42)
 	c.Assert(application.EndpointBindings(), jc.DeepEquals, args.EndpointBindings)
 	c.Assert(application.ApplicationConfig(), jc.DeepEquals, args.ApplicationConfig)
@@ -362,7 +362,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 11)
+	return s.exportImportVersion(c, application_, 12)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -502,9 +502,9 @@ func (s *ApplicationSerializationSuite) TestConstraints(c *gc.C) {
 	c.Assert(application.Constraints(), jc.DeepEquals, newConstraints(args))
 }
 
-func (s *ApplicationSerializationSuite) TestStorageConstraints(c *gc.C) {
+func (s *ApplicationSerializationSuite) TestStorageDirectives(c *gc.C) {
 	args := minimalApplicationArgs(IAAS)
-	args.StorageConstraints = map[string]StorageConstraintArgs{
+	args.StorageDirectives = map[string]StorageDirectiveArgs{
 		"first":  {Pool: "first", Size: 1234, Count: 1},
 		"second": {Pool: "second", Size: 4321, Count: 7},
 	}
@@ -512,15 +512,15 @@ func (s *ApplicationSerializationSuite) TestStorageConstraints(c *gc.C) {
 
 	application := s.exportImportLatest(c, initial)
 
-	constraints := application.StorageConstraints()
-	c.Assert(constraints, gc.HasLen, 2)
-	first, found := constraints["first"]
+	directives := application.StorageDirectives()
+	c.Assert(directives, gc.HasLen, 2)
+	first, found := directives["first"]
 	c.Assert(found, jc.IsTrue)
 	c.Check(first.Pool(), gc.Equals, "first")
 	c.Check(first.Size(), gc.Equals, uint64(1234))
 	c.Check(first.Count(), gc.Equals, uint64(1))
 
-	second, found := constraints["second"]
+	second, found := directives["second"]
 	c.Assert(found, jc.IsTrue)
 	c.Check(second.Pool(), gc.Equals, "second")
 	c.Check(second.Size(), gc.Equals, uint64(4321))
