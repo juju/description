@@ -79,7 +79,10 @@ func importSecretRemoteConsumers(source map[string]interface{}, version int) ([]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
-	sourceList := source["remote-consumers"].([]interface{})
+	sourceList, ok := source["remote-consumers"].([]interface{})
+	if !ok {
+		return nil, nil
+	}
 	return importSecretRemoteConsumersList(sourceList, importFunc)
 }
 

@@ -251,3 +251,52 @@ func (s *SecretsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	secret := s.exportImport(c, original, 1)
 	c.Assert(secret, jc.DeepEquals, original)
 }
+
+type oldSecret struct {
+	ID_          string            `yaml:"id"`
+	Version_     int               `yaml:"secret-version"`
+	Description_ string            `yaml:"description"`
+	Label_       string            `yaml:"label"`
+	Owner_       string            `yaml:"owner"`
+	Created_     time.Time         `yaml:"create-time"`
+	Updated_     time.Time         `yaml:"update-time"`
+	Revisions_   []*secretRevision `yaml:"revisions"`
+}
+
+type oldSecrets struct {
+	Version  int          `yaml:"version"`
+	Secrets_ []*oldSecret `yaml:"secrets"`
+}
+
+func (s *SecretsSerializationSuite) TestParsingSerializedDataNoAutoPrune(c *gc.C) {
+	args := testSecretArgs()
+	original := &oldSecret{
+		ID_:      args.ID,
+		Version_: args.Version,
+		Created_: args.Created.UTC(),
+		Updated_: args.Updated.UTC(),
+	}
+	initial := oldSecrets{
+		Version:  1,
+		Secrets_: []*oldSecret{original},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	secrets, err := importSecrets(source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(secrets, gc.HasLen, 1)
+
+	c.Assert(secrets[0], jc.DeepEquals, &secret{
+		ID_:      original.ID_,
+		Version_: original.Version_,
+		Owner_:   original.Owner_,
+		Created_: original.Created_,
+		Updated_: original.Updated_,
+	})
+}
