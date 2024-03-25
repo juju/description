@@ -50,14 +50,14 @@ type secret struct {
 	Label_        string            `yaml:"label"`
 	RotatePolicy_ string            `yaml:"rotate-policy,omitempty"`
 	Owner_        string            `yaml:"owner"`
-	AutoPrune_    bool              `yaml:"auto-prune"`
+	AutoPrune_    bool              `yaml:"auto-prune,omitempty"`
 	Created_      time.Time         `yaml:"create-time"`
 	Updated_      time.Time         `yaml:"update-time"`
 	Revisions_    []*secretRevision `yaml:"revisions"`
 
-	ACL_             map[string]*secretAccess `yaml:"acl"`
-	Consumers_       []*secretConsumer        `yaml:"consumers"`
-	RemoteConsumers_ []*secretRemoteConsumer  `yaml:"remote-consumers"`
+	ACL_             map[string]*secretAccess `yaml:"acl,omitempty"`
+	Consumers_       []*secretConsumer        `yaml:"consumers,omitempty"`
+	RemoteConsumers_ []*secretRemoteConsumer  `yaml:"remote-consumers,omitempty"`
 
 	NextRotateTime_ *time.Time `yaml:"next-rotate-time,omitempty"`
 
@@ -352,6 +352,7 @@ func secretV1Fields() (schema.Fields, schema.Defaults) {
 		"rotate-policy":    schema.Omit,
 		"auto-prune":       schema.Omit,
 		"next-rotate-time": schema.Omit,
+		"acl":              schema.Omit,
 		"consumers":        schema.Omit,
 		"remote-consumers": schema.Omit,
 	}
@@ -372,12 +373,19 @@ func importSecret(source map[string]interface{}, importVersion int, fieldFunc fu
 		Version_:        int(valid["secret-version"].(int64)),
 		Description_:    valid["description"].(string),
 		Label_:          valid["label"].(string),
-		RotatePolicy_:   valid["rotate-policy"].(string),
-		AutoPrune_:      valid["auto-prune"].(bool),
 		Owner_:          valid["owner"].(string),
 		Created_:        valid["create-time"].(time.Time).UTC(),
 		Updated_:        valid["update-time"].(time.Time).UTC(),
 		NextRotateTime_: fieldToTimePtr(valid, "next-rotate-time"),
+	}
+
+	if policy, ok := valid["rotate-policy"].(string); ok {
+		secret.RotatePolicy_ = policy
+	}
+
+	// This should be in a v2 schema but it's already also in v1.
+	if autoPrune, ok := valid["auto-prune"].(bool); ok {
+		secret.AutoPrune_ = autoPrune
 	}
 
 	secretACL, err := importSecretAccess(valid, importVersion)
@@ -456,7 +464,10 @@ func importSecretAccess(source map[string]interface{}, version int) (map[string]
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
-	sourceList := source["acl"].(map[interface{}]interface{})
+	sourceList, ok := source["acl"].(map[interface{}]interface{})
+	if !ok {
+		return nil, nil
+	}
 	return importSecretAccessMap(sourceList, importFunc)
 }
 
@@ -571,7 +582,10 @@ func importSecretConsumers(source map[string]interface{}, version int) ([]*secre
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
-	sourceList := source["consumers"].([]interface{})
+	sourceList, ok := source["consumers"].([]interface{})
+	if !ok {
+		return nil, nil
+	}
 	return importSecretConsumersList(sourceList, importFunc)
 }
 
@@ -759,7 +773,10 @@ func importSecretRevisions(source map[string]interface{}, version int) ([]*secre
 	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
-	sourceList := source["revisions"].([]interface{})
+	sourceList, ok := source["revisions"].([]interface{})
+	if !ok {
+		return nil, nil
+	}
 	return importSecretRevisionList(sourceList, importFunc)
 }
 
