@@ -92,3 +92,31 @@ func (s *SpaceSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 
 	c.Assert(spaces, jc.DeepEquals, initial.Spaces_)
 }
+
+func (s *SpaceSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
+	initial := spaces{
+		Version: 3,
+		Spaces_: []*space{
+			newSpace(SpaceArgs{
+				Id:         "1",
+				UUID:       "018ea48e-c6a6-7d51-ae76-9bfee4a6b6dd",
+				Name:       "special",
+				Public:     true,
+				ProviderID: "magic",
+			}),
+			newSpace(SpaceArgs{Name: "foo"}),
+		},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	spaces, err := importSpaces(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(spaces, jc.DeepEquals, initial.Spaces_)
+}

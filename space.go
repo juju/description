@@ -15,6 +15,7 @@ type spaces struct {
 
 type space struct {
 	Id_         string `yaml:"id"`
+	UUID_       string `yaml:"uuid"`
 	Name_       string `yaml:"name"`
 	Public_     bool   `yaml:"public"`
 	ProviderID_ string `yaml:"provider-id,omitempty"`
@@ -24,6 +25,7 @@ type space struct {
 // type that supports the Space interface.
 type SpaceArgs struct {
 	Id         string
+	UUID       string
 	Name       string
 	Public     bool
 	ProviderID string
@@ -32,6 +34,7 @@ type SpaceArgs struct {
 func newSpace(args SpaceArgs) *space {
 	return &space{
 		Id_:         args.Id,
+		UUID_:       args.UUID,
 		Name_:       args.Name,
 		Public_:     args.Public,
 		ProviderID_: args.ProviderID,
@@ -41,6 +44,11 @@ func newSpace(args SpaceArgs) *space {
 // Id implements Space.
 func (s *space) Id() string {
 	return s.Id_
+}
+
+// UUID implements Space.
+func (s *space) UUID() string {
+	return s.UUID_
 }
 
 // Name implements Space.
@@ -96,6 +104,7 @@ type spaceDeserializationFunc func(map[string]interface{}) (*space, error)
 var spaceDeserializationFuncs = map[int]spaceDeserializationFunc{
 	1: importSpaceV1,
 	2: importSpaceV2,
+	3: importSpaceV3,
 }
 
 func importSpaceV1(source map[string]interface{}) (*space, error) {
@@ -138,6 +147,28 @@ func importSpaceV2(source map[string]interface{}) (*space, error) {
 	}, nil
 }
 
+func importSpaceV3(source map[string]interface{}) (*space, error) {
+	fields, defaults := spaceV2Fields()
+	fields["uuid"] = schema.String()
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "space v3 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+
+	return &space{
+		Id_:         valid["id"].(string),
+		UUID_:       valid["uuid"].(string),
+		Name_:       valid["name"].(string),
+		Public_:     valid["public"].(bool),
+		ProviderID_: valid["provider-id"].(string),
+	}, nil
+}
+
 func spaceV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"name":        schema.String(),
@@ -148,5 +179,12 @@ func spaceV1Fields() (schema.Fields, schema.Defaults) {
 	defaults := schema.Defaults{
 		"provider-id": "",
 	}
+	return fields, defaults
+}
+
+func spaceV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := spaceV1Fields()
+	fields["id"] = schema.String()
+
 	return fields, defaults
 }
