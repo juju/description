@@ -77,8 +77,10 @@ func minimalRemoteApplicationMapWithoutStatus() map[interface{}]interface{} {
 					"subnets": []interface{}{map[interface{}]interface{}{
 						"cidr":                "2.3.4.0/24",
 						"subnet-id":           "",
+						"uuid":                "",
 						"is-public":           false,
 						"space-id":            "",
+						"space-uuid":          "",
 						"space-name":          "",
 						"vlan-tag":            0,
 						"provider-id":         "juju-subnet-1",
