@@ -37,7 +37,6 @@ type subnet struct {
 // SubnetArgs is an argument struct used to create a
 // new internal subnet type that supports the Subnet interface.
 type SubnetArgs struct {
-	// Deprecated in favor of UUID
 	ID                string
 	UUID              string
 	ProviderId        string

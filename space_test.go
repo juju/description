@@ -35,6 +35,7 @@ func (s *SpaceSerializationSuite) TestNewSpace(c *gc.C) {
 	}
 	space := newSpace(args)
 	c.Assert(space.Id(), gc.Equals, "")
+	c.Assert(space.UUID(), gc.Equals, "")
 	c.Assert(space.Name(), gc.Equals, args.Name)
 	c.Assert(space.Public(), gc.Equals, args.Public)
 	c.Assert(space.ProviderID(), gc.Equals, args.ProviderID)
@@ -98,7 +99,6 @@ func (s *SpaceSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
 		Version: 3,
 		Spaces_: []*space{
 			newSpace(SpaceArgs{
-				Id:         "1",
 				UUID:       "018ea48e-c6a6-7d51-ae76-9bfee4a6b6dd",
 				Name:       "special",
 				Public:     true,

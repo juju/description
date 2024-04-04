@@ -150,7 +150,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	c.Assert(initial.Relations_.Version, gc.Equals, len(relationFieldsFuncs))
 	c.Assert(initial.RemoteEntities_.Version, gc.Equals, len(remoteEntityFieldsFuncs))
 	c.Assert(initial.RemoteApplications_.Version, gc.Equals, len(remoteApplicationFieldsFuncs))
-	c.Assert(initial.Spaces_.Version, gc.Equals, len(spaceDeserializationFuncs))
+	c.Assert(initial.Spaces_.Version, gc.Equals, len(spaceFieldsFuncs))
 	c.Assert(initial.Volumes_.Version, gc.Equals, len(volumeDeserializationFuncs))
 	c.Assert(initial.FirewallRules_.Version, gc.Equals, len(firewallRuleFieldsFuncs))
 	c.Assert(initial.OfferConnections_.Version, gc.Equals, len(offerConnectionDeserializationFuncs))
@@ -594,11 +594,11 @@ func (s *ModelSerializationSuite) TestModelSerializationWithRelationNetworks(c *
 
 func (s *ModelSerializationSuite) TestModelValidationChecksSubnets(c *gc.C) {
 	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
-	model.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24", SpaceID: "3"})
+	model.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24", SpaceUUID: "deadbeef-1bad-500d-9000-4b1d0d06f00d"})
 	model.AddSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
 	err := model.Validate()
-	c.Assert(err, gc.ErrorMatches, `subnet "10.0.0.0/24" references non-existent space "3"`)
-	model.AddSpace(SpaceArgs{Id: "3"})
+	c.Assert(err, gc.ErrorMatches, `subnet "10.0.0.0/24" references non-existent space "deadbeef-1bad-500d-9000-4b1d0d06f00d"`)
+	model.AddSpace(SpaceArgs{UUID: "deadbeef-1bad-500d-9000-4b1d0d06f00d"})
 	err = model.Validate()
 	c.Assert(err, jc.ErrorIsNil)
 }
@@ -1206,9 +1206,9 @@ func (s *ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C)
 
 func (s *ModelSerializationSuite) TestSpaces(c *gc.C) {
 	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
-	space := initial.AddSpace(SpaceArgs{Id: "1", Name: "special"})
+	space := initial.AddSpace(SpaceArgs{UUID: "deadbeef-1bad-500d-9000-4b1d0d06f00d", Name: "special"})
 	c.Assert(space.Name(), gc.Equals, "special")
-	c.Assert(space.Id(), gc.Equals, "1")
+	c.Assert(space.UUID(), gc.Equals, "deadbeef-1bad-500d-9000-4b1d0d06f00d")
 
 	spaces := initial.Spaces()
 	c.Assert(spaces, gc.HasLen, 1)

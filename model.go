@@ -1234,18 +1234,18 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 
 // validateSubnets makes sure that any spaces referenced by subnets exist.
 func (m *model) validateSubnets() error {
-	spaceIDs := set.NewStrings()
+	spaceUUIDs := set.NewStrings()
 	for _, space := range m.Spaces_.Spaces_ {
-		spaceIDs.Add(space.Id())
+		spaceUUIDs.Add(space.UUID())
 	}
 	for _, subnet := range m.Subnets_.Subnets_ {
 		// space "0" is the new, in juju 2.7, default space,
 		// created with each new model.
-		if subnet.SpaceID() == "" || subnet.SpaceID() == "0" {
+		if subnet.SpaceUUID() == "" || subnet.SpaceUUID() == "0" {
 			continue
 		}
-		if !spaceIDs.Contains(subnet.SpaceID()) {
-			return errors.Errorf("subnet %q references non-existent space %q", subnet.CIDR(), subnet.SpaceID())
+		if !spaceUUIDs.Contains(subnet.SpaceUUID()) {
+			return errors.Errorf("subnet %q references non-existent space %q", subnet.CIDR(), subnet.SpaceUUID())
 		}
 	}
 
