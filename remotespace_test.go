@@ -40,8 +40,10 @@ func minimalRemoteSpaceMap() map[interface{}]interface{} {
 			"subnets": []interface{}{map[interface{}]interface{}{
 				"cidr":                "2.3.4.0/24",
 				"subnet-id":           "",
+				"uuid":                "",
 				"is-public":           false,
 				"space-id":            "",
+				"space-uuid":          "",
 				"space-name":          "a-space",
 				"vlan-tag":            64,
 				"provider-id":         "juju-subnet-1",

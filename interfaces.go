@@ -22,6 +22,7 @@ type AgentTools interface {
 // Space represents a network space, which is a named collection of subnets.
 type Space interface {
 	Id() string
+	UUID() string
 	Name() string
 	Public() bool
 	ProviderID() string
@@ -204,6 +205,7 @@ type StorageInstanceConstraints struct {
 // Subnet represents a network subnet.
 type Subnet interface {
 	ID() string
+	UUID() string
 	ProviderId() string
 	ProviderNetworkId() string
 	ProviderSpaceId() string
@@ -212,6 +214,7 @@ type Subnet interface {
 	AvailabilityZones() []string
 	IsPublic() bool
 	SpaceID() string
+	SpaceUUID() string
 	SpaceName() string
 	FanLocalUnderlay() string
 	FanOverlay() string

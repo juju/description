@@ -46,6 +46,8 @@ func testSubnet(version int) *subnet {
 		args.IsPublic = false
 	case 5:
 		args.SpaceName = ""
+	case 6:
+		args.ID = ""
 	}
 	return newSubnet(args)
 }
@@ -289,6 +291,19 @@ func (s *SubnetSerializationSuite) TestParsingV6Full(c *gc.C) {
 }
 
 func (s *SubnetSerializationSuite) TestParsingV6Minimal(c *gc.C) {
+	original := newSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
+	subnet := s.exportImport(c, original, 6)
+	c.Assert(subnet, jc.DeepEquals, original)
+}
+
+func (s *SubnetSerializationSuite) TestParsingV7Full(c *gc.C) {
+	original := testSubnet(5)
+	original.ID_ = "42"
+	subnet := s.exportImport(c, original, 6)
+	c.Assert(subnet, jc.DeepEquals, original)
+}
+
+func (s *SubnetSerializationSuite) TestParsingV7Minimal(c *gc.C) {
 	original := newSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
 	subnet := s.exportImport(c, original, 6)
 	c.Assert(subnet, jc.DeepEquals, original)

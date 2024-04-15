@@ -15,6 +15,7 @@ type subnets struct {
 
 type subnet struct {
 	ID_                string `yaml:"subnet-id"`
+	UUID_              string `yaml:"uuid"`
 	ProviderId_        string `yaml:"provider-id,omitempty"`
 	ProviderNetworkId_ string `yaml:"provider-network-id,omitempty"`
 	ProviderSpaceId_   string `yaml:"provider-space-id,omitempty"`
@@ -24,6 +25,7 @@ type subnet struct {
 	AvailabilityZones_ []string `yaml:"availability-zones"`
 	IsPublic_          bool     `yaml:"is-public"`
 	SpaceID_           string   `yaml:"space-id"`
+	SpaceUUID_         string   `yaml:"space-uuid"`
 
 	// SpaceName is now deprecated and not used past version 4.
 	SpaceName_ string `yaml:"space-name"`
@@ -36,6 +38,7 @@ type subnet struct {
 // new internal subnet type that supports the Subnet interface.
 type SubnetArgs struct {
 	ID                string
+	UUID              string
 	ProviderId        string
 	ProviderNetworkId string
 	ProviderSpaceId   string
@@ -48,6 +51,7 @@ type SubnetArgs struct {
 	SpaceName string
 
 	SpaceID          string
+	SpaceUUID        string
 	FanLocalUnderlay string
 	FanOverlay       string
 }
@@ -55,11 +59,13 @@ type SubnetArgs struct {
 func newSubnet(args SubnetArgs) *subnet {
 	return &subnet{
 		ID_:                args.ID,
+		UUID_:              args.UUID,
 		ProviderId_:        args.ProviderId,
 		ProviderNetworkId_: args.ProviderNetworkId,
 		ProviderSpaceId_:   args.ProviderSpaceId,
 		SpaceName_:         args.SpaceName,
 		SpaceID_:           args.SpaceID,
+		SpaceUUID_:         args.SpaceUUID,
 		CIDR_:              args.CIDR,
 		VLANTag_:           args.VLANTag,
 		AvailabilityZones_: args.AvailabilityZones,
@@ -72,6 +78,11 @@ func newSubnet(args SubnetArgs) *subnet {
 // ID implements Subnet.
 func (s *subnet) ID() string {
 	return s.ID_
+}
+
+// UUID implements Subnet.
+func (s *subnet) UUID() string {
+	return s.UUID_
 }
 
 // ProviderId implements Subnet.
@@ -97,6 +108,11 @@ func (s *subnet) SpaceName() string {
 // SpaceID implements Subnet.
 func (s *subnet) SpaceID() string {
 	return s.SpaceID_
+}
+
+// SpaceUUID implements Subnet.
+func (s *subnet) SpaceUUID() string {
+	return s.SpaceUUID_
 }
 
 // CIDR implements Subnet.
@@ -174,6 +190,7 @@ var subnetFieldsFuncs = map[int]fieldsFunc{
 	4: subnetV4Fields,
 	5: subnetV5Fields,
 	6: subnetV6Fields,
+	7: subnetV7Fields,
 }
 
 func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, error) {
@@ -205,6 +222,10 @@ func newSubnetFromValid(valid map[string]interface{}, version int) (*subnet, err
 	}
 	if version >= 6 {
 		result.ID_ = valid["subnet-id"].(string)
+	}
+	if version >= 7 {
+		result.UUID_ = valid["uuid"].(string)
+		result.SpaceUUID_ = valid["space-uuid"].(string)
 	}
 	return &result, nil
 }
@@ -263,5 +284,12 @@ func subnetV5Fields() (schema.Fields, schema.Defaults) {
 func subnetV6Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := subnetV5Fields()
 	fields["subnet-id"] = schema.String()
+	return fields, defaults
+}
+
+func subnetV7Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := subnetV6Fields()
+	fields["uuid"] = schema.String()
+	fields["space-uuid"] = schema.String()
 	return fields, defaults
 }
