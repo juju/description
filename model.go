@@ -33,6 +33,9 @@ type Model interface {
 	HasStatus
 	HasStatusHistory
 
+	// AgentVersion returns the version currently in use by the model.
+	AgentVersion() string
+
 	Type() string
 	Cloud() string
 	CloudRegion() string
@@ -144,6 +147,9 @@ type Model interface {
 // ModelArgs represent the bare minimum information that is needed
 // to represent a model.
 type ModelArgs struct {
+	// AgentVersion defines the current version in use by the model.
+	AgentVersion string
+
 	Type               string
 	Owner              names.UserTag
 	Config             map[string]interface{}
@@ -159,7 +165,8 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             10,
+		Version:             11,
+		AgentVersion_:       args.AgentVersion,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
 		Config_:             args.Config,
@@ -254,6 +261,9 @@ func parentId(machineId string) string {
 type model struct {
 	Version int `yaml:"version"`
 
+	// AgentVersion_ defines the agent version in use by the model.
+	AgentVersion_ string `yaml:"agent-version"`
+
 	Type_   string                 `yaml:"type"`
 	Owner_  string                 `yaml:"owner"`
 	Config_ map[string]interface{} `yaml:"config"`
@@ -312,6 +322,11 @@ type model struct {
 	MeterStatus_ meterStatus `yaml:"meter-status"`
 
 	PasswordHash_ string `yaml:"password-hash,omitempty"`
+}
+
+// AgentVersion returns the current agent version in use the by the model.
+func (m *model) AgentVersion() string {
+	return m.AgentVersion_
 }
 
 func (m *model) Type() string {
@@ -1092,6 +1107,15 @@ func (m *model) Validate() error {
 		return errors.NotValidf("missing status")
 	}
 
+	if m.AgentVersion_ != "" {
+		agentVersion, err := version.Parse(m.AgentVersion_)
+		if err != nil {
+			return errors.Annotate(err, "agent version not parsable")
+		} else if agentVersion == version.Zero {
+			return errors.NotValidf("agent version cannot be zero")
+		}
+	}
+
 	validationCtx := newValidationContext()
 	for _, machine := range m.Machines_.Machines_ {
 		if err := m.validateMachine(validationCtx, machine); err != nil {
@@ -1522,6 +1546,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	8:  newModelImporter(8, schema.FieldMap(modelV8Fields())),
 	9:  newModelImporter(9, schema.FieldMap(modelV9Fields())),
 	10: newModelImporter(10, schema.FieldMap(modelV10Fields())),
+	11: newModelImporter(11, schema.FieldMap(modelV11Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1635,11 +1660,17 @@ func modelV10Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV11Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV10Fields()
+	fields["agent-version"] = schema.String()
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
 	// We're always making a version 8 model, no matter what we got on
 	// the way in.
 	result := &model{
-		Version:        10,
+		Version:        11,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1903,6 +1934,16 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 
 		result.SecretBackendID_ = valid["secret-backend-id"].(string)
 	}
+
+	// When we are importing v11 onwards agent version will be a first class
+	// citizen on the model. Before this we can attempt to get the value from
+	// config.
+	if importVersion >= 11 {
+		result.AgentVersion_ = valid["agent-version"].(string)
+	} else if result.Config_ != nil && result.Config_["agent-version"] != nil {
+		result.AgentVersion_ = result.Config_["agent-version"].(string)
+	}
+
 	return result, nil
 }
 

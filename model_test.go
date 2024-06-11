@@ -171,8 +171,9 @@ func (s *ModelSerializationSuite) TestParsingYAMLWithMissingModificationStatus(c
 
 func (s *ModelSerializationSuite) testParsingYAMLWithMachine(c *gc.C, machineFn func(Model)) {
 	args := ModelArgs{
-		Type:  IAAS,
-		Owner: names.NewUserTag("magic"),
+		AgentVersion: "3.1.1",
+		Type:         IAAS,
+		Owner:        names.NewUserTag("magic"),
 		Config: map[string]interface{}{
 			"name": "awesome",
 			"uuid": "some-uuid",
@@ -202,6 +203,7 @@ func (s *ModelSerializationSuite) testParsingYAMLWithMachine(c *gc.C, machineFn 
 	addMinimalApplication(initial)
 	model := s.exportImport(c, initial)
 
+	c.Check(model.AgentVersion(), gc.Equals, "3.1.1")
 	c.Assert(model.Type(), gc.Equals, IAAS)
 	c.Assert(model.Owner(), gc.Equals, args.Owner)
 	c.Assert(model.Tag().Id(), gc.Equals, "some-uuid")
@@ -1165,7 +1167,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 10)
+	c.Assert(version, gc.Equals, 11)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
@@ -1632,6 +1634,23 @@ func (s *ModelSerializationSuite) TestRemoteSecretsValidate(c *gc.C) {
 
 	err := initial.Validate()
 	c.Assert(err, gc.ErrorMatches, `remote secret\[0\] consumer \(foo\) not valid`)
+}
+
+func (s *ModelSerializationSuite) TestAgentVersionPre11Import(c *gc.C) {
+	initial := s.newModel(ModelArgs{
+		Config: map[string]any{
+			"agent-version": "3.3.3",
+		},
+	})
+	data := asStringMap(c, initial)
+	data["version"] = 10
+	bytes, err := yaml.Marshal(data)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Check(err, jc.ErrorIsNil)
+
+	c.Check(model.AgentVersion(), gc.Equals, "3.3.3")
 }
 
 // modelV1example was taken from a Juju 2.1 model dump, which is version
