@@ -37,20 +37,21 @@ func testSecretArgs() SecretArgs {
 	updated := created.Add(time.Hour)
 	nextRotate := created.Add(2 * time.Hour)
 	return SecretArgs{
-		ID:              id,
-		Version:         1,
-		Description:     "a secret",
-		Label:           "secret label",
-		RotatePolicy:    "hourly",
-		AutoPrune:       true,
-		Owner:           names.NewApplicationTag("postgresql"),
-		Created:         created,
-		Updated:         updated,
-		NextRotateTime:  &nextRotate,
-		Revisions:       testSecretRevisionsArgs(),
-		ACL:             testSecretAccessArgs(),
-		Consumers:       testSecretConsumerArgs(),
-		RemoteConsumers: testSecretRemoteConsumerArgs(),
+		ID:                     id,
+		Version:                1,
+		Description:            "a secret",
+		Label:                  "secret label",
+		RotatePolicy:           "hourly",
+		AutoPrune:              true,
+		Owner:                  names.NewApplicationTag("postgresql"),
+		Created:                created,
+		Updated:                updated,
+		NextRotateTime:         &nextRotate,
+		LatestRevisionChecksum: "checksum",
+		Revisions:              testSecretRevisionsArgs(),
+		ACL:                    testSecretAccessArgs(),
+		Consumers:              testSecretConsumerArgs(),
+		RemoteConsumers:        testSecretRemoteConsumerArgs(),
 	}
 }
 
@@ -126,6 +127,7 @@ func (s *SecretsSerializationSuite) TestNewSecret(c *gc.C) {
 	c.Check(secret.Updated(), jc.DeepEquals, args.Updated)
 	c.Check(secret.NextRotateTime(), jc.DeepEquals, args.NextRotateTime)
 	c.Check(secret.LatestRevision(), gc.Equals, 2)
+	c.Check(secret.LatestRevisionChecksum(), gc.Equals, "checksum")
 	c.Check(secret.LatestExpireTime(), jc.DeepEquals, args.Revisions[1].ExpireTime)
 	owner, err := secret.Owner()
 	c.Check(err, jc.ErrorIsNil)
@@ -248,7 +250,7 @@ func (s *SecretsSerializationSuite) exportImport(c *gc.C, secret_ *secret, versi
 func (s *SecretsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	args := testSecretArgs()
 	original := newSecret(args)
-	secret := s.exportImport(c, original, 1)
+	secret := s.exportImport(c, original, 2)
 	c.Assert(secret, jc.DeepEquals, original)
 }
 
