@@ -106,6 +106,11 @@ type secretRemoteConsumerDeserializationFunc func(map[interface{}]interface{}) (
 
 var secretRemoteConsumerDeserializationFuncs = map[int]secretRemoteConsumerDeserializationFunc{
 	1: importSecretRemoteConsumerV1,
+	2: importSecretRemoteConsumerV2,
+}
+
+func importSecretRemoteConsumerV2(source map[interface{}]interface{}) (*secretRemoteConsumer, error) {
+	return importSecretRemoteConsumerV1(source)
 }
 
 func importSecretRemoteConsumerV1(source map[interface{}]interface{}) (*secretRemoteConsumer, error) {
