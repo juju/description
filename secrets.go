@@ -33,6 +33,7 @@ type Secret interface {
 
 	Revisions() []SecretRevision
 	LatestRevision() int
+	LatestRevisionChecksum() string
 	LatestExpireTime() *time.Time
 
 	Validate() error
@@ -60,6 +61,8 @@ type secret struct {
 	RemoteConsumers_ []*secretRemoteConsumer  `yaml:"remote-consumers,omitempty"`
 
 	NextRotateTime_ *time.Time `yaml:"next-rotate-time,omitempty"`
+
+	LatestRevisionChecksum_ string `yaml:"latest-revision-checksum"`
 
 	// These are updated when revisions are set
 	// and are not exported.
@@ -111,6 +114,11 @@ func (i *secret) LatestExpireTime() *time.Time {
 // LatestRevision implements Secret.
 func (i *secret) LatestRevision() int {
 	return i.LatestRevision_
+}
+
+// LatestRevisionChecksum implements Secret.
+func (i *secret) LatestRevisionChecksum() string {
+	return i.LatestRevisionChecksum_
 }
 
 // Id implements Secret.
@@ -233,21 +241,23 @@ type SecretArgs struct {
 	Consumers       []SecretConsumerArgs
 	RemoteConsumers []SecretRemoteConsumerArgs
 
-	NextRotateTime *time.Time
-	AutoPrune      bool
+	NextRotateTime         *time.Time
+	LatestRevisionChecksum string
+	AutoPrune              bool
 }
 
 func newSecret(args SecretArgs) *secret {
 	secret := &secret{
-		ID_:           args.ID,
-		Version_:      args.Version,
-		Description_:  args.Description,
-		Label_:        args.Label,
-		RotatePolicy_: args.RotatePolicy,
-		AutoPrune_:    args.AutoPrune,
-		Created_:      args.Created.UTC(),
-		Updated_:      args.Updated.UTC(),
-		ACL_:          newSecretAccess(args.ACL),
+		ID_:                     args.ID,
+		Version_:                args.Version,
+		Description_:            args.Description,
+		Label_:                  args.Label,
+		RotatePolicy_:           args.RotatePolicy,
+		AutoPrune_:              args.AutoPrune,
+		LatestRevisionChecksum_: args.LatestRevisionChecksum,
+		Created_:                args.Created.UTC(),
+		Updated_:                args.Updated.UTC(),
+		ACL_:                    newSecretAccess(args.ACL),
 	}
 	if args.NextRotateTime != nil {
 		next := args.NextRotateTime.UTC()
@@ -328,6 +338,7 @@ func importSecretList(sourceList []interface{}, version int) ([]*secret, error) 
 
 var secretFieldsFuncs = map[int]fieldsFunc{
 	1: secretV1Fields,
+	2: secretV2Fields,
 }
 
 func secretV1Fields() (schema.Fields, schema.Defaults) {
@@ -359,6 +370,13 @@ func secretV1Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func secretV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := secretV1Fields()
+	fields["latest-revision-checksum"] = schema.String()
+	defaults["latest-revision-checksum"] = schema.Omit
+	return fields, defaults
+}
+
 func importSecret(source map[string]interface{}, importVersion int, fieldFunc func() (schema.Fields, schema.Defaults)) (*secret, error) {
 	fields, defaults := fieldFunc()
 	checker := schema.FieldMap(fields, defaults)
@@ -381,6 +399,12 @@ func importSecret(source map[string]interface{}, importVersion int, fieldFunc fu
 
 	if policy, ok := valid["rotate-policy"].(string); ok {
 		secret.RotatePolicy_ = policy
+	}
+
+	if importVersion >= 2 {
+		if checksum, ok := valid["latest-revision-checksum"].(string); ok {
+			secret.LatestRevisionChecksum_ = checksum
+		}
 	}
 
 	// This should be in a v2 schema but it's already also in v1.
@@ -491,6 +515,11 @@ type secretAccessDeserializationFunc func(map[interface{}]interface{}) (*secretA
 
 var secretAccessDeserializationFuncs = map[int]secretAccessDeserializationFunc{
 	1: importSecretAccessV1,
+	2: importSecretAccessV2,
+}
+
+func importSecretAccessV2(source map[interface{}]interface{}) (*secretAccess, error) {
+	return importSecretAccessV1(source)
 }
 
 func importSecretAccessV1(source map[interface{}]interface{}) (*secretAccess, error) {
@@ -609,6 +638,11 @@ type secretConsumerDeserializationFunc func(map[interface{}]interface{}) (*secre
 
 var secretConsumerDeserializationFuncs = map[int]secretConsumerDeserializationFunc{
 	1: importSecretConsumerV1,
+	2: importSecretConsumerV2,
+}
+
+func importSecretConsumerV2(source map[interface{}]interface{}) (*secretConsumer, error) {
+	return importSecretConsumerV1(source)
 }
 
 func importSecretConsumerV1(source map[interface{}]interface{}) (*secretConsumer, error) {
@@ -800,6 +834,11 @@ type secretRevisionDeserializationFunc func(map[interface{}]interface{}) (*secre
 
 var secretRevisionRangeDeserializationFuncs = map[int]secretRevisionDeserializationFunc{
 	1: importSecretRevisionV1,
+	2: importSecretRevisionV2,
+}
+
+func importSecretRevisionV2(source map[interface{}]interface{}) (*secretRevision, error) {
+	return importSecretRevisionV1(source)
 }
 
 func importSecretRevisionV1(source map[interface{}]interface{}) (*secretRevision, error) {

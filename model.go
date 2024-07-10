@@ -957,7 +957,7 @@ func (m *model) AddSecret(args SecretArgs) Secret {
 
 func (m *model) setSecrets(secretList []*secret) {
 	m.Secrets_ = secrets{
-		Version:  1,
+		Version:  2,
 		Secrets_: secretList,
 	}
 }
