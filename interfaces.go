@@ -235,3 +235,86 @@ type CharmOrigin interface {
 	Channel() string
 	Platform() string
 }
+
+// CharmMetadata represents the metadata of a charm.
+type CharmMetadata interface {
+	Name() string
+	Summary() string
+	Description() string
+	Subordinate() bool
+	MinJujuVersion() string
+	RunAs() string
+	Assumes() string
+	Relations() map[string]CharmMetadataRelation
+	ExtraBindings() map[string]string
+	Categories() []string
+	Tags() []string
+	Storage() map[string]CharmMetadataStorage
+	Devices() map[string]CharmMetadataDevice
+	Payloads() map[string]CharmMetadataPayload
+	Resources() map[string]CharmMetadataResource
+	Terms() []string
+	Containers() map[string]CharmMetadataContainer
+}
+
+// CharmMetadataRelation represents a relation in the metadata of a charm.
+type CharmMetadataRelation interface {
+	Name() string
+	Role() string
+	Interface() string
+	Optional() bool
+	Limit() int
+	Scope() string
+}
+
+// CharmMetadataStorage represents a storage in the metadata of a charm.
+type CharmMetadataStorage interface {
+	Name() string
+	Description() string
+	Type() string
+	Shared() bool
+	Readonly() bool
+	CountMin() int
+	CountMax() int
+	MinimumSize() int
+	Location() string
+	Properties() []string
+}
+
+// CharmMetadataDevice represents a device in the metadata of a charm.
+type CharmMetadataDevice interface {
+	Name() string
+	Description() string
+	Type() string
+	CountMin() int
+	CountMax() int
+}
+
+// CharmMetadataPayload represents a payload in the metadata of a charm.
+type CharmMetadataPayload interface {
+	Name() string
+	Type() string
+}
+
+// CharmMetadataResource represents a resource in the metadata of a charm.
+type CharmMetadataResource interface {
+	Name() string
+	Type() string
+	Path() string
+	Description() string
+}
+
+// CharmMetadataContainer represents a container in the metadata of a charm.
+type CharmMetadataContainer interface {
+	Resource() string
+	Mounts() []CharmMetadataContainerMount
+	Uid() *int
+	Gid() *int
+}
+
+// CharmMetadataContainerMount represents a mount in the metadata of a charm
+// container.
+type CharmMetadataContainerMount interface {
+	Storage() string
+	Location() string
+}

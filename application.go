@@ -61,6 +61,9 @@ type Application interface {
 	CharmOrigin() CharmOrigin
 	SetCharmOrigin(CharmOriginArgs)
 
+	CharmMetadata() CharmMetadata
+	SetCharmMetadata(CharmMetadataArgs)
+
 	Tools() AgentTools
 	SetTools(AgentToolsArgs)
 
@@ -147,6 +150,8 @@ type application struct {
 
 	// CharmOrigin fields
 	CharmOrigin_ *charmOrigin `yaml:"charm-origin,omitempty"`
+	// CharmMetadata fields
+	CharmMetadata_ *charmMetadata `yaml:"charm-metadata,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -517,6 +522,20 @@ func (a *application) SetCharmOrigin(args CharmOriginArgs) {
 	a.CharmOrigin_ = newCharmOrigin(args)
 }
 
+// CharmMetadata implements Application.
+func (a *application) CharmMetadata() CharmMetadata {
+	// To avoid a typed nil, check before returning.
+	if a.CharmMetadata_ == nil {
+		return nil
+	}
+	return a.CharmMetadata_
+}
+
+// SetCharmMetadata implements Application.
+func (a *application) SetCharmMetadata(args CharmMetadataArgs) {
+	a.CharmMetadata_ = newCharmMetadata(args)
+}
+
 // Offers implements Application.
 func (a *application) Offers() []ApplicationOffer {
 	if a.Offers_ == nil || len(a.Offers_.Offers) == 0 {
@@ -639,6 +658,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	10: importApplicationV10,
 	11: importApplicationV11,
 	12: importApplicationV12,
+	13: importApplicationV13,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -769,6 +789,13 @@ func applicationV12Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV13Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV12Fields()
+	fields["charm-metadata"] = schema.StringMap(schema.Any())
+	defaults["charm-metadata"] = schema.Omit
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -827,6 +854,11 @@ func importApplicationV11(source map[string]interface{}) (*application, error) {
 func importApplicationV12(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV12Fields()
 	return importApplication(fields, defaults, 12, source)
+}
+
+func importApplicationV13(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV13Fields()
+	return importApplication(fields, defaults, 13, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -936,6 +968,16 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 			result.OpenedPortRanges_ = machPortRanges
 		}
 
+	}
+
+	if importVersion >= 13 {
+		if charmMetadataMap, ok := valid["charm-metadata"]; ok {
+			charmMetadata, err := importCharmMetadata(charmMetadataMap.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.CharmMetadata_ = charmMetadata
+		}
 	}
 
 	result.importAnnotations(valid)
