@@ -61,6 +61,9 @@ type Application interface {
 	CharmOrigin() CharmOrigin
 	SetCharmOrigin(CharmOriginArgs)
 
+	CharmMetadata() CharmMetadata
+	SetCharmMetadata(CharmMetadataArgs)
+
 	Tools() AgentTools
 	SetTools(AgentToolsArgs)
 
@@ -147,6 +150,8 @@ type application struct {
 
 	// CharmOrigin fields
 	CharmOrigin_ *charmOrigin `yaml:"charm-origin,omitempty"`
+	// CharmMetadata fields
+	CharmMetadata_ *charmMetadata `yaml:"charm-metadata,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -515,6 +520,20 @@ func (a *application) CharmOrigin() CharmOrigin {
 // SetCharmOrigin implements Application.
 func (a *application) SetCharmOrigin(args CharmOriginArgs) {
 	a.CharmOrigin_ = newCharmOrigin(args)
+}
+
+// CharmMetadata implements Application.
+func (a *application) CharmMetadata() CharmMetadata {
+	// To avoid a typed nil, check before returning.
+	if a.CharmMetadata_ == nil {
+		return nil
+	}
+	return a.CharmMetadata_
+}
+
+// SetCharmMetadata implements Application.
+func (a *application) SetCharmMetadata(args CharmMetadataArgs) {
+	a.CharmMetadata_ = newCharmMetadata(args)
 }
 
 // Offers implements Application.
