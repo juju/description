@@ -64,7 +64,8 @@ func minimalApplicationMap() map[interface{}]interface{} {
 				minimalUnitMap(),
 			},
 		},
-		"charm-origin": minimalCharmOriginMap(),
+		"charm-origin":   minimalCharmOriginMap(),
+		"charm-metadata": minimalCharmMetadataMap(),
 	}
 }
 
@@ -104,6 +105,7 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	result["tools"] = minimalAgentToolsMap()
 	result["operator-status"] = minimalStatusMap()
 	result["charm-origin"] = minimalCharmOriginMap()
+	result["charm-metadata"] = minimalCharmMetadataMap()
 	return result
 }
 
@@ -124,6 +126,7 @@ func minimalApplication(args ...ApplicationArgs) *application {
 		u.SetTools(minimalAgentToolsArgs())
 	}
 	a.SetCharmOrigin(minimalCharmOriginArgs())
+	a.SetCharmMetadata(minimalCharmMetadataArgs())
 	return a
 }
 
@@ -362,7 +365,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 12)
+	return s.exportImportVersion(c, application_, 13)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -383,6 +386,7 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
 	appLatest.CharmOrigin_ = nil
+	appLatest.CharmMetadata_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	appLatest.Series_ = ""
@@ -406,6 +410,7 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
 	appLatest.CharmOrigin_ = nil
+	appLatest.CharmMetadata_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	appLatest.Series_ = ""
@@ -425,6 +430,7 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.OperatorStatus_ = nil
 	appLatest.Offers_ = nil
 	appLatest.CharmOrigin_ = nil
+	appLatest.CharmMetadata_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	appLatest.Series_ = ""
@@ -440,6 +446,7 @@ func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
 	appLatest := appV5
 	appLatest.HasResources_ = false
 	appLatest.CharmOrigin_ = nil
+	appLatest.CharmMetadata_ = nil
 
 	appResult := s.exportImportVersion(c, appV5, 5)
 	appLatest.Series_ = ""
@@ -454,6 +461,7 @@ func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
 	// Make an app with fields not in v6 removed.
 	appLatest := appV6
 	appLatest.CharmOrigin_ = nil
+	appLatest.CharmMetadata_ = nil
 
 	appResult := s.exportImportVersion(c, appV6, 6)
 	appLatest.Series_ = ""

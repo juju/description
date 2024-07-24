@@ -13,7 +13,7 @@ import (
 )
 
 // CharmOriginArgs is an argument struct used to add information about the
-// tools the agent is using to a Machine.
+// charm origin.
 type CharmOriginArgs struct {
 	Source   string
 	ID       string
@@ -35,9 +35,7 @@ func newCharmOrigin(args CharmOriginArgs) *charmOrigin {
 	}
 }
 
-// Keeping the charmOrigin with the machine code, because we hope
-// that one day we will succeed in merging the unit agents with the
-// machine agents.
+// charmOrigin represents the origin of a charm.
 type charmOrigin struct {
 	Version_  int    `yaml:"version"`
 	Source_   string `yaml:"source"`
