@@ -697,14 +697,6 @@ func importCharmMetadataContainer(source interface{}, importVersion int) (charmM
 	}, nil
 }
 
-func int64ToIntPtr(i *int64) *int {
-	if i == nil {
-		return nil
-	}
-	p := int(*i)
-	return &p
-}
-
 func importCharmMetadataContainerMount(source interface{}, importVersion int) (charmMetadataContainerMount, error) {
 	fields := schema.Fields{
 		"storage":  schema.String(),
@@ -734,26 +726,32 @@ type charmMetadataRelation struct {
 	Scope_     string `yaml:"scope"`
 }
 
+// Name returns the name of the relation.
 func (r charmMetadataRelation) Name() string {
 	return r.Name_
 }
 
+// Role returns the role of the relation.
 func (r charmMetadataRelation) Role() string {
 	return r.Role_
 }
 
+// Interface returns the interface of the relation.
 func (r charmMetadataRelation) Interface() string {
 	return r.Interface_
 }
 
+// Optional returns whether the relation is optional.
 func (r charmMetadataRelation) Optional() bool {
 	return r.Optional_
 }
 
+// Limit returns the limit of the relation.
 func (r charmMetadataRelation) Limit() int {
 	return r.Limit_
 }
 
+// Scope returns the scope of the relation.
 func (r charmMetadataRelation) Scope() string {
 	return r.Scope_
 }
@@ -771,42 +769,52 @@ type charmMetadataStorage struct {
 	Properties_  []string `yaml:"properties"`
 }
 
+// Name returns the name of the storage.
 func (s charmMetadataStorage) Name() string {
 	return s.Name_
 }
 
+// Description returns the description of the storage.
 func (s charmMetadataStorage) Description() string {
 	return s.Description_
 }
 
+// Type returns the type of the storage.
 func (s charmMetadataStorage) Type() string {
 	return s.Type_
 }
 
+// Shared returns whether the storage is shared.
 func (s charmMetadataStorage) Shared() bool {
 	return s.Shared_
 }
 
+// Readonly returns whether the storage is readonly.
 func (s charmMetadataStorage) Readonly() bool {
 	return s.Readonly_
 }
 
+// CountMin returns the minimum count of the storage.
 func (s charmMetadataStorage) CountMin() int {
 	return s.CountMin_
 }
 
+// CountMax returns the maximum count of the storage.
 func (s charmMetadataStorage) CountMax() int {
 	return s.CountMax_
 }
 
+// MinimumSize returns the minimum size of the storage.
 func (s charmMetadataStorage) MinimumSize() int {
 	return s.MinimumSize_
 }
 
+// Location returns the location of the storage.
 func (s charmMetadataStorage) Location() string {
 	return s.Location_
 }
 
+// Properties returns the properties of the storage.
 func (s charmMetadataStorage) Properties() []string {
 	return s.Properties_
 }
@@ -819,22 +827,27 @@ type charmMetadataDevice struct {
 	CountMax_    int    `yaml:"count-max"`
 }
 
+// Name returns the name of the device.
 func (d charmMetadataDevice) Name() string {
 	return d.Name_
 }
 
+// Description returns the description of the device.
 func (d charmMetadataDevice) Description() string {
 	return d.Description_
 }
 
+// Type returns the type of the device.
 func (d charmMetadataDevice) Type() string {
 	return d.Type_
 }
 
+// CountMin returns the minimum count of the device.
 func (d charmMetadataDevice) CountMin() int {
 	return d.CountMin_
 }
 
+// CountMax returns the maximum count of the device.
 func (d charmMetadataDevice) CountMax() int {
 	return d.CountMax_
 }
@@ -844,10 +857,12 @@ type charmMetadataPayload struct {
 	Type_ string `yaml:"type"`
 }
 
+// Name returns the name of the payload.
 func (p charmMetadataPayload) Name() string {
 	return p.Name_
 }
 
+// Type returns the type of the payload.
 func (p charmMetadataPayload) Type() string {
 	return p.Type_
 }
@@ -859,18 +874,22 @@ type charmMetadataResource struct {
 	Description_ string `yaml:"description"`
 }
 
+// Name returns the name of the resource.
 func (r charmMetadataResource) Name() string {
 	return r.Name_
 }
 
+// Type returns the type of the resource.
 func (r charmMetadataResource) Type() string {
 	return r.Type_
 }
 
+// Path returns the path of the resource.
 func (r charmMetadataResource) Path() string {
 	return r.Path_
 }
 
+// Description returns the description of the resource.
 func (r charmMetadataResource) Description() string {
 	return r.Description_
 }
@@ -882,10 +901,12 @@ type charmMetadataContainer struct {
 	Gid_      *int                          `yaml:"gid,omitempty"`
 }
 
+// Resource returns the resource of the container.
 func (c charmMetadataContainer) Resource() string {
 	return c.Resource_
 }
 
+// Mounts returns the mounts of the container.
 func (c charmMetadataContainer) Mounts() []CharmMetadataContainerMount {
 	mounts := make([]CharmMetadataContainerMount, len(c.Mounts_))
 	for i, m := range c.Mounts_ {
@@ -894,10 +915,12 @@ func (c charmMetadataContainer) Mounts() []CharmMetadataContainerMount {
 	return mounts
 }
 
+// Uid returns the uid of the container.
 func (c charmMetadataContainer) Uid() *int {
 	return c.Uid_
 }
 
+// Gid returns the gid of the container.
 func (c charmMetadataContainer) Gid() *int {
 	return c.Gid_
 }
@@ -907,10 +930,20 @@ type charmMetadataContainerMount struct {
 	Location_ string `yaml:"location"`
 }
 
+// Storage returns the storage of the mount.
 func (m charmMetadataContainerMount) Storage() string {
 	return m.Storage_
 }
 
+// Location returns the location of the mount.
 func (m charmMetadataContainerMount) Location() string {
 	return m.Location_
+}
+
+func int64ToIntPtr(i *int64) *int {
+	if i == nil {
+		return nil
+	}
+	p := int(*i)
+	return &p
 }

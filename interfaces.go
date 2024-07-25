@@ -318,3 +318,15 @@ type CharmMetadataContainerMount interface {
 	Storage() string
 	Location() string
 }
+
+// CharmManifest represents the manifest of a charm.
+type CharmManifest interface {
+	Bases() []CharmManifestBase
+}
+
+// CharmManifestBase represents the metadata of a charm base.
+type CharmManifestBase interface {
+	Name() string
+	Channel() string
+	Architectures() []string
+}
