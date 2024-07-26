@@ -18,7 +18,9 @@ type CharmMetadataArgs struct {
 	MinJujuVersion string
 	RunAs          string
 	Assumes        string
-	Relations      map[string]CharmMetadataRelation
+	Provides       map[string]CharmMetadataRelation
+	Peers          map[string]CharmMetadataRelation
+	Requires       map[string]CharmMetadataRelation
 	ExtraBindings  map[string]string
 	Categories     []string
 	Tags           []string
@@ -31,11 +33,41 @@ type CharmMetadataArgs struct {
 }
 
 func newCharmMetadata(args CharmMetadataArgs) *charmMetadata {
-	var relations map[string]charmMetadataRelation
-	if args.Relations != nil {
-		relations = make(map[string]charmMetadataRelation, len(args.Relations))
-		for k, v := range args.Relations {
-			relations[k] = charmMetadataRelation{
+	var provides map[string]charmMetadataRelation
+	if args.Provides != nil {
+		provides = make(map[string]charmMetadataRelation, len(args.Provides))
+		for k, v := range args.Provides {
+			provides[k] = charmMetadataRelation{
+				Name_:      v.Name(),
+				Role_:      v.Role(),
+				Interface_: v.Interface(),
+				Optional_:  v.Optional(),
+				Limit_:     v.Limit(),
+				Scope_:     v.Scope(),
+			}
+		}
+	}
+
+	var peers map[string]charmMetadataRelation
+	if args.Peers != nil {
+		peers = make(map[string]charmMetadataRelation, len(args.Peers))
+		for k, v := range args.Peers {
+			peers[k] = charmMetadataRelation{
+				Name_:      v.Name(),
+				Role_:      v.Role(),
+				Interface_: v.Interface(),
+				Optional_:  v.Optional(),
+				Limit_:     v.Limit(),
+				Scope_:     v.Scope(),
+			}
+		}
+	}
+
+	var requires map[string]charmMetadataRelation
+	if args.Requires != nil {
+		requires = make(map[string]charmMetadataRelation, len(args.Requires))
+		for k, v := range args.Requires {
+			requires[k] = charmMetadataRelation{
 				Name_:      v.Name(),
 				Role_:      v.Role(),
 				Interface_: v.Interface(),
@@ -132,7 +164,9 @@ func newCharmMetadata(args CharmMetadataArgs) *charmMetadata {
 		MinJujuVersion_: args.MinJujuVersion,
 		RunAs_:          args.RunAs,
 		Assumes_:        args.Assumes,
-		Relations_:      relations,
+		Provides_:       provides,
+		Requires_:       requires,
+		Peers_:          peers,
 		ExtraBindings_:  args.ExtraBindings,
 		Categories_:     args.Categories,
 		Tags_:           args.Tags,
@@ -155,7 +189,9 @@ type charmMetadata struct {
 	MinJujuVersion_ string                            `yaml:"min-juju-version,omitempty"`
 	RunAs_          string                            `yaml:"run-as,omitempty"`
 	Assumes_        string                            `yaml:"assumes,omitempty"`
-	Relations_      map[string]charmMetadataRelation  `yaml:"relations,omitempty"`
+	Provides_       map[string]charmMetadataRelation  `yaml:"provides,omitempty"`
+	Requires_       map[string]charmMetadataRelation  `yaml:"requires,omitempty"`
+	Peers_          map[string]charmMetadataRelation  `yaml:"peers,omitempty"`
 	ExtraBindings_  map[string]string                 `yaml:"extra-bindings,omitempty"`
 	Categories_     []string                          `yaml:"categories,omitempty"`
 	Tags_           []string                          `yaml:"tags,omitempty"`
@@ -202,10 +238,28 @@ func (m *charmMetadata) Assumes() string {
 	return m.Assumes_
 }
 
-// Relations returns the relations of the charm.
-func (m *charmMetadata) Relations() map[string]CharmMetadataRelation {
-	relations := make(map[string]CharmMetadataRelation, len(m.Relations_))
-	for k, v := range m.Relations_ {
+// Provides returns the relations of the charm.
+func (m *charmMetadata) Provides() map[string]CharmMetadataRelation {
+	relations := make(map[string]CharmMetadataRelation, len(m.Provides_))
+	for k, v := range m.Provides_ {
+		relations[k] = v
+	}
+	return relations
+}
+
+// Requires returns the relations of the charm.
+func (m *charmMetadata) Requires() map[string]CharmMetadataRelation {
+	relations := make(map[string]CharmMetadataRelation, len(m.Requires_))
+	for k, v := range m.Requires_ {
+		relations[k] = v
+	}
+	return relations
+}
+
+// Peers returns the relations of the charm.
+func (m *charmMetadata) Peers() map[string]CharmMetadataRelation {
+	relations := make(map[string]CharmMetadataRelation, len(m.Peers_))
+	for k, v := range m.Peers_ {
 		relations[k] = v
 	}
 	return relations
@@ -309,7 +363,9 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 		"min-juju-version": schema.String(),
 		"run-as":           schema.String(),
 		"assumes":          schema.String(),
-		"relations":        schema.StringMap(schema.Any()),
+		"provides":         schema.StringMap(schema.Any()),
+		"requires":         schema.StringMap(schema.Any()),
+		"peers":            schema.StringMap(schema.Any()),
 		"extra-bindings":   schema.StringMap(schema.String()),
 		"categories":       schema.List(schema.String()),
 		"tags":             schema.List(schema.String()),
@@ -327,7 +383,9 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 		"min-juju-version": schema.Omit,
 		"run-as":           schema.Omit,
 		"assumes":          schema.Omit,
-		"relations":        schema.Omit,
+		"provides":         schema.Omit,
+		"requires":         schema.Omit,
+		"peers":            schema.Omit,
 		"extra-bindings":   schema.Omit,
 		"categories":       schema.Omit,
 		"tags":             schema.Omit,
@@ -346,13 +404,35 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 	}
 	valid := coerced.(map[string]interface{})
 
-	var relations map[string]charmMetadataRelation
-	if valid["relations"] != nil {
-		relations = make(map[string]charmMetadataRelation)
-		for k, v := range valid["relations"].(map[string]interface{}) {
+	var provides map[string]charmMetadataRelation
+	if valid["provides"] != nil {
+		provides = make(map[string]charmMetadataRelation)
+		for k, v := range valid["provides"].(map[string]interface{}) {
 			var err error
-			if relations[k], err = importCharmMetadataRelation(v, importVersion); err != nil {
-				return nil, errors.Annotatef(err, "relation %q", k)
+			if provides[k], err = importCharmMetadataRelation(v, importVersion); err != nil {
+				return nil, errors.Annotatef(err, "provides relation %q", k)
+			}
+		}
+	}
+
+	var requires map[string]charmMetadataRelation
+	if valid["requires"] != nil {
+		requires = make(map[string]charmMetadataRelation)
+		for k, v := range valid["requires"].(map[string]interface{}) {
+			var err error
+			if requires[k], err = importCharmMetadataRelation(v, importVersion); err != nil {
+				return nil, errors.Annotatef(err, "requires relation %q", k)
+			}
+		}
+	}
+
+	var peers map[string]charmMetadataRelation
+	if valid["peers"] != nil {
+		peers = make(map[string]charmMetadataRelation)
+		for k, v := range valid["peers"].(map[string]interface{}) {
+			var err error
+			if peers[k], err = importCharmMetadataRelation(v, importVersion); err != nil {
+				return nil, errors.Annotatef(err, "peers relation %q", k)
 			}
 		}
 	}
@@ -481,7 +561,9 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 		MinJujuVersion_: minJujuVersion,
 		RunAs_:          runAs,
 		Assumes_:        assumes,
-		Relations_:      relations,
+		Provides_:       provides,
+		Requires_:       requires,
+		Peers_:          peers,
 		ExtraBindings_:  extraBindings,
 		Categories_:     categories,
 		Tags_:           tags,

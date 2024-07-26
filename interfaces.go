@@ -248,7 +248,9 @@ type CharmMetadata interface {
 	MinJujuVersion() string
 	RunAs() string
 	Assumes() string
-	Relations() map[string]CharmMetadataRelation
+	Provides() map[string]CharmMetadataRelation
+	Requires() map[string]CharmMetadataRelation
+	Peers() map[string]CharmMetadataRelation
 	ExtraBindings() map[string]string
 	Categories() []string
 	Tags() []string
