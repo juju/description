@@ -64,10 +64,30 @@ func maximalCharmMetadataMap() map[interface{}]interface{} {
 		"extra-bindings": map[interface{}]interface{}{
 			"db": "mysql",
 		},
-		"relations": map[interface{}]interface{}{
+		"provides": map[interface{}]interface{}{
 			"db": map[interface{}]interface{}{
 				"name":      "db",
 				"role":      "provider",
+				"interface": "mysql",
+				"optional":  true,
+				"limit":     1,
+				"scope":     "global",
+			},
+		},
+		"requires": map[interface{}]interface{}{
+			"db": map[interface{}]interface{}{
+				"name":      "db",
+				"role":      "require",
+				"interface": "mysql",
+				"optional":  true,
+				"limit":     1,
+				"scope":     "global",
+			},
+		},
+		"peers": map[interface{}]interface{}{
+			"db": map[interface{}]interface{}{
+				"name":      "db",
+				"role":      "peer",
 				"interface": "mysql",
 				"optional":  true,
 				"limit":     1,
@@ -140,10 +160,30 @@ func maximalCharmMetadataArgs() CharmMetadataArgs {
 		ExtraBindings: map[string]string{
 			"db": "mysql",
 		},
-		Relations: map[string]CharmMetadataRelation{
+		Provides: map[string]CharmMetadataRelation{
 			"db": charmMetadataRelation{
 				Name_:      "db",
 				Role_:      "provider",
+				Interface_: "mysql",
+				Optional_:  true,
+				Limit_:     1,
+				Scope_:     "global",
+			},
+		},
+		Requires: map[string]CharmMetadataRelation{
+			"db": charmMetadataRelation{
+				Name_:      "db",
+				Role_:      "require",
+				Interface_: "mysql",
+				Optional_:  true,
+				Limit_:     1,
+				Scope_:     "global",
+			},
+		},
+		Peers: map[string]CharmMetadataRelation{
+			"db": charmMetadataRelation{
+				Name_:      "db",
+				Role_:      "peer",
 				Interface_: "mysql",
 				Optional_:  true,
 				Limit_:     1,
@@ -218,10 +258,26 @@ func partialCharmMetadataArgs() CharmMetadataArgs {
 		ExtraBindings: map[string]string{
 			"db": "mysql",
 		},
-		Relations: map[string]CharmMetadataRelation{
+		Provides: map[string]CharmMetadataRelation{
 			"db": charmMetadataRelation{
 				Name_:      "db",
 				Role_:      "provider",
+				Interface_: "mysql",
+				Scope_:     "global",
+			},
+		},
+		Requires: map[string]CharmMetadataRelation{
+			"db": charmMetadataRelation{
+				Name_:      "db",
+				Role_:      "require",
+				Interface_: "mysql",
+				Scope_:     "global",
+			},
+		},
+		Peers: map[string]CharmMetadataRelation{
+			"db": charmMetadataRelation{
+				Name_:      "db",
+				Role_:      "peer",
 				Interface_: "mysql",
 				Scope_:     "global",
 			},
