@@ -156,6 +156,7 @@ type application struct {
 	// CharmMetadata and CharmManifest fields
 	CharmMetadata_ *charmMetadata `yaml:"charm-metadata,omitempty"`
 	CharmManifest_ *charmManifest `yaml:"charm-manifest,omitempty"`
+	CharmActions_  *charmActions  `yaml:"charm-actions,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -554,6 +555,20 @@ func (a *application) SetCharmManifest(args CharmManifestArgs) {
 	a.CharmManifest_ = newCharmManifest(args)
 }
 
+// CharmActions implements Application.
+func (a *application) CharmActions() CharmActions {
+	// To avoid a typed nil, check before returning.
+	if a.CharmActions_ == nil {
+		return nil
+	}
+	return a.CharmActions_
+}
+
+// SetCharmActions implements Application.
+func (a *application) SetCharmActions(args CharmActionsArgs) {
+	a.CharmActions_ = newCharmActions(args)
+}
+
 // Offers implements Application.
 func (a *application) Offers() []ApplicationOffer {
 	if a.Offers_ == nil || len(a.Offers_.Offers) == 0 {
@@ -811,8 +826,10 @@ func applicationV13Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV12Fields()
 	fields["charm-metadata"] = schema.StringMap(schema.Any())
 	fields["charm-manifest"] = schema.StringMap(schema.Any())
+	fields["charm-actions"] = schema.StringMap(schema.Any())
 	defaults["charm-metadata"] = schema.Omit
 	defaults["charm-manifest"] = schema.Omit
+	defaults["charm-actions"] = schema.Omit
 	return fields, defaults
 }
 
@@ -1005,6 +1022,14 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 				return nil, errors.Trace(err)
 			}
 			result.CharmManifest_ = charmManifest
+		}
+
+		if charmActionsMap, ok := valid["charm-actions"]; ok {
+			charmActions, err := importCharmActions(charmActionsMap.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.CharmActions_ = charmActions
 		}
 	}
 

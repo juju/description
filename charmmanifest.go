@@ -1,4 +1,4 @@
-// Copyright 2020 Canonical Ltd.
+// Copyright 2024 Canonical Ltd.
 // Licensed under the LGPLv3, see LICENCE file for details.
 
 package description
@@ -83,7 +83,7 @@ func importCharmManifestVersion(source map[string]interface{}, importVersion int
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "charmOrigin v1 schema check failed")
+		return nil, errors.Annotatef(err, "charmManifest v1 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 

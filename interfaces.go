@@ -332,3 +332,16 @@ type CharmManifestBase interface {
 	Channel() string
 	Architectures() []string
 }
+
+// CharmActions represents the actions of a charm.
+type CharmActions interface {
+	Actions() map[string]CharmAction
+}
+
+// CharmAction represents an action in the metadata of a charm.
+type CharmAction interface {
+	Description() string
+	Parallel() bool
+	ExecutionGroup() string
+	Parameters() map[string]interface{}
+}
