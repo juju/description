@@ -1,4 +1,4 @@
-module github.com/juju/description/v6
+module github.com/juju/description/v8
 
 go 1.21
 
