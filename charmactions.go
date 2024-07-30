@@ -36,6 +36,7 @@ type charmActions struct {
 	Actions_ map[string]charmAction `yaml:"actions"`
 }
 
+// Actions returns the actions of the charm.
 func (a *charmActions) Actions() map[string]CharmAction {
 	actions := make(map[string]CharmAction)
 	for i, b := range a.Actions_ {

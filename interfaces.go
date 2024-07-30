@@ -345,3 +345,15 @@ type CharmAction interface {
 	ExecutionGroup() string
 	Parameters() map[string]interface{}
 }
+
+// CharmConfigs represents the configuration of a charm.
+type CharmConfigs interface {
+	Configs() map[string]CharmConfig
+}
+
+// CharmConfig represents the configuration of a charm.
+type CharmConfig interface {
+	Type() string
+	Default() interface{}
+	Description() string
+}
