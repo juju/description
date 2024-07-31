@@ -30,6 +30,7 @@ type CharmMetadataArgs struct {
 	Resources      map[string]CharmMetadataResource
 	Terms          []string
 	Containers     map[string]CharmMetadataContainer
+	LXDProfile     string
 }
 
 func newCharmMetadata(args CharmMetadataArgs) *charmMetadata {
@@ -176,6 +177,7 @@ func newCharmMetadata(args CharmMetadataArgs) *charmMetadata {
 		Resources_:      resources,
 		Terms_:          args.Terms,
 		Containers_:     containers,
+		LXDProfile_:     args.LXDProfile,
 	}
 }
 
@@ -201,6 +203,7 @@ type charmMetadata struct {
 	Resources_      map[string]charmMetadataResource  `yaml:"resources,omitempty"`
 	Terms_          []string                          `yaml:"terms,omitempty"`
 	Containers_     map[string]charmMetadataContainer `yaml:"containers,omitempty"`
+	LXDProfile_     string                            `yaml:"lxd-profile,omitempty"`
 }
 
 // Name returns the name of the charm.
@@ -330,6 +333,11 @@ func (m *charmMetadata) Containers() map[string]CharmMetadataContainer {
 	return containers
 }
 
+// LXDPofile returns the LXD profile of the charm.
+func (m *charmMetadata) LXDProfile() string {
+	return m.LXDProfile_
+}
+
 func importCharmMetadata(source map[string]interface{}) (*charmMetadata, error) {
 	version, err := getVersion(source)
 	if err != nil {
@@ -375,6 +383,7 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 		"resources":        schema.StringMap(schema.Any()),
 		"terms":            schema.List(schema.String()),
 		"containers":       schema.StringMap(schema.Any()),
+		"lxd-profile":      schema.String(),
 	}
 	defaults := schema.Defaults{
 		"summary":          schema.Omit,
@@ -395,6 +404,7 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 		"resources":        schema.Omit,
 		"terms":            schema.Omit,
 		"containers":       schema.Omit,
+		"lxd-profile":      schema.Omit,
 	}
 	checker := schema.FieldMap(fields, defaults)
 
@@ -531,6 +541,7 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 		minJujuVersion string
 		runAs          string
 		assumes        string
+		lxdProfile     string
 	)
 
 	if valid["summary"] != nil {
@@ -550,6 +561,9 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 	}
 	if valid["assumes"] != nil {
 		assumes = valid["assumes"].(string)
+	}
+	if valid["lxd-profile"] != nil {
+		lxdProfile = valid["lxd-profile"].(string)
 	}
 
 	return &charmMetadata{
@@ -573,6 +587,7 @@ func importCharmMetadataVersion(source map[string]interface{}, importVersion int
 		Payloads_:       payloads,
 		Containers_:     containers,
 		Terms_:          terms,
+		LXDProfile_:     lxdProfile,
 	}, nil
 }
 

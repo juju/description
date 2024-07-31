@@ -67,6 +67,8 @@ func minimalApplicationMap() map[interface{}]interface{} {
 		"charm-origin":   minimalCharmOriginMap(),
 		"charm-metadata": minimalCharmMetadataMap(),
 		"charm-manifest": minimalCharmManifestMap(),
+		"charm-actions":  minimalCharmActionsMap(),
+		"charm-configs":  minimalCharmConfigsMap(),
 	}
 }
 
@@ -108,6 +110,8 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	result["charm-origin"] = minimalCharmOriginMap()
 	result["charm-metadata"] = minimalCharmMetadataMap()
 	result["charm-manifest"] = minimalCharmManifestMap()
+	result["charm-actions"] = minimalCharmActionsMap()
+	result["charm-configs"] = minimalCharmConfigsMap()
 	return result
 }
 
@@ -130,6 +134,8 @@ func minimalApplication(args ...ApplicationArgs) *application {
 	a.SetCharmOrigin(minimalCharmOriginArgs())
 	a.SetCharmMetadata(minimalCharmMetadataArgs())
 	a.SetCharmManifest(minimalCharmManifestArgs())
+	a.SetCharmActions(minimalCharmActionsArgs())
+	a.SetCharmConfigs(minimalCharmConfigsArgs())
 	return a
 }
 
@@ -391,6 +397,8 @@ func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 	appLatest.CharmMetadata_ = nil
 	appLatest.CharmManifest_ = nil
+	appLatest.CharmActions_ = nil
+	appLatest.CharmConfigs_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 1)
 	appLatest.Series_ = ""
@@ -416,6 +424,8 @@ func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 	appLatest.CharmMetadata_ = nil
 	appLatest.CharmManifest_ = nil
+	appLatest.CharmActions_ = nil
+	appLatest.CharmConfigs_ = nil
 
 	appResult := s.exportImportVersion(c, appV1, 2)
 	appLatest.Series_ = ""
@@ -437,6 +447,8 @@ func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 	appLatest.CharmMetadata_ = nil
 	appLatest.CharmManifest_ = nil
+	appLatest.CharmActions_ = nil
+	appLatest.CharmConfigs_ = nil
 
 	appResult := s.exportImportVersion(c, appV2, 3)
 	appLatest.Series_ = ""
@@ -454,6 +466,8 @@ func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 	appLatest.CharmMetadata_ = nil
 	appLatest.CharmManifest_ = nil
+	appLatest.CharmActions_ = nil
+	appLatest.CharmConfigs_ = nil
 
 	appResult := s.exportImportVersion(c, appV5, 5)
 	appLatest.Series_ = ""
@@ -470,6 +484,8 @@ func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
 	appLatest.CharmOrigin_ = nil
 	appLatest.CharmMetadata_ = nil
 	appLatest.CharmManifest_ = nil
+	appLatest.CharmActions_ = nil
+	appLatest.CharmConfigs_ = nil
 
 	appResult := s.exportImportVersion(c, appV6, 6)
 	appLatest.Series_ = ""

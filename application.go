@@ -117,6 +117,9 @@ type application struct {
 
 	EndpointBindings_ map[string]string `yaml:"endpoint-bindings,omitempty"`
 
+	// CharmConfig_ and ApplicationConfig_ are the actual configuration values
+	// for the charm and application, respectively. These are the values that
+	// have been set by the user or the charm itself.
 	CharmConfig_       map[string]interface{} `yaml:"settings"`
 	ApplicationConfig_ map[string]interface{} `yaml:"application-config,omitempty"`
 
@@ -153,9 +156,14 @@ type application struct {
 
 	// CharmOrigin fields
 	CharmOrigin_ *charmOrigin `yaml:"charm-origin,omitempty"`
-	// CharmMetadata and CharmManifest fields
+
+	// The following fields represent the actual charm data for the
+	// application. These are the immutable parts of the application, either
+	// provided by the charm itself.
 	CharmMetadata_ *charmMetadata `yaml:"charm-metadata,omitempty"`
 	CharmManifest_ *charmManifest `yaml:"charm-manifest,omitempty"`
+	CharmActions_  *charmActions  `yaml:"charm-actions,omitempty"`
+	CharmConfigs_  *charmConfigs  `yaml:"charm-configs,omitempty"`
 }
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
@@ -554,6 +562,34 @@ func (a *application) SetCharmManifest(args CharmManifestArgs) {
 	a.CharmManifest_ = newCharmManifest(args)
 }
 
+// CharmActions implements Application.
+func (a *application) CharmActions() CharmActions {
+	// To avoid a typed nil, check before returning.
+	if a.CharmActions_ == nil {
+		return nil
+	}
+	return a.CharmActions_
+}
+
+// SetCharmActions implements Application.
+func (a *application) SetCharmActions(args CharmActionsArgs) {
+	a.CharmActions_ = newCharmActions(args)
+}
+
+// CharmConfigs implements Application.
+func (a *application) CharmConfigs() CharmConfigs {
+	// To avoid a typed nil, check before returning.
+	if a.CharmConfigs_ == nil {
+		return nil
+	}
+	return a.CharmConfigs_
+}
+
+// SetCharmConfigs implements Application.
+func (a *application) SetCharmConfigs(args CharmConfigsArgs) {
+	a.CharmConfigs_ = newCharmConfigs(args)
+}
+
 // Offers implements Application.
 func (a *application) Offers() []ApplicationOffer {
 	if a.Offers_ == nil || len(a.Offers_.Offers) == 0 {
@@ -811,8 +847,12 @@ func applicationV13Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV12Fields()
 	fields["charm-metadata"] = schema.StringMap(schema.Any())
 	fields["charm-manifest"] = schema.StringMap(schema.Any())
+	fields["charm-actions"] = schema.StringMap(schema.Any())
+	fields["charm-configs"] = schema.StringMap(schema.Any())
 	defaults["charm-metadata"] = schema.Omit
 	defaults["charm-manifest"] = schema.Omit
+	defaults["charm-actions"] = schema.Omit
+	defaults["charm-configs"] = schema.Omit
 	return fields, defaults
 }
 
@@ -991,6 +1031,10 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	}
 
 	if importVersion >= 13 {
+		// These fields are used to populate the charm data for the application.
+		// This ensures that correct RI is maintained for the charm data
+		// when migrating between models.
+
 		if charmMetadataMap, ok := valid["charm-metadata"]; ok {
 			charmMetadata, err := importCharmMetadata(charmMetadataMap.(map[string]interface{}))
 			if err != nil {
@@ -1005,6 +1049,22 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 				return nil, errors.Trace(err)
 			}
 			result.CharmManifest_ = charmManifest
+		}
+
+		if charmActionsMap, ok := valid["charm-actions"]; ok {
+			charmActions, err := importCharmActions(charmActionsMap.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.CharmActions_ = charmActions
+		}
+
+		if charmConfigMap, ok := valid["charm-configs"]; ok {
+			charmConfig, err := importCharmConfigs(charmConfigMap.(map[string]interface{}))
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			result.CharmConfigs_ = charmConfig
 		}
 	}
 
