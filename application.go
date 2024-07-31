@@ -67,6 +67,12 @@ type Application interface {
 	CharmManifest() CharmManifest
 	SetCharmManifest(CharmManifestArgs)
 
+	CharmActions() CharmActions
+	SetCharmActions(CharmActionsArgs)
+
+	CharmConfigs() CharmConfigs
+	SetCharmConfigs(CharmConfigsArgs)
+
 	Tools() AgentTools
 	SetTools(AgentToolsArgs)
 
