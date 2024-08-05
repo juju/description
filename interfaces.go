@@ -260,6 +260,7 @@ type CharmMetadata interface {
 	Resources() map[string]CharmMetadataResource
 	Terms() []string
 	Containers() map[string]CharmMetadataContainer
+	LXDProfile() string
 }
 
 // CharmMetadataRelation represents a relation in the metadata of a charm.
