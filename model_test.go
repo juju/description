@@ -1167,7 +1167,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 11)
+	c.Assert(version, gc.Equals, 12)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
