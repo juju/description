@@ -84,6 +84,14 @@ type Model interface {
 	IPAddresses() []IPAddress
 	AddIPAddress(IPAddressArgs) IPAddress
 
+	// AuthorizedKeys returns all the users and their authorized keys for this
+	// model.
+	AuthorizedKeys() []UserAuthorizedKeys
+
+	// AddAuthorizedKeys adds a user and their authorized keys that are on this
+	// model.
+	AddAuthorizedKeys(UserAuthorizedKeysArgs) UserAuthorizedKeys
+
 	SSHHostKeys() []SSHHostKey
 	AddSSHHostKey(SSHHostKeyArgs) SSHHostKey
 
@@ -165,7 +173,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             11,
+		Version:             12,
 		AgentVersion_:       args.AgentVersion,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
@@ -190,6 +198,7 @@ func NewModel(args ModelArgs) Model {
 	m.setLinkLayerDevices(nil)
 	m.setSubnets(nil)
 	m.setIPAddresses(nil)
+	m.setAuthorizedKeys(nil)
 	m.setSSHHostKeys(nil)
 	m.setCloudImageMetadatas(nil)
 	m.setActions(nil)
@@ -293,7 +302,8 @@ type model struct {
 	Actions_    actions    `yaml:"actions"`
 	Operations_ operations `yaml:"operations"`
 
-	SSHHostKeys_ sshHostKeys `yaml:"ssh-host-keys"`
+	AuthorizedKeys_ authorizedKeys `yaml:"authorized-keys"`
+	SSHHostKeys_    sshHostKeys    `yaml:"ssh-host-keys"`
 
 	Sequences_ map[string]int `yaml:"sequences"`
 
@@ -651,6 +661,33 @@ func (m *model) setIPAddresses(addressesList []*ipaddress) {
 	m.IPAddresses_ = ipaddresses{
 		Version:      5,
 		IPAddresses_: addressesList,
+	}
+}
+
+// AuthorizedKeys returns all the users and their authorized keys for this
+// model. [AuthorizedKeys] implements the [Model] interface.
+func (m *model) AuthorizedKeys() []UserAuthorizedKeys {
+	result := make([]UserAuthorizedKeys, 0, len(m.AuthorizedKeys_.UserAuthorizedKeys_))
+	for _, userAK := range m.AuthorizedKeys_.UserAuthorizedKeys_ {
+		result = append(result, userAK)
+	}
+	return result
+}
+
+// AddAuthorizedKeys adds a user and their authorized keys that are on this
+// model. [AddAuthorizedKeys] implements the [Model] interface.
+func (m *model) AddAuthorizedKeys(args UserAuthorizedKeysArgs) UserAuthorizedKeys {
+	uak := newUserAuthorizedKeys(args)
+	m.AuthorizedKeys_.UserAuthorizedKeys_ = append(m.AuthorizedKeys_.UserAuthorizedKeys_, uak)
+	return uak
+}
+
+// setAuthorizedKeys set this models authorized keys and removes anything
+// previously set.
+func (m *model) setAuthorizedKeys(userKeys []*userAuthorizedKeys) {
+	m.AuthorizedKeys_ = authorizedKeys{
+		Version:             1,
+		UserAuthorizedKeys_: userKeys,
 	}
 }
 
@@ -1547,6 +1584,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	9:  newModelImporter(9, schema.FieldMap(modelV9Fields())),
 	10: newModelImporter(10, schema.FieldMap(modelV10Fields())),
 	11: newModelImporter(11, schema.FieldMap(modelV11Fields())),
+	12: newModelImporter(12, schema.FieldMap(modelV12Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1666,11 +1704,15 @@ func modelV11Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func modelV12Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV11Fields()
+	fields["authorized-keys"] = schema.StringMap(schema.Any())
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
-	// We're always making a version 8 model, no matter what we got on
-	// the way in.
 	result := &model{
-		Version:        11,
+		Version:        12,
 		Type_:          IAAS,
 		Owner_:         valid["owner"].(string),
 		Config_:        valid["config"].(map[string]interface{}),
@@ -1942,6 +1984,17 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 		result.AgentVersion_ = valid["agent-version"].(string)
 	} else if result.Config_ != nil && result.Config_["agent-version"] != nil {
 		result.AgentVersion_ = result.Config_["agent-version"].(string)
+	}
+
+	// Version 12  is when Juju started to keep track of what users owned
+	// authorized keys on a model.
+	if importVersion >= 12 {
+		authorizedKeysMap := valid["authorized-keys"].(map[string]any)
+		authorizedKeys, err := importAuthorizedKeys(authorizedKeysMap)
+		if err != nil {
+			return nil, errors.Annotate(err, "authoirzed-keys")
+		}
+		result.setAuthorizedKeys(authorizedKeys)
 	}
 
 	return result, nil

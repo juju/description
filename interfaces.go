@@ -61,6 +61,18 @@ type IPAddress interface {
 	IsSecondary() bool
 }
 
+// UserAuthorizedKeys represents the authorized keys that are in a model for a
+// given user.
+type UserAuthorizedKeys interface {
+	// Username returns the username of the model user for which the authorized
+	// keys belong to.
+	Username() string
+
+	// AuthorizedKeys returns the set of authorized keys allowed on the model
+	// for the user.
+	AuthorizedKeys() []string
+}
+
 // SSHHostKey represents an ssh host key.
 type SSHHostKey interface {
 	MachineID() string
