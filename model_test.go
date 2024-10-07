@@ -157,6 +157,35 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	c.Assert(initial.ExternalControllers_.Version, gc.Equals, len(externalControllerDeserializationFuncs))
 }
 
+func (s *ModelSerializationSuite) TestSetBlocks(c *gc.C) {
+	args := ModelArgs{
+		Type:  IAAS,
+		Owner: names.NewUserTag("magic"),
+		Config: map[string]interface{}{
+			"name": "awesome",
+			"uuid": "some-uuid",
+		},
+		LatestToolsVersion: version.MustParse("2.0.1"),
+		EnvironVersion:     123,
+		Blocks: map[string]string{
+			"all-changes": "locked down",
+		},
+		Cloud:       "vapour",
+		CloudRegion: "east-west",
+	}
+	initial := NewModel(args).(*model)
+
+	initial.SetBlocks(map[string]string{
+		"all-changes": "unlocked",
+		"some-other":  "value",
+	})
+
+	c.Assert(initial.Blocks(), jc.DeepEquals, map[string]string{
+		"all-changes": "unlocked",
+		"some-other":  "value",
+	})
+}
+
 func (s *ModelSerializationSuite) TestParsingYAML(c *gc.C) {
 	s.testParsingYAMLWithMachine(c, func(initial Model) {
 		addMinimalMachine(initial, "0")

@@ -53,6 +53,7 @@ type Model interface {
 	// Blocks returns a map of block type to the message associated with that
 	// block.
 	Blocks() map[string]string
+	SetBlocks(map[string]string)
 
 	Users() []User
 	AddUser(UserArgs)
@@ -390,6 +391,11 @@ func (m *model) EnvironVersion() int {
 // Blocks implements Model.
 func (m *model) Blocks() map[string]string {
 	return m.Blocks_
+}
+
+// SetBlocks implements Model.
+func (m *model) SetBlocks(blocks map[string]string) {
+	m.Blocks_ = blocks
 }
 
 // ByName is a sorting implementation over the UserTag lexicographically, which
