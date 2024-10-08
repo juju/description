@@ -50,9 +50,16 @@ type Model interface {
 	// UpdateConfig overwrites existing config values with those specified.
 	UpdateConfig(map[string]interface{})
 
-	// Blocks returns a map of block type to the message associated with that
-	// block.
+	// Blocks represent a way to block certain operations on the model.
+	// The map contains the normalized block name and the reason for the block.
+	// The block names should be normalized to the following:
+	//
+	//  - destroy-model
+	//  - remove-object
+	//  - all-changes
+	//
 	Blocks() map[string]string
+	SetBlocks(map[string]string)
 
 	Users() []User
 	AddUser(UserArgs)
@@ -390,6 +397,11 @@ func (m *model) EnvironVersion() int {
 // Blocks implements Model.
 func (m *model) Blocks() map[string]string {
 	return m.Blocks_
+}
+
+// SetBlocks implements Model.
+func (m *model) SetBlocks(blocks map[string]string) {
+	m.Blocks_ = blocks
 }
 
 // ByName is a sorting implementation over the UserTag lexicographically, which
