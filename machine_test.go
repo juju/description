@@ -199,25 +199,6 @@ func (s *MachineSerializationSuite) TestValidateMissingTools(c *gc.C) {
 	c.Check(err, gc.ErrorMatches, `machine "42" missing tools not valid`)
 }
 
-func (s *MachineSerializationSuite) TestValidateMissingInstance(c *gc.C) {
-	m := newMachine(s.machineArgs("42"))
-	m.SetStatus(minimalStatusArgs())
-	m.SetTools(minimalAgentToolsArgs())
-	err := m.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
-	c.Check(err, gc.ErrorMatches, `machine "42" missing instance not valid`)
-}
-
-func (s *MachineSerializationSuite) TestValidateChecksInstance(c *gc.C) {
-	m := newMachine(s.machineArgs("42"))
-	m.SetStatus(minimalStatusArgs())
-	m.SetTools(minimalAgentToolsArgs())
-	m.SetInstance(minimalCloudInstanceArgs())
-	err := m.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
-	c.Check(err, gc.ErrorMatches, `machine "42" instance: instance "instance id" missing status not valid`)
-}
-
 func (s *MachineSerializationSuite) TestNewMachineWithSupportedContainers(c *gc.C) {
 	supported := []string{"lxd", "kvm"}
 	args := s.machineArgs("id")

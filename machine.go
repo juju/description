@@ -386,12 +386,6 @@ func (m *machine) Validate() error {
 	if m.Tools_ == nil {
 		return errors.NotValidf("machine %q missing tools", m.Id_)
 	}
-	if m.Instance_ == nil {
-		return errors.NotValidf("machine %q missing instance", m.Id_)
-	}
-	if err := m.Instance_.Validate(); err != nil {
-		return errors.Annotatef(err, "machine %q instance", m.Id_)
-	}
 	for _, container := range m.Containers_ {
 		if err := container.Validate(); err != nil {
 			return errors.Trace(err)
