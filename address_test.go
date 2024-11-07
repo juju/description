@@ -119,3 +119,27 @@ func (*AddressSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 
 	c.Assert(addresss, jc.DeepEquals, initial)
 }
+
+func (*AddressSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
+	initial := &address{
+		Version:  3,
+		Value_:   "no",
+		Type_:    "content",
+		Scope_:   "done",
+		Origin_:  "here",
+		SpaceID_: "666",
+		CIDR_:    "no/24",
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	addresss, err := importAddress(source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(addresss, jc.DeepEquals, initial)
+}

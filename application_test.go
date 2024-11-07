@@ -95,8 +95,8 @@ func minimalApplicationMapCAAS() map[interface{}]interface{} {
 		"version":     1,
 		"provider-id": "some-provider",
 		"addresses": []interface{}{
-			map[interface{}]interface{}{"version": 2, "value": "10.0.0.1", "type": "special"},
-			map[interface{}]interface{}{"version": 2, "value": "10.0.0.2", "type": "other"},
+			map[interface{}]interface{}{"version": 3, "value": "10.0.0.1", "type": "special"},
+			map[interface{}]interface{}{"version": 3, "value": "10.0.0.2", "type": "other"},
 		},
 	}
 	result["units"] = map[interface{}]interface{}{

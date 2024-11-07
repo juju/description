@@ -66,7 +66,7 @@ func minimalUnitMapCAAS() map[interface{}]interface{} {
 	result["cloud-container"] = map[interface{}]interface{}{
 		"version":     1,
 		"provider-id": "some-provider",
-		"address":     map[interface{}]interface{}{"version": 2, "value": "10.0.0.1", "type": "special"},
+		"address":     map[interface{}]interface{}{"version": 3, "value": "10.0.0.1", "type": "special"},
 		"ports":       []interface{}{"80", "443"},
 	}
 	return result

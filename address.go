@@ -15,6 +15,7 @@ type Address interface {
 	Scope() string
 	Origin() string
 	SpaceID() string
+	CIDR() string
 }
 
 // AddressArgs is an argument struct used to create a new internal address
@@ -25,16 +26,18 @@ type AddressArgs struct {
 	Scope   string
 	Origin  string
 	SpaceID string
+	CIDR    string
 }
 
 func newAddress(args AddressArgs) *address {
 	return &address{
-		Version:  2,
+		Version:  3,
 		Value_:   args.Value,
 		Type_:    args.Type,
 		Scope_:   args.Scope,
 		Origin_:  args.Origin,
 		SpaceID_: args.SpaceID,
+		CIDR_:    args.CIDR,
 	}
 }
 
@@ -47,6 +50,7 @@ type address struct {
 	Scope_   string `yaml:"scope,omitempty"`
 	Origin_  string `yaml:"origin,omitempty"`
 	SpaceID_ string `yaml:"spaceid,omitempty"`
+	CIDR_    string `yaml:"cidr,omitempty"`
 }
 
 // Value implements Address.
@@ -72,6 +76,11 @@ func (a *address) Origin() string {
 // SpaceID implements Address.
 func (a *address) SpaceID() string {
 	return a.SpaceID_
+}
+
+// CIDR implements Address.
+func (a *address) CIDR() string {
+	return a.CIDR_
 }
 
 func importAddresses(sourceList []interface{}) ([]*address, error) {
@@ -111,6 +120,7 @@ type addressDeserializationFunc func(map[string]interface{}) (*address, error)
 var addressDeserializationFuncs = map[int]addressDeserializationFunc{
 	1: importAddressV1,
 	2: importAddressV2,
+	3: importAddressV3,
 }
 
 func importAddressV1(source map[string]interface{}) (*address, error) {
@@ -135,24 +145,12 @@ func importAddressV1(source map[string]interface{}) (*address, error) {
 }
 
 func importAddressV2(source map[string]interface{}) (*address, error) {
-	fields, defaults := addressV1Fields()
-	fields["spaceid"] = schema.String()
-
-	// We must allow for an empty space ID because:
-	// - newAddress always returns a V2 address.
-	// - newAddress is called by methods in Machine that do not negotiate a
-	//   version.
-	// If an old version of Juju not supporting address spaces upgrades to this
-	// version of the library, we need to allow export and import of V2
-	// addresses that tolerate a missing space ID.
-	// Ensuring correct defaults for this field must be ensured in the Juju
-	// migration code itself.
-	defaults["spaceid"] = ""
+	fields, defaults := addressV2Fields()
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "address v1 schema check failed")
+		return nil, errors.Annotatef(err, "address v2 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
@@ -168,6 +166,29 @@ func importAddressV2(source map[string]interface{}) (*address, error) {
 	}, nil
 }
 
+func importAddressV3(source map[string]interface{}) (*address, error) {
+	fields, defaults := addressV3Fields()
+	checker := schema.FieldMap(fields, defaults)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "address v3 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+
+	return &address{
+		Version:  3,
+		Value_:   valid["value"].(string),
+		Type_:    valid["type"].(string),
+		Scope_:   valid["scope"].(string),
+		Origin_:  valid["origin"].(string),
+		SpaceID_: valid["spaceid"].(string),
+		CIDR_:    valid["cidr"].(string),
+	}, nil
+}
+
 func addressV1Fields() (schema.Fields, schema.Defaults) {
 	fields := schema.Fields{
 		"value":  schema.String(),
@@ -180,5 +201,30 @@ func addressV1Fields() (schema.Fields, schema.Defaults) {
 		"scope":  "",
 		"origin": "",
 	}
+	return fields, defaults
+}
+
+// We must allow for an empty value for fields introduced after v1 because:
+//   - newAddress always returns an address at the latest version
+//   - newAddress is called by methods in Machine that do not negotiate a
+//     version.
+//
+// If an old version of Juju not supporting new fields upgrades to this
+// version of the library, we need to allow export and import of V2
+// addresses that tolerate a missing space ID or CIDR.
+// Ensuring correct defaults for this field must be ensured in the Juju
+// migration code itself.
+
+func addressV2Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := addressV1Fields()
+	fields["spaceid"] = schema.String()
+	defaults["spaceid"] = "" // must be allowed empty
+	return fields, defaults
+}
+
+func addressV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := addressV2Fields()
+	fields["cidr"] = schema.String()
+	defaults["cidr"] = "" // must be allowed empty
 	return fields, defaults
 }
