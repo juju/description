@@ -1683,6 +1683,23 @@ func (s *ModelSerializationSuite) TestAgentVersionPre11Import(c *gc.C) {
 	c.Check(model.AgentVersion(), gc.Equals, "3.3.3")
 }
 
+func (s *ModelSerializationSuite) TestModelWithoutStatusHistory(c *gc.C) {
+	initial := s.newModel(ModelArgs{
+		Config: map[string]any{
+			"agent-version": "3.3.3",
+		},
+	})
+	data := asStringMap(c, initial)
+	delete(data, "status-history")
+	bytes, err := yaml.Marshal(data)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Check(err, jc.ErrorIsNil)
+
+	c.Check(model.StatusHistory(), gc.HasLen, 0)
+}
+
 // modelV1example was taken from a Juju 2.1 model dump, which is version
 // 1, and among other things is missing model status, which version 2 makes
 // manditory.

@@ -258,7 +258,7 @@ func cloudInstanceV1Fields() (schema.Fields, schema.Defaults) {
 func cloudInstanceV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := cloudInstanceV1Fields()
 	fields["status"] = schema.StringMap(schema.Any())
-	addStatusHistorySchema(fields)
+	addStatusHistorySchema(fields, defaults)
 	return fields, defaults
 }
 

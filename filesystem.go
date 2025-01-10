@@ -219,7 +219,7 @@ func importFilesystemV1(source map[string]interface{}) (*filesystem, error) {
 		"filesystem-id": "",
 		"attachments":   schema.Omit,
 	}
-	addStatusHistorySchema(fields)
+	addStatusHistorySchema(fields, defaults)
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
