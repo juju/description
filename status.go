@@ -284,10 +284,15 @@ func (s *StatusHistory_) SetStatusHistory(args []StatusArgs) {
 	s.History = points
 }
 
-func addStatusHistorySchema(fields schema.Fields) {
+func addStatusHistorySchema(fields schema.Fields, defaults schema.Defaults) {
 	fields["status-history"] = schema.StringMap(schema.Any())
+	defaults["status-history"] = schema.Omit
 }
 
 func (s *StatusHistory_) importStatusHistory(valid map[string]interface{}) error {
-	return importStatusHistory(s, valid["status-history"].(map[string]interface{}))
+	history, ok := valid["status-history"]
+	if !ok {
+		return nil
+	}
+	return importStatusHistory(s, history.(map[string]interface{}))
 }

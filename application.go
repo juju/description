@@ -756,7 +756,7 @@ func applicationV1Fields() (schema.Fields, schema.Defaults) {
 	}
 	addAnnotationSchema(fields, defaults)
 	addConstraintsSchema(fields, defaults)
-	addStatusHistorySchema(fields)
+	addStatusHistorySchema(fields, defaults)
 	return fields, defaults
 }
 

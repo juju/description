@@ -1652,7 +1652,7 @@ func modelV2Fields() (schema.Fields, schema.Defaults) {
 			"info": schema.String(),
 		}, nil)
 	fields["status"] = schema.StringMap(schema.Any())
-	addStatusHistorySchema(fields)
+	addStatusHistorySchema(fields, defaults)
 	return fields, defaults
 }
 

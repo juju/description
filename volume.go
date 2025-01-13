@@ -300,7 +300,7 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 		"attachments":     schema.Omit,
 		"attachmentplans": schema.Omit,
 	}
-	addStatusHistorySchema(fields)
+	addStatusHistorySchema(fields, defaults)
 	checker := schema.FieldMap(fields, defaults)
 
 	coerced, err := checker.Coerce(source, nil)
