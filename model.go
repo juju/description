@@ -8,7 +8,6 @@ import (
 	"net"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/juju/collections/set"
 	"github.com/juju/errors"
@@ -30,8 +29,6 @@ const (
 type Model interface {
 	HasAnnotations
 	HasConstraints
-	HasStatus
-	HasStatusHistory
 
 	// AgentVersion returns the version currently in use by the model.
 	AgentVersion() string
@@ -180,7 +177,7 @@ type ModelArgs struct {
 // NewModel returns a Model based on the args specified.
 func NewModel(args ModelArgs) Model {
 	m := &model{
-		Version:             12,
+		Version:             13,
 		AgentVersion_:       args.AgentVersion,
 		Type_:               args.Type,
 		Owner_:              args.Owner.Id(),
@@ -193,7 +190,6 @@ func NewModel(args ModelArgs) Model {
 		CloudRegion_:        args.CloudRegion,
 		PasswordHash_:       args.PasswordHash,
 		SecretBackendID_:    args.SecretBackendID,
-		StatusHistory_:      newStatusHistory(),
 	}
 	m.setUsers(nil)
 	m.setMachines(nil)
@@ -302,9 +298,6 @@ type model struct {
 	Subnets_             subnets             `yaml:"subnets"`
 
 	CloudImageMetadata_ cloudimagemetadataset `yaml:"cloud-image-metadata"`
-
-	Status_        *status `yaml:"status"`
-	StatusHistory_ `yaml:"status-history"`
 
 	Actions_    actions    `yaml:"actions"`
 	Operations_ operations `yaml:"operations"`
@@ -432,20 +425,6 @@ func (m *model) setUsers(userList []*user) {
 		Version: 1,
 		Users_:  userList,
 	}
-}
-
-// Status implements Model.
-func (m *model) Status() Status {
-	// To avoid typed nils check nil here.
-	if m.Status_ == nil {
-		return nil
-	}
-	return m.Status_
-}
-
-// SetStatus implements Model.
-func (m *model) SetStatus(args StatusArgs) {
-	m.Status_ = newStatus(args)
 }
 
 // Machines implements Model.
@@ -1152,9 +1131,6 @@ func (m *model) Validate() error {
 	if m.Owner_ == "" {
 		return errors.NotValidf("missing model owner")
 	}
-	if m.Status_ == nil {
-		return errors.NotValidf("missing status")
-	}
 
 	if m.AgentVersion_ != "" {
 		agentVersion, err := version.Parse(m.AgentVersion_)
@@ -1597,6 +1573,7 @@ var modelDeserializationFuncs = map[int]modelDeserializationFunc{
 	10: newModelImporter(10, schema.FieldMap(modelV10Fields())),
 	11: newModelImporter(11, schema.FieldMap(modelV11Fields())),
 	12: newModelImporter(12, schema.FieldMap(modelV12Fields())),
+	13: newModelImporter(13, schema.FieldMap(modelV13Fields())),
 }
 
 func modelV1Fields() (schema.Fields, schema.Defaults) {
@@ -1722,17 +1699,30 @@ func modelV12Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+// modelV13Fields describes the version 13 fields and defaults for model
+// description. The notable changes in this version over version 12 fields is
+// the removal of status and status history.
+//
+// See [modelV2Fields] for where these fields were first introduced.
+func modelV13Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := modelV12Fields()
+	delete(fields, "status")
+	delete(defaults, "status")
+	removeStatusHistorySchema(fields, defaults)
+
+	return fields, defaults
+}
+
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
 	result := &model{
-		Version:        12,
-		Type_:          IAAS,
-		Owner_:         valid["owner"].(string),
-		Config_:        valid["config"].(map[string]interface{}),
-		Sequences_:     make(map[string]int),
-		Blocks_:        convertToStringMap(valid["blocks"]),
-		Cloud_:         valid["cloud"].(string),
-		CloudRegion_:   valid["cloud-region"].(string),
-		StatusHistory_: newStatusHistory(),
+		Version:      13,
+		Type_:        IAAS,
+		Owner_:       valid["owner"].(string),
+		Config_:      valid["config"].(map[string]interface{}),
+		Sequences_:   make(map[string]int),
+		Blocks_:      convertToStringMap(valid["blocks"]),
+		Cloud_:       valid["cloud"].(string),
+		CloudRegion_: valid["cloud-region"].(string),
 	}
 	if importVersion >= 4 {
 		result.Type_ = valid["type"].(string)
@@ -1891,25 +1881,8 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 
 		ms := importMeterStatus(valid["meter-status"].(map[string]interface{}))
 		result.setMeterStatus(ms)
-
-		if statusMap := valid["status"]; statusMap != nil {
-			status, err := importStatus(valid["status"].(map[string]interface{}))
-			if err != nil {
-				return nil, errors.Trace(err)
-			}
-			result.Status_ = status
-		}
-
-		if err := result.importStatusHistory(valid); err != nil {
-			return nil, errors.Trace(err)
-		}
-	} else {
-		// Need to have a valid status for the model to be valid.
-		result.SetStatus(StatusArgs{
-			Value:   "available",
-			Updated: time.Now(),
-		})
 	}
+
 	if importVersion >= 5 {
 		if rawRemoteEntities, ok := valid["remote-entities"]; ok {
 			remoteEntitiesMap := rawRemoteEntities.(map[string]interface{})

@@ -289,6 +289,17 @@ func addStatusHistorySchema(fields schema.Fields, defaults schema.Defaults) {
 	defaults["status-history"] = schema.Omit
 }
 
+// removeStatusHistorySchema performs the inverse actions of
+// [addStatusHistorySchema] removing any previously set status history schema
+// fields or defaults.
+//
+// If no status history schema or defaults has been set then this func will
+// result in a no-op.
+func removeStatusHistorySchema(fields schema.Fields, defaults schema.Defaults) {
+	delete(fields, "status-history")
+	delete(defaults, "status-history")
+}
+
 func (s *StatusHistory_) importStatusHistory(valid map[string]interface{}) error {
 	history, ok := valid["status-history"]
 	if !ok {
