@@ -154,6 +154,12 @@ type Model interface {
 	PasswordHash() string
 
 	AddBlockDevice(string, BlockDeviceArgs) error
+
+	// SetEnvironVersion sets the environment version to the specified value.
+	//
+	// The environVersion represents the version of the environ provider that
+	// the Juju model is currently using.
+	SetEnvironVersion(environVersion int)
 }
 
 // ModelArgs represent the bare minimum information that is needed
@@ -385,6 +391,14 @@ func (m *model) LatestToolsVersion() version.Number {
 // EnvironVersion implements Model.
 func (m *model) EnvironVersion() int {
 	return m.EnvironVersion_
+}
+
+// SetEnvironVersion sets the environment version to the specified value.
+//
+// The environVersion represents the version of the environ provider that
+// the Juju model is currently using.
+func (m *model) SetEnvironVersion(environVersion int) {
+	m.EnvironVersion_ = environVersion
 }
 
 // Blocks implements Model.
