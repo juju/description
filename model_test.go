@@ -1653,6 +1653,15 @@ func (s *ModelSerializationSuite) TestAgentVersionPre11Import(c *gc.C) {
 	c.Check(model.AgentVersion(), gc.Equals, "3.3.3")
 }
 
+func (s *ModelSerializationSuite) TestSetEnvironVersion(c *gc.C) {
+	model := NewModel(ModelArgs{
+		EnvironVersion: 3,
+	})
+	c.Assert(model.EnvironVersion(), gc.Equals, 3)
+	model.SetEnvironVersion(5)
+	c.Assert(model.EnvironVersion(), gc.Equals, 5)
+}
+
 // modelV1example was taken from a Juju 2.1 model dump, which is version
 // 1, and among other things is missing model status, which version 2 makes
 // manditory.
