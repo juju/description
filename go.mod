@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/juju/collections v1.0.0
 	github.com/juju/errors v1.0.0
-	github.com/juju/names/v5 v5.0.0
+	github.com/juju/names/v6 v6.0.0-20250122164631-383bcab851ca
 	github.com/juju/os/v2 v2.2.3
 	github.com/juju/schema v1.0.1
 	github.com/juju/testing v1.1.0
