@@ -281,6 +281,44 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(application.MetricsCredentials(), jc.DeepEquals, []byte("sekrit"))
 }
 
+func (s *ApplicationSerializationSuite) TestSetApplicationConfig(c *gc.C) {
+	args := ApplicationArgs{
+		Tag: names.NewApplicationTag("magic"),
+		ApplicationConfig: map[string]interface{}{
+			"config key": "config value",
+		},
+	}
+	application := newApplication(args)
+
+	// This will overwrite the existing application config in the application
+	// with the new one.
+	application.SetApplicationConfig(map[string]interface{}{
+		"new key": "new value",
+	})
+	c.Assert(application.ApplicationConfig(), jc.DeepEquals, map[string]interface{}{
+		"new key": "new value",
+	})
+}
+
+func (s *ApplicationSerializationSuite) TestSetCharmConfig(c *gc.C) {
+	args := ApplicationArgs{
+		Tag: names.NewApplicationTag("magic"),
+		CharmConfig: map[string]interface{}{
+			"key": "value",
+		},
+	}
+	application := newApplication(args)
+
+	// This will overwrite the existing charm config in the application
+	// with the new one.
+	application.SetCharmConfig(map[string]interface{}{
+		"new key": "new value",
+	})
+	c.Assert(application.CharmConfig(), jc.DeepEquals, map[string]interface{}{
+		"new key": "new value",
+	})
+}
+
 func (s *ApplicationSerializationSuite) TestMinimalApplicationValid(c *gc.C) {
 	application := minimalApplication()
 	c.Assert(application.Validate(), jc.ErrorIsNil)
