@@ -44,7 +44,10 @@ type Application interface {
 	EndpointBindings() map[string]string
 
 	CharmConfig() map[string]interface{}
+	SetCharmConfig(map[string]interface{})
+
 	ApplicationConfig() map[string]interface{}
+	SetApplicationConfig(map[string]interface{})
 
 	Leader() string
 	LeadershipSettings() map[string]interface{}
@@ -345,9 +348,19 @@ func (a *application) ApplicationConfig() map[string]interface{} {
 	return a.ApplicationConfig_
 }
 
+// SetApplicationConfig implements Application.
+func (a *application) SetApplicationConfig(args map[string]interface{}) {
+	a.ApplicationConfig_ = args
+}
+
 // CharmConfig implements Application.
 func (a *application) CharmConfig() map[string]interface{} {
 	return a.CharmConfig_
+}
+
+// SetCharmConfig implements Application.
+func (a *application) SetCharmConfig(args map[string]interface{}) {
+	a.CharmConfig_ = args
 }
 
 // Leader implements Application.
