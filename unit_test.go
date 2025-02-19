@@ -40,7 +40,7 @@ func minimalUnitMap() map[interface{}]interface{} {
 		"password-hash":            "secure-hash",
 		"tools":                    minimalAgentToolsMap(),
 		"resources": map[interface{}]interface{}{
-			"version":   1,
+			"version":   2,
 			"resources": []interface{}{},
 		},
 		"payloads": map[interface{}]interface{}{

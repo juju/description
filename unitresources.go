@@ -52,6 +52,13 @@ func (ur *unitResource) Revision() ResourceRevision {
 	return ur.Revision_
 }
 
+type unitResourceDeserializationFunc func(map[string]interface{}) (*unitResource, error)
+
+var unitResourceDeserializationFuncs = map[int]unitResourceDeserializationFunc{
+	1: importUnitResourceV1,
+	2: importUnitResourceV2,
+}
+
 func importUnitResources(source map[string]interface{}) ([]*unitResource, error) {
 	checker := versionedChecker("resources")
 	coerced, err := checker.Coerce(source, nil)
@@ -61,22 +68,23 @@ func importUnitResources(source map[string]interface{}) ([]*unitResource, error)
 	valid := coerced.(map[string]interface{})
 
 	version := int(valid["version"].(int64))
-	if version != 1 {
+	importFunc, ok := unitResourceDeserializationFuncs[version]
+	if !ok {
 		return nil, errors.NotValidf("version %d", version)
 	}
 
 	sourceList := valid["resources"].([]interface{})
-	return importUnitResourceList(sourceList)
+	return importUnitResourceList(sourceList, importFunc)
 }
 
-func importUnitResourceList(sourceList []interface{}) ([]*unitResource, error) {
+func importUnitResourceList(sourceList []interface{}, importFunc unitResourceDeserializationFunc) ([]*unitResource, error) {
 	result := make([]*unitResource, 0, len(sourceList))
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
 			return nil, errors.Errorf("unexpected value for resource %d, %T", i, value)
 		}
-		r, err := importUnitResourceV1(source)
+		r, err := importFunc(source)
 		if err != nil {
 			return nil, errors.Annotatef(err, "unit resource %d", i)
 		}
@@ -102,6 +110,31 @@ func importUnitResourceV1(source map[string]interface{}) (*unitResource, error) 
 		Name_: valid["name"].(string),
 	}
 	rev, err := importResourceRevisionV1(valid["revision"])
+	if err != nil {
+		return nil, errors.Annotatef(err, "unit resource %s", r.Name_)
+	}
+	r.Revision_ = rev
+
+	return r, nil
+}
+
+func importUnitResourceV2(source map[string]interface{}) (*unitResource, error) {
+	fields := schema.Fields{
+		"name":     schema.String(),
+		"revision": schema.StringMap(schema.Any()),
+	}
+	checker := schema.FieldMap(fields, nil)
+
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "unit resource v2 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+
+	r := &unitResource{
+		Name_: valid["name"].(string),
+	}
+	rev, err := importResourceRevisionV2(valid["revision"])
 	if err != nil {
 		return nil, errors.Annotatef(err, "unit resource %s", r.Name_)
 	}

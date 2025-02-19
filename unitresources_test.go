@@ -33,17 +33,35 @@ func minimalUnitResource() *unitResource {
 	return newUnitResource(UnitResourceArgs{
 		Name: "blah",
 		RevisionArgs: ResourceRevisionArgs{
-			Revision:       3,
-			Type:           "file",
-			Path:           "file.tar.gz",
-			Description:    "description",
-			Origin:         "store",
-			FingerprintHex: "aaaaaaaa",
-			Size:           111,
-			Timestamp:      time.Date(2016, 10, 18, 2, 3, 4, 0, time.UTC),
-			Username:       "user",
+			Revision:    3,
+			Type:        "file",
+			Origin:      "store",
+			SHA384:      "aaaaaaaa",
+			Size:        111,
+			Timestamp:   time.Date(2016, 10, 18, 2, 3, 4, 0, time.UTC),
+			RetrievedBy: "user",
 		},
 	})
+}
+
+func minimalUnitResourcesMapV1() map[string]interface{} {
+	return map[string]interface{}{
+		"version": 1,
+		"resources": []map[string]interface{}{{
+			"name": "blah",
+			"revision": map[interface{}]interface{}{
+				"revision":    3,
+				"description": "description",
+				"fingerprint": "aaaaaaaa",
+				"origin":      "store",
+				"path":        "file.tar.gz",
+				"size":        111,
+				"timestamp":   "2016-10-18T02:03:04Z",
+				"type":        "file",
+				"username":    "user",
+			},
+		}},
+	}
 }
 
 func (s *UnitResourceSuite) TestNew(c *gc.C) {
@@ -52,13 +70,11 @@ func (s *UnitResourceSuite) TestNew(c *gc.C) {
 	rev := ur.Revision()
 	c.Check(rev.Revision(), gc.Equals, 3)
 	c.Check(rev.Type(), gc.Equals, "file")
-	c.Check(rev.Path(), gc.Equals, "file.tar.gz")
-	c.Check(rev.Description(), gc.Equals, "description")
 	c.Check(rev.Origin(), gc.Equals, "store")
-	c.Check(rev.FingerprintHex(), gc.Equals, "aaaaaaaa")
+	c.Check(rev.SHA384(), gc.Equals, "aaaaaaaa")
 	c.Check(rev.Size(), gc.Equals, int64(111))
 	c.Check(rev.Timestamp(), gc.Equals, time.Date(2016, 10, 18, 2, 3, 4, 0, time.UTC))
-	c.Check(rev.Username(), gc.Equals, "user")
+	c.Check(rev.RetrievedBy(), gc.Equals, "user")
 }
 
 func (s *UnitResourceSuite) TestRoundTrip(c *gc.C) {
@@ -67,9 +83,15 @@ func (s *UnitResourceSuite) TestRoundTrip(c *gc.C) {
 	c.Assert(urOut, jc.DeepEquals, urIn)
 }
 
+func (s *UnitResourceSuite) TestImportV1(c *gc.C) {
+	urs, err := importUnitResources(minimalUnitResourcesMapV1())
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(urs, jc.DeepEquals, []*unitResource{minimalUnitResource()})
+}
+
 func (s *UnitResourceSuite) TestImportEmpty(c *gc.C) {
 	r, err := importUnitResources(map[string]interface{}{
-		"version":   1,
+		"version":   2,
 		"resources": []interface{}{},
 	})
 	c.Assert(err, jc.ErrorIsNil)
@@ -86,7 +108,7 @@ func (s *UnitResourceSuite) TestUnsupportedVersion(c *gc.C) {
 
 func (s *UnitResourceSuite) exportImport(c *gc.C, ur *unitResource) *unitResource {
 	initial := unitResources{
-		Version:    1,
+		Version:    2,
 		Resources_: []*unitResource{ur},
 	}
 	bytes, err := yaml.Marshal(initial)
