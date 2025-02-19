@@ -38,7 +38,7 @@ func (f *virtualHostKey) Validate() error {
 	if f.ID_ == "" {
 		return errors.NotValidf("empty id")
 	}
-	if len(f.HostKey_) == 0 {
+	if f.HostKey_ == "" {
 		return errors.NotValidf("zero length key")
 	}
 	return nil
@@ -117,9 +117,16 @@ func importVirtualHostKey(source map[string]interface{}, importVersion int, fiel
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
+	hostKey := valid["host-key"].(string)
+	// The model stores the virtual host key encoded, but we want to
+	// make sure that we are storing something that can be decoded.
+	if _, err := base64.StdEncoding.DecodeString(hostKey); err != nil {
+		return nil, errors.Annotate(err, "virtual host key not valid")
+	}
+
 	consumer := &virtualHostKey{
 		ID_:      valid["id"].(string),
-		HostKey_: valid["host-key"].(string),
+		HostKey_: hostKey,
 	}
 	return consumer, nil
 }

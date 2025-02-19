@@ -67,7 +67,7 @@ func (s *VirtualHostKeysSerializationSuite) TestVirtualHostKeyMatches(c *gc.C) {
 	c.Assert(string(out), jc.YAMLEquals, virtualHostKey)
 }
 
-func (s *VirtualHostKeysSerializationSuite) exportImport(c *gc.C, virtualHostKey_ *virtualHostKey, version int) *virtualHostKey {
+func (s *VirtualHostKeysSerializationSuite) exportImport(c *gc.C, virtualHostKey_ *virtualHostKey, version int, expectError string) *virtualHostKey {
 	initial := virtualHostKeys{
 		Version:         version,
 		VirtualHostKeys: []*virtualHostKey{virtualHostKey_},
@@ -81,6 +81,10 @@ func (s *VirtualHostKeysSerializationSuite) exportImport(c *gc.C, virtualHostKey
 	c.Assert(err, jc.ErrorIsNil)
 
 	virtualHostKeys, err := importVirtualHostKeys(source)
+	if expectError != "" {
+		c.Assert(err, gc.ErrorMatches, expectError)
+		return nil
+	}
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(virtualHostKeys, gc.HasLen, 1)
 	return virtualHostKeys[0]
@@ -89,6 +93,13 @@ func (s *VirtualHostKeysSerializationSuite) exportImport(c *gc.C, virtualHostKey
 func (s *VirtualHostKeysSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	args := testVirtualHostKeyArgs()
 	original := newVirtualHostKey(args)
-	virtualHostKey := s.exportImport(c, original, 1)
+	virtualHostKey := s.exportImport(c, original, 1, "")
 	c.Assert(virtualHostKey, jc.DeepEquals, original)
+}
+
+func (s *VirtualHostKeysSerializationSuite) TestParsingInvalidHostKey(c *gc.C) {
+	args := testVirtualHostKeyArgs()
+	original := newVirtualHostKey(args)
+	original.HostKey_ = "invalid"
+	_ = s.exportImport(c, original, 1, ".*virtual host key not valid.*")
 }
