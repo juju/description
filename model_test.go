@@ -1167,7 +1167,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 	c.Assert(ok, jc.IsTrue)
 	version, ok := versionValue.(int)
 	c.Assert(ok, jc.IsTrue)
-	c.Assert(version, gc.Equals, 11)
+	c.Assert(version, gc.Equals, 12)
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
@@ -1652,6 +1652,38 @@ func (s *ModelSerializationSuite) TestAgentVersionPre11Import(c *gc.C) {
 	c.Check(err, jc.ErrorIsNil)
 
 	c.Check(model.AgentVersion(), gc.Equals, "3.3.3")
+}
+
+func (s *ModelSerializationSuite) TestVirtualHostKeys(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	virtualHostKeyArgs := testVirtualHostKeyArgs()
+	virtualHostKey := initial.AddVirtualHostKey(virtualHostKeyArgs)
+	c.Assert(virtualHostKey.ID(), gc.Equals, virtualHostKeyArgs.ID)
+	c.Assert(virtualHostKey.HostKey(), gc.DeepEquals, virtualHostKeyArgs.HostKey)
+
+	virtualHostKeys := initial.VirtualHostKeys()
+	c.Assert(virtualHostKeys, gc.HasLen, 1)
+	c.Assert(virtualHostKeys[0], jc.DeepEquals, virtualHostKey)
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	model, err := Deserialize(bytes)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(model.VirtualHostKeys(), jc.DeepEquals, virtualHostKeys)
+}
+
+func (s *ModelSerializationSuite) TestVirtualHostKeysValidate(c *gc.C) {
+	initial := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	virtualHostKeyArgs := testVirtualHostKeyArgs()
+	virtualHostKeyArgs.ID = ""
+	virtualHostKey := initial.AddVirtualHostKey(virtualHostKeyArgs)
+	virtualHostKeys := initial.VirtualHostKeys()
+	c.Assert(virtualHostKeys, gc.HasLen, 1)
+	c.Assert(virtualHostKeys[0], jc.DeepEquals, virtualHostKey)
+
+	err := initial.Validate()
+	c.Assert(err, gc.ErrorMatches, `virtual host key\[0\]: empty id not valid`)
 }
 
 // modelV1example was taken from a Juju 2.1 model dump, which is version
