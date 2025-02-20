@@ -29,6 +29,7 @@ func (f *virtualHostKey) ID() string {
 func (f *virtualHostKey) HostKey() []byte {
 	// Here we are explicitly throwing away any decode error. We encode
 	// a byte array, so we know that the stored host key can be decoded.
+	// We also verify during import that the content can be decoded.
 	hostKey, _ := base64.StdEncoding.DecodeString(f.HostKey_)
 	return hostKey
 }

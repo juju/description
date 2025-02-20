@@ -1399,7 +1399,6 @@ func (m *model) validateSecrets(validationCtx *validationContext) error {
 	return nil
 }
 
-// validateVirtualHostKeys validates any virtual host keys
 func (m *model) validateVirtualHostKeys(_ *validationContext) error {
 	for i, hostKey := range m.VirtualHostKeys_.VirtualHostKeys {
 		if err := hostKey.Validate(); err != nil {
