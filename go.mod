@@ -1,6 +1,6 @@
 module github.com/juju/description/v8
 
-go 1.24
+go 1.23
 
 require (
 	github.com/juju/collections v1.0.0
