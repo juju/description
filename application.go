@@ -520,7 +520,7 @@ func (a *application) AddResource(args ResourceArgs) Resource {
 
 func (a *application) setResources(resourceList []*resource) {
 	a.Resources_ = resources{
-		Version:    1,
+		Version:    2,
 		Resources_: resourceList,
 	}
 }

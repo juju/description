@@ -353,7 +353,7 @@ func (u *unit) Resources() []UnitResource {
 
 func (u *unit) setResources(resourceList []*unitResource) {
 	u.Resources_ = unitResources{
-		Version:    1,
+		Version:    2,
 		Resources_: resourceList,
 	}
 }

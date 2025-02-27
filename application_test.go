@@ -53,7 +53,7 @@ func minimalApplicationMap() map[interface{}]interface{} {
 		},
 		"metrics-creds": "c2Vrcml0", // base64 encoded
 		"resources": map[interface{}]interface{}{
-			"version": 1,
+			"version": 2,
 			"resources": []interface{}{
 				minimalResourceMap(),
 			},
@@ -770,7 +770,7 @@ func (s *ApplicationSerializationSuite) TestApplicationSeriesToPlatform(c *gc.C)
 			"leadership-settings": map[interface{}]interface{}{},
 			"metrics-creds":       "c2Vrcml0", // base64 encoded
 			"resources": map[interface{}]interface{}{
-				"version": 1,
+				"version": 2,
 				"resources": []interface{}{
 					minimalResourceMap(),
 				},
@@ -825,7 +825,7 @@ func (s *ApplicationSerializationSuite) TestApplicationWithoutStatusHistory(c *g
 			"leadership-settings": map[interface{}]interface{}{},
 			"metrics-creds":       "c2Vrcml0", // base64 encoded
 			"resources": map[interface{}]interface{}{
-				"version": 1,
+				"version": 2,
 				"resources": []interface{}{
 					minimalResourceMap(),
 				},
