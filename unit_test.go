@@ -4,7 +4,6 @@
 package description
 
 import (
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -95,9 +94,9 @@ func minimalUnit(args ...UnitArgs) *unit {
 
 func minimalUnitArgs(modelType string) UnitArgs {
 	result := UnitArgs{
-		Tag:          names.NewUnitTag("ubuntu/0"),
+		Name:         "ubuntu/0",
 		Type:         modelType,
-		Machine:      names.NewMachineTag("0"),
+		Machine:      "0",
 		PasswordHash: "secure-hash",
 		CharmState: map[string]string{
 			"some-charm-key": "0xbadc0ffee",
@@ -125,13 +124,13 @@ func (s *UnitSerializationSuite) completeUnit() *unit {
 	// unit has a principal (normally only for subordinates), and also a list
 	// of subordinates.
 	args := UnitArgs{
-		Tag:          names.NewUnitTag("ubuntu/0"),
-		Machine:      names.NewMachineTag("0"),
+		Name:         "ubuntu/0",
+		Machine:      "0",
 		PasswordHash: "secure-hash",
-		Principal:    names.NewUnitTag("principal/0"),
-		Subordinates: []names.UnitTag{
-			names.NewUnitTag("sub1/0"),
-			names.NewUnitTag("sub2/0"),
+		Principal:    "principal/0",
+		Subordinates: []string{
+			"sub1/0",
+			"sub2/0",
 		},
 		WorkloadVersion: "malachite",
 		MeterStatusCode: "meter code",
@@ -158,14 +157,13 @@ func (s *UnitSerializationSuite) completeUnit() *unit {
 func (s *UnitSerializationSuite) TestNewUnit(c *gc.C) {
 	unit := s.completeUnit()
 
-	c.Assert(unit.Tag(), gc.Equals, names.NewUnitTag("ubuntu/0"))
 	c.Assert(unit.Name(), gc.Equals, "ubuntu/0")
-	c.Assert(unit.Machine(), gc.Equals, names.NewMachineTag("0"))
+	c.Assert(unit.Machine(), gc.Equals, "0")
 	c.Assert(unit.PasswordHash(), gc.Equals, "secure-hash")
-	c.Assert(unit.Principal(), gc.Equals, names.NewUnitTag("principal/0"))
-	c.Assert(unit.Subordinates(), jc.DeepEquals, []names.UnitTag{
-		names.NewUnitTag("sub1/0"),
-		names.NewUnitTag("sub2/0"),
+	c.Assert(unit.Principal(), gc.Equals, "principal/0")
+	c.Assert(unit.Subordinates(), jc.DeepEquals, []string{
+		"sub1/0",
+		"sub2/0",
 	})
 	c.Assert(unit.WorkloadVersion(), gc.Equals, "malachite")
 	c.Assert(unit.MeterStatusCode(), gc.Equals, "meter code")

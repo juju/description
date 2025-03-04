@@ -5,7 +5,6 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
@@ -14,11 +13,10 @@ import (
 type RemoteApplication interface {
 	HasStatus
 
-	Tag() names.ApplicationTag
 	Name() string
 	OfferUUID() string
 	URL() string
-	SourceModelTag() names.ModelTag
+	SourceModelUUID() string
 	IsConsumerProxy() bool
 	ConsumeVersion() int
 	Macaroon() string
@@ -54,10 +52,10 @@ type remoteApplication struct {
 // RemoteApplicationArgs is an argument struct used to add a remote
 // application to the Model.
 type RemoteApplicationArgs struct {
-	Tag             names.ApplicationTag
+	Name            string
 	OfferUUID       string
 	URL             string
-	SourceModel     names.ModelTag
+	SourceModelUUID string
 	IsConsumerProxy bool
 	ConsumeVersion  int
 	Macaroon        string
@@ -66,10 +64,10 @@ type RemoteApplicationArgs struct {
 
 func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
 	a := &remoteApplication{
-		Name_:            args.Tag.Id(),
+		Name_:            args.Name,
 		OfferUUID_:       args.OfferUUID,
 		URL_:             args.URL,
-		SourceModelUUID_: args.SourceModel.Id(),
+		SourceModelUUID_: args.SourceModelUUID,
 		IsConsumerProxy_: args.IsConsumerProxy,
 		ConsumeVersion_:  args.ConsumeVersion,
 		Macaroon_:        args.Macaroon,
@@ -78,11 +76,6 @@ func newRemoteApplication(args RemoteApplicationArgs) *remoteApplication {
 	a.setEndpoints(nil)
 	a.setSpaces(nil)
 	return a
-}
-
-// Tag implements RemoteApplication.
-func (a *remoteApplication) Tag() names.ApplicationTag {
-	return names.NewApplicationTag(a.Name_)
 }
 
 // Name implements RemoteApplication.
@@ -100,9 +93,9 @@ func (a *remoteApplication) URL() string {
 	return a.URL_
 }
 
-// SourceModelTag implements RemoteApplication.
-func (a *remoteApplication) SourceModelTag() names.ModelTag {
-	return names.NewModelTag(a.SourceModelUUID_)
+// SourceModelUUID implements RemoteApplication.
+func (a *remoteApplication) SourceModelUUID() string {
+	return a.SourceModelUUID_
 }
 
 // IsConsumerProxy implements RemoteApplication.

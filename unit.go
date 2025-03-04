@@ -5,7 +5,6 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
@@ -34,15 +33,14 @@ type Unit interface {
 	HasConstraints
 	UnitStateGetSetter
 
-	Tag() names.UnitTag
 	Name() string
 	Type() string
-	Machine() names.MachineTag
+	Machine() string
 
 	PasswordHash() string
 
-	Principal() names.UnitTag
-	Subordinates() []names.UnitTag
+	Principal() string
+	Subordinates() []string
 
 	MeterStatusCode() string
 	MeterStatusInfo() string
@@ -128,12 +126,12 @@ type unit struct {
 
 // UnitArgs is an argument struct used to add a Unit to a Application in the Model.
 type UnitArgs struct {
-	Tag          names.UnitTag
+	Name         string
 	Type         string
-	Machine      names.MachineTag
+	Machine      string
 	PasswordHash string
-	Principal    names.UnitTag
-	Subordinates []names.UnitTag
+	Principal    string
+	Subordinates []string
 
 	WorkloadVersion string
 	MeterStatusCode string
@@ -153,15 +151,15 @@ type UnitArgs struct {
 func newUnit(args UnitArgs) *unit {
 	var subordinates []string
 	for _, s := range args.Subordinates {
-		subordinates = append(subordinates, s.Id())
+		subordinates = append(subordinates, s)
 	}
 	u := &unit{
-		Name_:                   args.Tag.Id(),
+		Name_:                   args.Name,
 		Type_:                   args.Type,
-		Machine_:                args.Machine.Id(),
+		Machine_:                args.Machine,
 		PasswordHash_:           args.PasswordHash,
 		CloudContainer_:         newCloudContainer(args.CloudContainer),
-		Principal_:              args.Principal.Id(),
+		Principal_:              args.Principal,
 		Subordinates_:           subordinates,
 		WorkloadVersion_:        args.WorkloadVersion,
 		MeterStatusCode_:        args.MeterStatusCode,
@@ -180,11 +178,6 @@ func newUnit(args UnitArgs) *unit {
 	return u
 }
 
-// Tag implements Unit.
-func (u *unit) Tag() names.UnitTag {
-	return names.NewUnitTag(u.Name_)
-}
-
 // Name implements Unit.
 func (u *unit) Name() string {
 	return u.Name_
@@ -196,8 +189,8 @@ func (u *unit) Type() string {
 }
 
 // Machine implements Unit.
-func (u *unit) Machine() names.MachineTag {
-	return names.NewMachineTag(u.Machine_)
+func (u *unit) Machine() string {
+	return u.Machine_
 }
 
 // PasswordHash implements Unit.
@@ -206,20 +199,17 @@ func (u *unit) PasswordHash() string {
 }
 
 // Principal implements Unit.
-func (u *unit) Principal() names.UnitTag {
-	if u.Principal_ == "" {
-		return names.UnitTag{}
-	}
-	return names.NewUnitTag(u.Principal_)
+func (u *unit) Principal() string {
+	return u.Principal_
 }
 
 // Subordinates implements Unit.
-func (u *unit) Subordinates() []names.UnitTag {
-	var subordinates []names.UnitTag
-	for _, s := range u.Subordinates_ {
-		subordinates = append(subordinates, names.NewUnitTag(s))
+func (u *unit) Subordinates() []string {
+	result := make([]string, len(u.Subordinates_))
+	for i, s := range u.Subordinates_ {
+		result[i] = s
 	}
-	return subordinates
+	return result
 }
 
 // MeterStatusCode implements Unit.

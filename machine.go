@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/os/v2/series"
 	"github.com/juju/schema"
 	"github.com/juju/version/v2"
@@ -23,7 +22,6 @@ type Machine interface {
 	HasStatusHistory
 
 	Id() string
-	Tag() names.MachineTag
 	Nonce() string
 	PasswordHash() string
 	Placement() string
@@ -102,7 +100,7 @@ type machine struct {
 
 // MachineArgs is an argument struct used to add a machine to the Model.
 type MachineArgs struct {
-	Id            names.MachineTag
+	Id            string
 	Nonce         string
 	PasswordHash  string
 	Placement     string
@@ -122,7 +120,7 @@ func newMachine(args MachineArgs) *machine {
 		copy(jobs, args.Jobs)
 	}
 	m := &machine{
-		Id_:            args.Id.Id(),
+		Id_:            args.Id,
 		Nonce_:         args.Nonce,
 		PasswordHash_:  args.PasswordHash,
 		Placement_:     args.Placement,
@@ -144,11 +142,6 @@ func newMachine(args MachineArgs) *machine {
 // Id implements Machine.
 func (m *machine) Id() string {
 	return m.Id_
-}
-
-// Tag implements Machine.
-func (m *machine) Tag() names.MachineTag {
-	return names.NewMachineTag(m.Id_)
 }
 
 // Nonce implements Machine.

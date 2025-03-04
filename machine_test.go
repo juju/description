@@ -7,7 +7,6 @@ import (
 	"bytes"
 
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version/v2"
 	gc "gopkg.in/check.v1"
@@ -81,7 +80,7 @@ func minimalMachineMapWithPriorInstanceMap(id string, containers ...interface{})
 
 func minimalMachine(id string, containers ...*machine) *machine {
 	m := newMachine(MachineArgs{
-		Id:           names.NewMachineTag(id),
+		Id:           id,
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
 		Base:         "ubuntu@22.04",
@@ -98,7 +97,7 @@ func minimalMachine(id string, containers ...*machine) *machine {
 
 func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *machine {
 	m := newMachine(MachineArgs{
-		Id:           names.NewMachineTag(id),
+		Id:           id,
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
 		Base:         "ubuntu@17.04",
@@ -118,7 +117,7 @@ func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *mach
 
 func addMinimalMachine(model Model, id string) {
 	m := model.AddMachine(MachineArgs{
-		Id:           names.NewMachineTag(id),
+		Id:           id,
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
 		Base:         "ubuntu@22.04",
@@ -133,7 +132,7 @@ func addMinimalMachine(model Model, id string) {
 
 func addMinimalMachineWithMissingModificationStatus(model Model, id string) {
 	m := model.AddMachine(MachineArgs{
-		Id:           names.NewMachineTag(id),
+		Id:           id,
 		Nonce:        "a-nonce",
 		PasswordHash: "some-hash",
 		Base:         "ubuntu@22.04",
@@ -147,7 +146,7 @@ func addMinimalMachineWithMissingModificationStatus(model Model, id string) {
 
 func (s *MachineSerializationSuite) machineArgs(id string) MachineArgs {
 	return MachineArgs{
-		Id:            names.NewMachineTag(id),
+		Id:            id,
 		Nonce:         "a nonce",
 		PasswordHash:  "some-hash",
 		Placement:     "placement",
@@ -160,7 +159,6 @@ func (s *MachineSerializationSuite) machineArgs(id string) MachineArgs {
 func (s *MachineSerializationSuite) TestNewMachine(c *gc.C) {
 	m := newMachine(s.machineArgs("42"))
 	c.Assert(m.Id(), gc.Equals, "42")
-	c.Assert(m.Tag(), gc.Equals, names.NewMachineTag("42"))
 	c.Assert(m.Nonce(), gc.Equals, "a nonce")
 	c.Assert(m.PasswordHash(), gc.Equals, "some-hash")
 	c.Assert(m.Placement(), gc.Equals, "placement")

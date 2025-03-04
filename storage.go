@@ -4,8 +4,9 @@
 package description
 
 import (
+	"strings"
+
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
@@ -15,10 +16,10 @@ type storages struct {
 }
 
 type storage struct {
-	ID_    string `yaml:"id"`
-	Kind_  string `yaml:"kind"`
-	Owner_ string `yaml:"owner,omitempty"`
-	Name_  string `yaml:"name"`
+	ID_        string `yaml:"id"`
+	Kind_      string `yaml:"kind"`
+	UnitOwner_ string `yaml:"unit-owner,omitempty"`
+	Name_      string `yaml:"name"`
 
 	Attachments_ []string                    `yaml:"attachments,omitempty"`
 	Constraints_ *StorageInstanceConstraints `yaml:"constraints,omitempty"`
@@ -26,33 +27,31 @@ type storage struct {
 
 // StorageArgs is an argument struct used to add a storage to the Model.
 type StorageArgs struct {
-	Tag         names.StorageTag
+	ID          string
 	Kind        string
-	Owner       names.Tag
+	UnitOwner   string
 	Name        string
-	Attachments []names.UnitTag
+	Attachments []string
 	Constraints *StorageInstanceConstraints
 }
 
 func newStorage(args StorageArgs) *storage {
 	s := &storage{
-		ID_:          args.Tag.Id(),
+		ID_:          args.ID,
 		Kind_:        args.Kind,
 		Name_:        args.Name,
 		Constraints_: args.Constraints,
-	}
-	if args.Owner != nil {
-		s.Owner_ = args.Owner.String()
+		UnitOwner_:   args.UnitOwner,
 	}
 	for _, unit := range args.Attachments {
-		s.Attachments_ = append(s.Attachments_, unit.Id())
+		s.Attachments_ = append(s.Attachments_, unit)
 	}
 	return s
 }
 
-// Tag implements Storage.
-func (s *storage) Tag() names.StorageTag {
-	return names.NewStorageTag(s.ID_)
+// ID implements Storage.
+func (s *storage) ID() string {
+	return s.ID_
 }
 
 // Kind implements Storage.
@@ -60,16 +59,9 @@ func (s *storage) Kind() string {
 	return s.Kind_
 }
 
-// Owner implements Storage.
-func (s *storage) Owner() (names.Tag, error) {
-	if s.Owner_ == "" {
-		return nil, nil
-	}
-	tag, err := names.ParseTag(s.Owner_)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	return tag, nil
+// UnitOwner implements Storage.
+func (s *storage) UnitOwner() string {
+	return s.UnitOwner_
 }
 
 // Name implements Storage.
@@ -78,10 +70,10 @@ func (s *storage) Name() string {
 }
 
 // Attachments implements Storage.
-func (s *storage) Attachments() []names.UnitTag {
-	var result []names.UnitTag
-	for _, unit := range s.Attachments_ {
-		result = append(result, names.NewUnitTag(unit))
+func (s *storage) Attachments() []string {
+	result := make([]string, len(s.Attachments_))
+	for i, unit := range s.Attachments_ {
+		result[i] = unit
 	}
 	return result
 }
@@ -98,9 +90,6 @@ func (s *storage) Constraints() (StorageInstanceConstraints, bool) {
 func (s *storage) Validate() error {
 	if s.ID_ == "" {
 		return errors.NotValidf("storage missing id")
-	}
-	if _, err := s.Owner(); err != nil {
-		return errors.Wrap(err, errors.NotValidf("storage %q invalid owner", s.ID_))
 	}
 	if s.Constraints_ != nil {
 		if s.Constraints_.Pool == "" {
@@ -152,6 +141,17 @@ var storageDeserializationFuncs = map[int]storageDeserializationFunc{
 	1: importStorageV1,
 	2: importStorageV2,
 	3: importStorageV3,
+	4: importStorageV4,
+}
+
+func importStorageV4(source map[string]interface{}) (*storage, error) {
+	checker := schema.FieldMap(storageV4Fields())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "storage v4 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return newStorageFromValid(valid, 4)
 }
 
 func importStorageV3(source map[string]interface{}) (*storage, error) {
@@ -190,8 +190,14 @@ func newStorageFromValid(valid map[string]interface{}, version int) (*storage, e
 		Kind_: valid["kind"].(string),
 		Name_: valid["name"].(string),
 	}
-	if owner, ok := valid["owner"].(string); ok {
-		result.Owner_ = owner
+	if version <= 3 {
+		if owner, ok := valid["owner"].(string); ok {
+			unitOwner, _ := strings.CutPrefix(owner, "unit-")
+			result.UnitOwner_ = unitOwner
+		}
+	}
+	if owner, ok := valid["unit-owner"].(string); ok {
+		result.UnitOwner_ = owner
 	}
 	if attachments, ok := valid["attachments"]; ok {
 		result.Attachments_ = convertToStringSlice(attachments)
@@ -204,6 +210,15 @@ func newStorageFromValid(valid map[string]interface{}, version int) (*storage, e
 		}
 	}
 	return result, nil
+}
+
+func storageV4Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := storageV3Fields()
+	fields["unit-owner"] = schema.String()
+	defaults["unit-owner"] = schema.Omit
+	delete(fields, "owner")
+	delete(defaults, "owner")
+	return fields, defaults
 }
 
 func storageV3Fields() (schema.Fields, schema.Defaults) {

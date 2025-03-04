@@ -5,7 +5,6 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
@@ -56,7 +55,8 @@ func (v volumePlanInfo) DeviceAttributes() map[string]string {
 }
 
 type volumeAttachment struct {
-	HostID_         string         `yaml:"host-id"`
+	MachineID_      string         `yaml:"host-machine-id,omitempty"`
+	UnitID_         string         `yaml:"host-unit-id,omitempty"`
 	Provisioned_    bool           `yaml:"provisioned"`
 	ReadOnly_       bool           `yaml:"read-only"`
 	DeviceName_     string         `yaml:"device-name"`
@@ -71,8 +71,8 @@ type volumeAttachmentPlan struct {
 	PlanInfo_    volumePlanInfo `yaml:"plan-info,omitempty"`
 }
 
-func (v volumeAttachmentPlan) Machine() names.MachineTag {
-	return names.NewMachineTag(v.MachineID_)
+func (v volumeAttachmentPlan) Machine() string {
+	return v.MachineID_
 }
 
 func (v volumeAttachmentPlan) BlockDevice() BlockDevice {
@@ -85,8 +85,8 @@ func (v volumeAttachmentPlan) VolumePlanInfo() VolumePlanInfo {
 
 // VolumeArgs is an argument struct used to add a volume to the Model.
 type VolumeArgs struct {
-	Tag         names.VolumeTag
-	Storage     names.StorageTag
+	ID          string
+	Storage     string
 	Provisioned bool
 	Size        uint64
 	Pool        string
@@ -98,8 +98,8 @@ type VolumeArgs struct {
 
 func newVolume(args VolumeArgs) *volume {
 	v := &volume{
-		ID_:            args.Tag.Id(),
-		StorageID_:     args.Storage.Id(),
+		ID_:            args.ID,
+		StorageID_:     args.Storage,
 		Provisioned_:   args.Provisioned,
 		Size_:          args.Size,
 		Pool_:          args.Pool,
@@ -115,16 +115,13 @@ func newVolume(args VolumeArgs) *volume {
 }
 
 // Tag implements Volume.
-func (v *volume) Tag() names.VolumeTag {
-	return names.NewVolumeTag(v.ID_)
+func (v *volume) ID() string {
+	return v.ID_
 }
 
 // Storage implements Volume.
-func (v *volume) Storage() names.StorageTag {
-	if v.StorageID_ == "" {
-		return names.StorageTag{}
-	}
-	return names.NewStorageTag(v.StorageID_)
+func (v *volume) Storage() string {
+	return v.StorageID_
 }
 
 // Provisioned implements Volume.
@@ -178,7 +175,7 @@ func (v *volume) SetStatus(args StatusArgs) {
 
 func (v *volume) setAttachments(attachments []*volumeAttachment) {
 	v.Attachments_ = volumeAttachments{
-		Version:      2,
+		Version:      3,
 		Attachments_: attachments,
 	}
 }
@@ -351,7 +348,8 @@ func importVolumeV1(source map[string]interface{}) (*volume, error) {
 // VolumeAttachmentArgs is an argument struct used to add information about the
 // cloud instance to a Volume.
 type VolumeAttachmentArgs struct {
-	Host        names.Tag
+	HostMachine string
+	HostUnit    string
 	Provisioned bool
 	ReadOnly    bool
 	DeviceName  string
@@ -365,7 +363,7 @@ type VolumeAttachmentArgs struct {
 // VolumeAttachmentPlanArgs is an argument struct used to add information about
 // a volume attached to an instance.
 type VolumeAttachmentPlanArgs struct {
-	Machine names.MachineTag
+	Machine string
 
 	DeviceName     string
 	DeviceLinks    []string
@@ -402,7 +400,7 @@ func newVolumeAttachmentPlan(args VolumeAttachmentPlanArgs) *volumeAttachmentPla
 		DeviceAttributes_: args.DeviceAttributes,
 	}
 	return &volumeAttachmentPlan{
-		MachineID_:   args.Machine.Id(),
+		MachineID_:   args.Machine,
 		BlockDevice_: blockDevice,
 		PlanInfo_:    planInfo,
 	}
@@ -415,7 +413,8 @@ func newVolumeAttachment(args VolumeAttachmentArgs) *volumeAttachment {
 		planInfo.DeviceAttributes_ = args.DeviceAttributes
 	}
 	return &volumeAttachment{
-		HostID_:         args.Host.Id(),
+		MachineID_:      args.HostMachine,
+		UnitID_:         args.HostUnit,
 		Provisioned_:    args.Provisioned,
 		ReadOnly_:       args.ReadOnly,
 		DeviceName_:     args.DeviceName,
@@ -425,16 +424,14 @@ func newVolumeAttachment(args VolumeAttachmentArgs) *volumeAttachment {
 	}
 }
 
-func storageAttachmentHost(id string) names.Tag {
-	if names.IsValidUnit(id) {
-		return names.NewUnitTag(id)
-	}
-	return names.NewMachineTag(id)
+// HostMachine implements VolumeAttachment
+func (a *volumeAttachment) HostMachine() (string, bool) {
+	return a.MachineID_, a.MachineID_ != ""
 }
 
-// Host implements VolumeAttachment
-func (a *volumeAttachment) Host() names.Tag {
-	return storageAttachmentHost(a.HostID_)
+// HostUnit implements VolumeAttachment
+func (a *volumeAttachment) HostUnit() (string, bool) {
+	return a.UnitID_, a.UnitID_ != ""
 }
 
 // Provisioned implements VolumeAttachment
@@ -505,6 +502,7 @@ type volumeAttachmentDeserializationFunc func(map[string]interface{}) (*volumeAt
 var volumeAttachmentDeserializationFuncs = map[int]volumeAttachmentDeserializationFunc{
 	1: importVolumeAttachmentV1,
 	2: importVolumeAttachmentV2,
+	3: importVolumeAttachmentV3,
 }
 
 func importVolumeAttachmentV1(source map[string]interface{}) (*volumeAttachment, error) {
@@ -515,6 +513,11 @@ func importVolumeAttachmentV1(source map[string]interface{}) (*volumeAttachment,
 func importVolumeAttachmentV2(source map[string]interface{}) (*volumeAttachment, error) {
 	fields, defaults := volumeAttachmentV2Fields()
 	return importVolumeAttachment(fields, defaults, 2, source)
+}
+
+func importVolumeAttachmentV3(source map[string]interface{}) (*volumeAttachment, error) {
+	fields, defaults := volumeAttachmentV3Fields()
+	return importVolumeAttachment(fields, defaults, 3, source)
 }
 
 func volumeAttachmentV1Fields() (schema.Fields, schema.Defaults) {
@@ -538,6 +541,17 @@ func volumeAttachmentV2Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := volumeAttachmentV1Fields()
 	fields["host-id"] = schema.String()
 	delete(fields, "machine-id")
+	return fields, defaults
+}
+
+func volumeAttachmentV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := volumeAttachmentV2Fields()
+	fields["host-unit-id"] = schema.String()
+	defaults["host-unit-id"] = schema.Omit
+	fields["host-machine-id"] = schema.String()
+	defaults["host-machine-id"] = schema.Omit
+	delete(fields, "host-id")
+	delete(defaults, "host-id")
 	return fields, defaults
 }
 
@@ -570,10 +584,23 @@ func importVolumeAttachment(fields schema.Fields, defaults schema.Defaults, impo
 		VolumePlanInfo_: planInfo,
 	}
 
-	if importVersion >= 2 {
-		result.HostID_ = valid["host-id"].(string)
-	} else {
-		result.HostID_ = valid["machine-id"].(string)
+	switch importVersion {
+	case 1:
+		result.MachineID_ = valid["machine-id"].(string)
+	case 2:
+		host := valid["host-id"].(string)
+		if validUnit.MatchString(host) {
+			result.UnitID_ = host
+		} else {
+			result.MachineID_ = host
+		}
+	default:
+		if m, ok := valid["host-machine-id"].(string); ok {
+			result.MachineID_ = m
+		}
+		if u, ok := valid["host-unit-id"].(string); ok {
+			result.UnitID_ = u
+		}
 	}
 
 	return result, nil

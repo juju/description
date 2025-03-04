@@ -6,7 +6,6 @@ package description
 import (
 	"time"
 
-	"github.com/juju/names/v6"
 	"github.com/juju/version/v2"
 )
 
@@ -100,8 +99,8 @@ type Volume interface {
 	HasStatus
 	HasStatusHistory
 
-	Tag() names.VolumeTag
-	Storage() names.StorageTag
+	ID() string
+	Storage() string
 
 	Provisioned() bool
 
@@ -121,7 +120,8 @@ type Volume interface {
 
 // VolumeAttachment represents a volume attached to a machine.
 type VolumeAttachment interface {
-	Host() names.Tag
+	HostMachine() (string, bool)
+	HostUnit() (string, bool)
 	Provisioned() bool
 	ReadOnly() bool
 	DeviceName() string
@@ -131,7 +131,7 @@ type VolumeAttachment interface {
 }
 
 type VolumeAttachmentPlan interface {
-	Machine() names.MachineTag
+	Machine() string
 	BlockDevice() BlockDevice
 	VolumePlanInfo() VolumePlanInfo
 }
@@ -146,9 +146,9 @@ type Filesystem interface {
 	HasStatus
 	HasStatusHistory
 
-	Tag() names.FilesystemTag
-	Volume() names.VolumeTag
-	Storage() names.StorageTag
+	ID() string
+	Volume() string
+	Storage() string
 
 	Provisioned() bool
 
@@ -163,7 +163,8 @@ type Filesystem interface {
 
 // FilesystemAttachment represents a filesystem attached to a machine.
 type FilesystemAttachment interface {
-	Host() names.Tag
+	HostMachine() (string, bool)
+	HostUnit() (string, bool)
 	Provisioned() bool
 	MountPoint() string
 	ReadOnly() bool
@@ -172,14 +173,12 @@ type FilesystemAttachment interface {
 // Storage represents the state of a unit or application-wide storage instance
 // in the model.
 type Storage interface {
-	Tag() names.StorageTag
+	ID() string
 	Kind() string
-	// Owner returns the tag of the application or unit that owns this storage
-	// instance.
-	Owner() (names.Tag, error)
+	UnitOwner() string
 	Name() string
 
-	Attachments() []names.UnitTag
+	Attachments() []string
 
 	// Constraints returns the storage instance constraints, and a boolean
 	// reporting whether there are any.

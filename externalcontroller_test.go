@@ -4,7 +4,6 @@
 package description
 
 import (
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -45,7 +44,7 @@ func minimalExternalControllerMap() map[interface{}]interface{} {
 
 func minimalExternalController() *externalController {
 	c := newExternalController(ExternalControllerArgs{
-		Tag:   names.NewControllerTag("ext-ctrl"),
+		ID:    "ext-ctrl",
 		Alias: "ext-ctrl-alias",
 		Addrs: []string{
 			"1.2.3.4/24",
@@ -61,7 +60,7 @@ func minimalExternalController() *externalController {
 
 func (*ExternalControllerSerializationSuite) TestNew(c *gc.C) {
 	e := minimalExternalController()
-	c.Check(e.ID(), gc.Equals, names.NewControllerTag("ext-ctrl"))
+	c.Check(e.ID(), gc.Equals, "ext-ctrl")
 	c.Check(e.Addrs(), gc.DeepEquals, []string{
 		"1.2.3.4/24",
 		"0.0.0.1",

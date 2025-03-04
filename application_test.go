@@ -4,7 +4,6 @@
 package description
 
 import (
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -174,7 +173,7 @@ func addMinimalApplication(model Model) {
 
 func minimalApplicationArgs(modelType string) ApplicationArgs {
 	result := ApplicationArgs{
-		Tag:                  names.NewApplicationTag("ubuntu"),
+		Name:                 "ubuntu",
 		Type:                 modelType,
 		CharmURL:             "cs:trusty/ubuntu",
 		Channel:              "stable",
@@ -207,7 +206,7 @@ func minimalApplicationArgs(modelType string) ApplicationArgs {
 
 func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	args := ApplicationArgs{
-		Tag:                  names.NewApplicationTag("magic"),
+		Name:                 "magic",
 		Subordinate:          true,
 		CharmURL:             "cs:jammy/magic",
 		Channel:              "stable",
@@ -246,7 +245,6 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	application := newApplication(args)
 
 	c.Assert(application.Name(), gc.Equals, "magic")
-	c.Assert(application.Tag(), gc.Equals, names.NewApplicationTag("magic"))
 	c.Assert(application.Subordinate(), jc.IsTrue)
 	c.Assert(application.CharmURL(), gc.Equals, "cs:jammy/magic")
 	c.Assert(application.Channel(), gc.Equals, "stable")
@@ -283,7 +281,7 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 
 func (s *ApplicationSerializationSuite) TestSetApplicationConfig(c *gc.C) {
 	args := ApplicationArgs{
-		Tag: names.NewApplicationTag("magic"),
+		Name: "magic",
 		ApplicationConfig: map[string]interface{}{
 			"config key": "config value",
 		},
@@ -302,7 +300,7 @@ func (s *ApplicationSerializationSuite) TestSetApplicationConfig(c *gc.C) {
 
 func (s *ApplicationSerializationSuite) TestSetCharmConfig(c *gc.C) {
 	args := ApplicationArgs{
-		Tag: names.NewApplicationTag("magic"),
+		Name: "magic",
 		CharmConfig: map[string]interface{}{
 			"key": "value",
 		},

@@ -7,16 +7,15 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
 // User represents a user of the model. Users are able to connect to, and
 // depending on the read only flag, modify the model.
 type User interface {
-	Name() names.UserTag
+	Name() string
 	DisplayName() string
-	CreatedBy() names.UserTag
+	CreatedBy() string
 	DateCreated() time.Time
 	LastConnection() time.Time
 	Access() string
@@ -28,9 +27,9 @@ type users struct {
 }
 
 type UserArgs struct {
-	Name           names.UserTag
+	Name           string
 	DisplayName    string
-	CreatedBy      names.UserTag
+	CreatedBy      string
 	DateCreated    time.Time
 	LastConnection time.Time
 	Access         string
@@ -38,9 +37,9 @@ type UserArgs struct {
 
 func newUser(args UserArgs) *user {
 	u := &user{
-		Name_:        args.Name.Id(),
+		Name_:        args.Name,
 		DisplayName_: args.DisplayName,
-		CreatedBy_:   args.CreatedBy.Id(),
+		CreatedBy_:   args.CreatedBy,
 		DateCreated_: args.DateCreated,
 		Access_:      args.Access,
 	}
@@ -63,8 +62,8 @@ type user struct {
 }
 
 // Name implements User.
-func (u *user) Name() names.UserTag {
-	return names.NewUserTag(u.Name_)
+func (u *user) Name() string {
+	return u.Name_
 }
 
 // DisplayName implements User.
@@ -73,8 +72,8 @@ func (u *user) DisplayName() string {
 }
 
 // CreatedBy implements User.
-func (u *user) CreatedBy() names.UserTag {
-	return names.NewUserTag(u.CreatedBy_)
+func (u *user) CreatedBy() string {
+	return u.CreatedBy_
 }
 
 // DateCreated implements User.

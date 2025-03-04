@@ -4,7 +4,6 @@
 package description
 
 import (
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -60,8 +59,8 @@ func (s *CloudCredentialSerializationSuite) TestMissingAuthType(c *gc.C) {
 
 func (*CloudCredentialSerializationSuite) allArgs() CloudCredentialArgs {
 	return CloudCredentialArgs{
-		Owner:    names.NewUserTag("me"),
-		Cloud:    names.NewCloudTag("altostratus"),
+		Owner:    "me",
+		Cloud:    "altostratus",
 		Name:     "creds",
 		AuthType: "fuzzy",
 		Attributes: map[string]string{
@@ -74,8 +73,8 @@ func (s *CloudCredentialSerializationSuite) TestAllArgs(c *gc.C) {
 	args := s.allArgs()
 	creds := newCloudCredential(args)
 
-	c.Check(creds.Owner(), gc.Equals, args.Owner.Id())
-	c.Check(creds.Cloud(), gc.Equals, args.Cloud.Id())
+	c.Check(creds.Owner(), gc.Equals, args.Owner)
+	c.Check(creds.Cloud(), gc.Equals, args.Cloud)
 	c.Check(creds.Name(), gc.Equals, args.Name)
 	c.Check(creds.AuthType(), gc.Equals, args.AuthType)
 	c.Check(creds.Attributes(), jc.DeepEquals, args.Attributes)

@@ -6,7 +6,6 @@ package description
 import (
 	"time"
 
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -112,10 +111,10 @@ func minimalRemoteApplication() *remoteApplication {
 
 func minimalRemoteApplicationWithoutStatus() *remoteApplication {
 	a := newRemoteApplication(RemoteApplicationArgs{
-		Tag:             names.NewApplicationTag("civil-wars"),
+		Name:            "civil-wars",
 		OfferUUID:       "offer-uuid",
 		URL:             "http://a.url",
-		SourceModel:     names.NewModelTag("abcd-1234"),
+		SourceModelUUID: "abcd-1234",
 		IsConsumerProxy: true,
 		ConsumeVersion:  666,
 		Bindings:        map[string]string{"lana": "private"},
@@ -145,11 +144,10 @@ func minimalRemoteApplicationWithoutStatus() *remoteApplication {
 
 func (*RemoteApplicationSerializationSuite) TestNew(c *gc.C) {
 	r := minimalRemoteApplication()
-	c.Check(r.Tag(), gc.Equals, names.NewApplicationTag("civil-wars"))
 	c.Check(r.Name(), gc.Equals, "civil-wars")
 	c.Check(r.OfferUUID(), gc.Equals, "offer-uuid")
 	c.Check(r.URL(), gc.Equals, "http://a.url")
-	c.Check(r.SourceModelTag(), gc.Equals, names.NewModelTag("abcd-1234"))
+	c.Check(r.SourceModelUUID(), gc.Equals, "abcd-1234")
 	c.Check(r.IsConsumerProxy(), jc.IsTrue)
 	c.Check(r.Status(), gc.DeepEquals, &status{
 		Version: 2,
@@ -173,11 +171,10 @@ func (*RemoteApplicationSerializationSuite) TestNew(c *gc.C) {
 
 func (*RemoteApplicationSerializationSuite) TestNewWithoutStatus(c *gc.C) {
 	r := minimalRemoteApplicationWithoutStatus()
-	c.Check(r.Tag(), gc.Equals, names.NewApplicationTag("civil-wars"))
 	c.Check(r.Name(), gc.Equals, "civil-wars")
 	c.Check(r.OfferUUID(), gc.Equals, "offer-uuid")
 	c.Check(r.URL(), gc.Equals, "http://a.url")
-	c.Check(r.SourceModelTag(), gc.Equals, names.NewModelTag("abcd-1234"))
+	c.Check(r.SourceModelUUID(), gc.Equals, "abcd-1234")
 	c.Check(r.IsConsumerProxy(), jc.IsTrue)
 	c.Check(r.Status(), gc.IsNil)
 	ep := r.Endpoints()
