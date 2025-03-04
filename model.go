@@ -417,21 +417,15 @@ func (m *model) SetBlocks(blocks map[string]string) {
 	m.Blocks_ = blocks
 }
 
-// ByName is a sorting implementation over the UserTag lexicographically, which
-// aligns to  sort.Interface
-type ByName []User
-
-func (a ByName) Len() int           { return len(a) }
-func (a ByName) Less(i, j int) bool { return a[i].Name() < a[j].Name() }
-func (a ByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
 // Users implements Model.
 func (m *model) Users() []User {
 	var result []User
 	for _, user := range m.Users_.Users_ {
 		result = append(result, user)
 	}
-	sort.Sort(ByName(result))
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name() < result[j].Name()
+	})
 	return result
 }
 
