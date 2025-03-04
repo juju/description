@@ -71,13 +71,13 @@ func (*ModelSerializationSuite) TestType(c *gc.C) {
 }
 
 func (*ModelSerializationSuite) TestCloudCredentials(c *gc.C) {
-	owner := names.NewUserTag("me")
+	owner := "me"
 	model := NewModel(ModelArgs{
 		Owner: owner,
 	})
 	args := CloudCredentialArgs{
 		Owner:    owner,
-		Cloud:    names.NewCloudTag("altostratus"),
+		Cloud:    "altostratus",
 		Name:     "creds",
 		AuthType: "fuzzy",
 		Attributes: map[string]string{
@@ -87,8 +87,8 @@ func (*ModelSerializationSuite) TestCloudCredentials(c *gc.C) {
 	model.SetCloudCredential(args)
 	creds := model.CloudCredential()
 
-	c.Check(creds.Owner(), gc.Equals, args.Owner.Id())
-	c.Check(creds.Cloud(), gc.Equals, args.Cloud.Id())
+	c.Check(creds.Owner(), gc.Equals, args.Owner)
+	c.Check(creds.Cloud(), gc.Equals, args.Cloud)
 	c.Check(creds.Name(), gc.Equals, args.Name)
 	c.Check(creds.AuthType(), gc.Equals, args.AuthType)
 	c.Check(creds.Attributes(), jc.DeepEquals, args.Attributes)
@@ -117,7 +117,7 @@ func (s *ModelSerializationSuite) TestParsingModelV1(c *gc.C) {
 func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 	args := ModelArgs{
 		Type:  IAAS,
-		Owner: names.NewUserTag("magic"),
+		Owner: "magic",
 		Config: map[string]interface{}{
 			"name": "awesome",
 			"uuid": "some-uuid",
@@ -149,7 +149,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 func (s *ModelSerializationSuite) TestSetBlocks(c *gc.C) {
 	args := ModelArgs{
 		Type:  IAAS,
-		Owner: names.NewUserTag("magic"),
+		Owner: "magic",
 		Config: map[string]interface{}{
 			"name": "awesome",
 			"uuid": "some-uuid",
@@ -191,7 +191,7 @@ func (s *ModelSerializationSuite) testParsingYAMLWithMachine(c *gc.C, machineFn 
 	args := ModelArgs{
 		AgentVersion: "3.1.1",
 		Type:         IAAS,
-		Owner:        names.NewUserTag("magic"),
+		Owner:        "magic",
 		Config: map[string]interface{}{
 			"name": "awesome",
 			"uuid": "some-uuid",
@@ -207,10 +207,10 @@ func (s *ModelSerializationSuite) testParsingYAMLWithMachine(c *gc.C, machineFn 
 	initial := NewModel(args)
 	initial.SetCloudCredential(CloudCredentialArgs{
 		Name:  "creds",
-		Cloud: names.NewCloudTag("vapour"),
-		Owner: names.NewUserTag("admin"),
+		Cloud: "vapour",
+		Owner: "admin",
 	})
-	adminUser := names.NewUserTag("admin")
+	adminUser := "admin"
 	initial.AddUser(UserArgs{
 		Name:        adminUser,
 		CreatedBy:   adminUser,
@@ -223,7 +223,7 @@ func (s *ModelSerializationSuite) testParsingYAMLWithMachine(c *gc.C, machineFn 
 	c.Check(model.AgentVersion(), gc.Equals, "3.1.1")
 	c.Assert(model.Type(), gc.Equals, IAAS)
 	c.Assert(model.Owner(), gc.Equals, args.Owner)
-	c.Assert(model.Tag().Id(), gc.Equals, "some-uuid")
+	c.Assert(model.UUID(), gc.Equals, "some-uuid")
 	c.Assert(model.Config(), jc.DeepEquals, args.Config)
 	c.Assert(model.Cloud(), gc.Equals, "vapour")
 	c.Assert(model.CloudRegion(), gc.Equals, "east-west")
@@ -244,7 +244,7 @@ func (s *ModelSerializationSuite) testParsingYAMLWithMachine(c *gc.C, machineFn 
 
 func (s *ModelSerializationSuite) TestParsingOptionals(c *gc.C) {
 	args := ModelArgs{
-		Owner: names.NewUserTag("magic"),
+		Owner: "magic",
 		Config: map[string]interface{}{
 			"name": "awesome",
 			"uuid": "some-uuid",
@@ -256,7 +256,7 @@ func (s *ModelSerializationSuite) TestParsingOptionals(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestAnnotations(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	annotations := map[string]string{
 		"string":  "value",
 		"another": "one",
@@ -272,7 +272,7 @@ func (s *ModelSerializationSuite) TestAnnotations(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSequences(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	initial.SetSequence("machine", 4)
 	initial.SetSequence("application-foo", 3)
 	initial.SetSequence("application-bar", 1)
@@ -290,7 +290,7 @@ func (s *ModelSerializationSuite) TestSequences(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestConstraints(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	args := ConstraintsArgs{
 		Architecture: "amd64",
 		Memory:       8 * gig,
@@ -313,7 +313,7 @@ func (*ModelSerializationSuite) TestModelValidation(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksMachines(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
+	model := NewModel(ModelArgs{Owner: "owner", CloudRegion: "some-region"})
 	model.AddMachine(MachineArgs{})
 	err := model.Validate()
 	c.Assert(err, gc.ErrorMatches, "machine missing id not valid")
@@ -321,7 +321,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksMachines(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) addMachineToModel(model Model, id string) Machine {
-	machine := model.AddMachine(MachineArgs{Id: names.NewMachineTag(id)})
+	machine := model.AddMachine(MachineArgs{Id: id})
 	machine.SetInstance(CloudInstanceArgs{InstanceId: "magic"})
 	machine.SetTools(minimalAgentToolsArgs())
 	machine.SetStatus(minimalStatusArgs())
@@ -331,8 +331,8 @@ func (s *ModelSerializationSuite) addMachineToModel(model Model, id string) Mach
 }
 
 func (s *ModelSerializationSuite) TestAddBlockDevices(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
-	model.AddMachine(MachineArgs{Id: names.NewMachineTag("666")})
+	model := NewModel(ModelArgs{Owner: "owner", CloudRegion: "some-region"})
+	model.AddMachine(MachineArgs{Id: "666"})
 	err := model.AddBlockDevice("666", BlockDeviceArgs{
 		Name:           "foo",
 		Links:          []string{"a-link"},
@@ -368,7 +368,7 @@ func (s *ModelSerializationSuite) TestAddBlockDevices(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestAddBlockDevicesMachineNotFound(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
+	model := NewModel(ModelArgs{Owner: "owner", CloudRegion: "some-region"})
 	err := model.AddBlockDevice("666", BlockDeviceArgs{
 		Name: "foo",
 	})
@@ -376,14 +376,14 @@ func (s *ModelSerializationSuite) TestAddBlockDevicesMachineNotFound(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksMachinesGood(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
+	model := NewModel(ModelArgs{Owner: "owner", CloudRegion: "some-region"})
 	s.addMachineToModel(model, "0")
 	err := model.Validate()
 	c.Assert(err, jc.ErrorIsNil)
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksOpenPortsUnits(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
+	model := NewModel(ModelArgs{Owner: "owner", CloudRegion: "some-region"})
 	machine := s.addMachineToModel(model, "0")
 	machine.AddOpenedPortRange(OpenedPortRangeArgs{
 		UnitName:     "missing/0",
@@ -397,7 +397,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksOpenPortsUnits(c *gc.
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksApplications(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner"), CloudRegion: "some-region"})
+	model := NewModel(ModelArgs{Owner: "owner", CloudRegion: "some-region"})
 	model.AddApplication(ApplicationArgs{})
 	err := model.Validate()
 	c.Assert(err, gc.ErrorMatches, "application missing name not valid")
@@ -406,7 +406,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksApplications(c *gc.C)
 
 func (s *ModelSerializationSuite) addApplicationToModel(model Model, name string, numUnits int) Application {
 	application := model.AddApplication(ApplicationArgs{
-		Tag:                names.NewApplicationTag(name),
+		Name:               name,
 		CharmConfig:        map[string]interface{}{},
 		LeadershipSettings: map[string]interface{}{},
 	})
@@ -416,8 +416,8 @@ func (s *ModelSerializationSuite) addApplicationToModel(model Model, name string
 		// A happy coincidence.
 		machine := s.addMachineToModel(model, fmt.Sprint(i))
 		unit := application.AddUnit(UnitArgs{
-			Tag:     names.NewUnitTag(fmt.Sprintf("%s/%d", name, i)),
-			Machine: machine.Tag(),
+			Name:    fmt.Sprintf("%s/%d", name, i),
+			Machine: machine.Id(),
 		})
 		unit.SetTools(minimalAgentToolsArgs())
 		unit.SetAgentStatus(minimalStatusArgs())
@@ -429,7 +429,7 @@ func (s *ModelSerializationSuite) addApplicationToModel(model Model, name string
 
 func (s *ModelSerializationSuite) wordpressModel() (Model, Endpoint, Endpoint) {
 	model := NewModel(ModelArgs{
-		Owner: names.NewUserTag("owner"),
+		Owner: "owner",
 		Config: map[string]interface{}{
 			"uuid": "some-uuid",
 		},
@@ -549,7 +549,7 @@ func (s *ModelSerializationSuite) TestModelSerializationWithRelations(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestModelSerializationWithRemoteEntities(c *gc.C) {
 	model := NewModel(ModelArgs{
-		Owner: names.NewUserTag("owner"),
+		Owner: "owner",
 		Config: map[string]interface{}{
 			"uuid": "some-uuid",
 		},
@@ -573,19 +573,19 @@ func (s *ModelSerializationSuite) TestModelSerializationWithRemoteEntities(c *gc
 
 func (s *ModelSerializationSuite) TestModelSerializationWithRelationNetworks(c *gc.C) {
 	model := NewModel(ModelArgs{
-		Owner: names.NewUserTag("owner"),
+		Owner: "owner",
 		Config: map[string]interface{}{
 			"uuid": "some-uuid",
 		},
 		CloudRegion: "some-region",
 	})
 	model.AddRelationNetwork(RelationNetworkArgs{
-		ID:          names.NewControllerTag("ctrl-uuid-3").String(),
+		ID:          "ctrl-uuid-3",
 		RelationKey: "relation-key",
 		CIDRS:       []string{"10.0.1.0/16"},
 	})
 	model.AddRelationNetwork(RelationNetworkArgs{
-		ID:          names.NewControllerTag("ctrl-uuid-4").String(),
+		ID:          "ctrl-uuid-4",
 		RelationKey: "relation-key",
 		CIDRS:       []string{"12.0.1.1/24"},
 	})
@@ -599,7 +599,7 @@ func (s *ModelSerializationSuite) TestModelSerializationWithRelationNetworks(c *
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksSubnets(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	model.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24", SpaceUUID: "deadbeef-1bad-500d-9000-4b1d0d06f00d"})
 	model.AddSubnet(SubnetArgs{CIDR: "10.0.1.0/24"})
 	err := model.Validate()
@@ -610,14 +610,14 @@ func (s *ModelSerializationSuite) TestModelValidationChecksSubnets(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressMachineID(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	model.AddIPAddress(IPAddressArgs{Value: "192.168.1.0", MachineID: "42"})
 	err := model.Validate()
 	c.Assert(err, gc.ErrorMatches, `ip address "192.168.1.0" references non-existent machine "42"`)
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressDeviceName(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{Value: "192.168.1.0", MachineID: "42", DeviceName: "foo"}
 	model.AddIPAddress(args)
 	s.addMachineToModel(model, "42")
@@ -626,7 +626,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressDeviceName(c *
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressValueEmpty(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{MachineID: "42", DeviceName: "foo"}
 	model.AddIPAddress(args)
 	s.addMachineToModel(model, "42")
@@ -636,7 +636,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressValueEmpty(c *
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressValueInvalid(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{MachineID: "42", DeviceName: "foo", Value: "foobar"}
 	model.AddIPAddress(args)
 	s.addMachineToModel(model, "42")
@@ -646,7 +646,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressValueInvalid(c
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressSubnetEmpty(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{MachineID: "42", DeviceName: "foo", Value: "192.168.1.1"}
 	model.AddIPAddress(args)
 	s.addMachineToModel(model, "42")
@@ -656,7 +656,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressSubnetEmpty(c 
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressSubnetInvalid(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{
 		MachineID:  "42",
 		DeviceName: "foo",
@@ -671,7 +671,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressSubnetInvalid(
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressSucceeds(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{
 		MachineID:  "42",
 		DeviceName: "foo",
@@ -686,7 +686,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressSucceeds(c *gc
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressGatewayAddressInvalid(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{
 		MachineID:      "42",
 		DeviceName:     "foo",
@@ -702,7 +702,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressGatewayAddress
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksAddressGatewayAddressValid(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := IPAddressArgs{
 		MachineID:        "42",
 		DeviceName:       "foo",
@@ -719,7 +719,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksAddressGatewayAddress
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksLinkLayerDeviceMachineId(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	model.AddLinkLayerDevice(LinkLayerDeviceArgs{Name: "foo", MachineID: "42"})
 	err := model.Validate()
 	c.Assert(err, gc.ErrorMatches, `device "foo" references non-existent machine "42"`)
@@ -729,7 +729,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksLinkLayerDeviceMachin
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksLinkLayerName(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	model.AddLinkLayerDevice(LinkLayerDeviceArgs{MachineID: "42"})
 	s.addMachineToModel(model, "42")
 	err := model.Validate()
@@ -737,7 +737,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksLinkLayerName(c *gc.C
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksLinkLayerMACAddress(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := LinkLayerDeviceArgs{MachineID: "42", Name: "foo", MACAddress: "DEADBEEF"}
 	model.AddLinkLayerDevice(args)
 	s.addMachineToModel(model, "42")
@@ -746,7 +746,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksLinkLayerMACAddress(c
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksParentExists(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := LinkLayerDeviceArgs{MachineID: "42", Name: "foo", ParentName: "bar", MACAddress: "01:23:45:67:89:ab"}
 	model.AddLinkLayerDevice(args)
 	s.addMachineToModel(model, "42")
@@ -758,7 +758,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksParentExists(c *gc.C)
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksParentIsNotItself(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := LinkLayerDeviceArgs{MachineID: "42", Name: "foo", ParentName: "foo"}
 	model.AddLinkLayerDevice(args)
 	s.addMachineToModel(model, "42")
@@ -767,7 +767,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksParentIsNotItself(c *
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksParentIsABridge(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := LinkLayerDeviceArgs{MachineID: "42", Name: "foo", ParentName: "m#43#d#bar"}
 	model.AddLinkLayerDevice(args)
 	args2 := LinkLayerDeviceArgs{MachineID: "43", Name: "bar"}
@@ -779,7 +779,7 @@ func (s *ModelSerializationSuite) TestModelValidationChecksParentIsABridge(c *gc
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksChildDeviceContained(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := LinkLayerDeviceArgs{MachineID: "42", Name: "foo", ParentName: "m#43#d#bar"}
 	model.AddLinkLayerDevice(args)
 	args2 := LinkLayerDeviceArgs{MachineID: "43", Name: "bar", Type: "bridge"}
@@ -791,13 +791,13 @@ func (s *ModelSerializationSuite) TestModelValidationChecksChildDeviceContained(
 }
 
 func (s *ModelSerializationSuite) TestModelValidationChecksParentOnHost(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := LinkLayerDeviceArgs{MachineID: "41/lxd/0", Name: "foo", ParentName: "m#43#d#bar"}
 	model.AddLinkLayerDevice(args)
 	args2 := LinkLayerDeviceArgs{MachineID: "43", Name: "bar", Type: "bridge"}
 	model.AddLinkLayerDevice(args2)
 	machine := s.addMachineToModel(model, "41")
-	container := machine.AddContainer(MachineArgs{Id: names.NewMachineTag("41/lxd/0")})
+	container := machine.AddContainer(MachineArgs{Id: "41/lxd/0"})
 	container.SetInstance(CloudInstanceArgs{InstanceId: "magic"})
 	container.Instance().SetStatus(minimalStatusArgs())
 	container.SetTools(minimalAgentToolsArgs())
@@ -808,13 +808,13 @@ func (s *ModelSerializationSuite) TestModelValidationChecksParentOnHost(c *gc.C)
 }
 
 func (s *ModelSerializationSuite) TestModelValidationLinkLayerDeviceContainer(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	args := LinkLayerDeviceArgs{MachineID: "43/lxd/0", Name: "foo", ParentName: "m#43#d#bar"}
 	model.AddLinkLayerDevice(args)
 	args2 := LinkLayerDeviceArgs{MachineID: "43", Name: "bar", Type: "bridge"}
 	model.AddLinkLayerDevice(args2)
 	machine := s.addMachineToModel(model, "43")
-	container := machine.AddContainer(MachineArgs{Id: names.NewMachineTag("43/lxd/0")})
+	container := machine.AddContainer(MachineArgs{Id: "43/lxd/0"})
 	container.SetInstance(CloudInstanceArgs{InstanceId: "magic"})
 	container.Instance().SetStatus(minimalStatusArgs())
 	container.SetTools(minimalAgentToolsArgs())
@@ -824,17 +824,17 @@ func (s *ModelSerializationSuite) TestModelValidationLinkLayerDeviceContainer(c 
 }
 
 func (s *ModelSerializationSuite) TestNewModelSetsRemoteApplications(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("mogwai")})
+	model := NewModel(ModelArgs{Owner: "mogwai"})
 	c.Assert(model.RemoteApplications(), gc.IsNil)
 }
 
 func (s *ModelSerializationSuite) TestModelValidationHandlesRemoteApplications(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("ink-spots")})
+	model := NewModel(ModelArgs{Owner: "ink-spots"})
 	remoteApp := model.AddRemoteApplication(RemoteApplicationArgs{
-		Tag:             names.NewApplicationTag("mysql"),
+		Name:            "mysql",
 		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
-		SourceModel:     names.NewModelTag("some-model"),
+		SourceModelUUID: "some-model",
 		IsConsumerProxy: true,
 	})
 	remoteApp.AddEndpoint(RemoteEndpointArgs{
@@ -872,12 +872,12 @@ func asStringMap(c *gc.C, model Model) map[string]interface{} {
 }
 
 func (s *ModelSerializationSuite) TestSerializesRemoteApplications(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model := NewModel(ModelArgs{Owner: "veils"})
 	rapp := model.AddRemoteApplication(RemoteApplicationArgs{
-		Tag:             names.NewApplicationTag("bloom"),
+		Name:            "bloom",
 		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
-		SourceModel:     names.NewModelTag("some-model"),
+		SourceModelUUID: "some-model",
 		IsConsumerProxy: true,
 		ConsumeVersion:  666,
 	})
@@ -927,12 +927,12 @@ version: 3
 }
 
 func (s *ModelSerializationSuite) TestImportingWithRemoteApplications(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	initial := NewModel(ModelArgs{Owner: "veils"})
 	rapp := initial.AddRemoteApplication(RemoteApplicationArgs{
-		Tag:             names.NewApplicationTag("bloom"),
+		Name:            "bloom",
 		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
-		SourceModel:     names.NewModelTag("some-model"),
+		SourceModelUUID: "some-model",
 		IsConsumerProxy: true,
 	})
 	rapp.AddEndpoint(RemoteEndpointArgs{
@@ -957,12 +957,12 @@ func (s *ModelSerializationSuite) TestImportingWithRemoteApplications(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model := NewModel(ModelArgs{Owner: "veils"})
 	model.AddRemoteApplication(RemoteApplicationArgs{
-		Tag:             names.NewApplicationTag("bloom"),
+		Name:            "bloom",
 		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
-		SourceModel:     names.NewModelTag("some-model"),
+		SourceModelUUID: "some-model",
 		IsConsumerProxy: true,
 	})
 	result := model.RemoteApplications()
@@ -970,7 +970,7 @@ func (s *ModelSerializationSuite) TestRemoteApplicationsGetter(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSerializesOfferConnections(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model := NewModel(ModelArgs{Owner: "veils"})
 	model.AddOfferConnection(OfferConnectionArgs{
 		OfferUUID:       "offer-uuid",
 		RelationID:      1,
@@ -999,7 +999,7 @@ version: 1
 }
 
 func (s *ModelSerializationSuite) TestImportingWithOfferConnections(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	initial := NewModel(ModelArgs{Owner: "veils"})
 	initial.AddOfferConnection(OfferConnectionArgs{
 		OfferUUID:       "offer-uuid",
 		RelationID:      1,
@@ -1020,7 +1020,7 @@ func (s *ModelSerializationSuite) TestImportingWithOfferConnections(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestOfferConnectionsGetter(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model := NewModel(ModelArgs{Owner: "veils"})
 	model.AddOfferConnection(OfferConnectionArgs{
 		OfferUUID:       "offer-uuid",
 		RelationID:      1,
@@ -1033,9 +1033,9 @@ func (s *ModelSerializationSuite) TestOfferConnectionsGetter(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSerializesExternalControllers(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model := NewModel(ModelArgs{Owner: "veils"})
 	model.AddExternalController(ExternalControllerArgs{
-		Tag:    names.NewControllerTag("controller-name"),
+		ID:     "name",
 		Alias:  "moon-ball",
 		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
 		CACert: "magic-cert",
@@ -1056,7 +1056,7 @@ external-controllers:
   - 10.12.11.243
   alias: moon-ball
   ca-cert: magic-cert
-  id: controller-name
+  id: name
   models:
   - aaaa-bbbb
 version: 1
@@ -1065,9 +1065,9 @@ version: 1
 }
 
 func (s *ModelSerializationSuite) TestImportingWithExternalControllers(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	initial := NewModel(ModelArgs{Owner: "veils"})
 	initial.AddExternalController(ExternalControllerArgs{
-		Tag:    names.NewControllerTag("controller-name"),
+		ID:     "name",
 		Alias:  "moon-ball",
 		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
 		CACert: "magic-cert",
@@ -1086,9 +1086,9 @@ func (s *ModelSerializationSuite) TestImportingWithExternalControllers(c *gc.C) 
 }
 
 func (s *ModelSerializationSuite) TestExternalControllersGetter(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model := NewModel(ModelArgs{Owner: "veils"})
 	model.AddExternalController(ExternalControllerArgs{
-		Tag:    names.NewControllerTag("controller-name"),
+		ID:     "name",
 		Alias:  "moon-ball",
 		Addrs:  []string{"1.2.3.4", "10.12.11.243"},
 		CACert: "magic-cert",
@@ -1098,7 +1098,7 @@ func (s *ModelSerializationSuite) TestExternalControllersGetter(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSetAndGetSLA(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	sla := model.SetSLA("essential", "bob", "creds")
 	c.Assert(sla.Level(), gc.Equals, "essential")
 	c.Assert(sla.Owner(), gc.Equals, "bob")
@@ -1110,7 +1110,7 @@ func (s *ModelSerializationSuite) TestSetAndGetSLA(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSLA(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	sla := initial.SetSLA("essential", "bob", "creds")
 	c.Assert(sla.Level(), gc.Equals, "essential")
 	c.Assert(sla.Owner(), gc.Equals, "bob")
@@ -1127,7 +1127,7 @@ func (s *ModelSerializationSuite) TestSLA(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestGetAndSetMeterStatus(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("veils")})
+	model := NewModel(ModelArgs{Owner: "veils"})
 	ms := model.SetMeterStatus("RED", "info message")
 	c.Assert(ms.Code(), gc.Equals, "RED")
 	c.Assert(ms.Info(), gc.Equals, "info message")
@@ -1138,7 +1138,7 @@ func (s *ModelSerializationSuite) TestGetAndSetMeterStatus(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestMeterStatus(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	ms := initial.SetMeterStatus("RED", "info message")
 	c.Assert(ms.Code(), gc.Equals, "RED")
 	c.Assert(ms.Info(), gc.Equals, "info message")
@@ -1165,7 +1165,7 @@ func (s *ModelSerializationSuite) TestPasswordHash(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
+	initial := NewModel(ModelArgs{Owner: "ben-harper"})
 	data := asStringMap(c, initial)
 	versionValue, ok := data["version"]
 	c.Assert(ok, jc.IsTrue)
@@ -1175,7 +1175,7 @@ func (s *ModelSerializationSuite) TestSerializesToLatestVersion(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
+	initial := NewModel(ModelArgs{Owner: "ben-harper"})
 	data := asStringMap(c, initial)
 	data["version"] = 1
 
@@ -1184,17 +1184,17 @@ func (s *ModelSerializationSuite) TestVersion1Works(c *gc.C) {
 	model, err := Deserialize(bytes)
 	c.Assert(err, jc.ErrorIsNil)
 
-	c.Assert(model.Owner(), gc.Equals, names.NewUserTag("ben-harper"))
+	c.Assert(model.Owner(), gc.Equals, "ben-harper")
 	c.Assert(model.Type(), gc.Equals, IAAS)
 }
 
 func (s *ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("ben-harper")})
+	initial := NewModel(ModelArgs{Owner: "ben-harper"})
 	initial.AddRemoteApplication(RemoteApplicationArgs{
-		Tag:             names.NewApplicationTag("bloom"),
+		Name:            "bloom",
 		OfferUUID:       "offer-uuid",
 		URL:             "other.mysql",
-		SourceModel:     names.NewModelTag("some-model"),
+		SourceModelUUID: "some-model",
 		IsConsumerProxy: true,
 	})
 	data := asStringMap(c, initial)
@@ -1211,7 +1211,7 @@ func (s *ModelSerializationSuite) TestVersion1IgnoresRemoteApplications(c *gc.C)
 }
 
 func (s *ModelSerializationSuite) TestSpaces(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	space := initial.AddSpace(SpaceArgs{UUID: "deadbeef-1bad-500d-9000-4b1d0d06f00d", Name: "special"})
 	c.Assert(space.Name(), gc.Equals, "special")
 	c.Assert(space.UUID(), gc.Equals, "deadbeef-1bad-500d-9000-4b1d0d06f00d")
@@ -1230,7 +1230,7 @@ func (s *ModelSerializationSuite) TestSpaces(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestLinkLayerDevice(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	device := initial.AddLinkLayerDevice(LinkLayerDeviceArgs{Name: "foo"})
 	c.Assert(device.Name(), gc.Equals, "foo")
 	devices := initial.LinkLayerDevices()
@@ -1248,7 +1248,7 @@ func (s *ModelSerializationSuite) TestLinkLayerDevice(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSubnets(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	initial.AddSubnet(SubnetArgs{CIDR: "10.0.20.0/24", SpaceID: "0"})
 	subnet := initial.AddSubnet(SubnetArgs{CIDR: "10.0.0.0/24"})
 	c.Assert(subnet.CIDR(), gc.Equals, "10.0.0.0/24")
@@ -1265,7 +1265,7 @@ func (s *ModelSerializationSuite) TestSubnets(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestIPAddress(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	addr := initial.AddIPAddress(IPAddressArgs{Value: "10.0.0.4"})
 	c.Assert(addr.Value(), gc.Equals, "10.0.0.4")
 	addresses := initial.IPAddresses()
@@ -1281,7 +1281,7 @@ func (s *ModelSerializationSuite) TestIPAddress(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSSHHostKey(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	key := initial.AddSSHHostKey(SSHHostKeyArgs{MachineID: "foo"})
 	c.Assert(key.MachineID(), gc.Equals, "foo")
 	keys := initial.SSHHostKeys()
@@ -1298,7 +1298,7 @@ func (s *ModelSerializationSuite) TestSSHHostKey(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestCloudImageMetadata(c *gc.C) {
 	storageSize := uint64(3)
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	image := initial.AddCloudImageMetadata(CloudImageMetadataArgs{
 		Stream:          "stream",
 		Region:          "region-test",
@@ -1339,7 +1339,7 @@ func (s *ModelSerializationSuite) TestCloudImageMetadata(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestAction(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	enqueued := time.Now().UTC()
 	action := initial.AddAction(ActionArgs{
 		Name:       "foo",
@@ -1362,7 +1362,7 @@ func (s *ModelSerializationSuite) TestAction(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestOperation(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	enqueued := time.Now().UTC()
 	op := initial.AddOperation(OperationArgs{
 		Summary:           "foo",
@@ -1387,14 +1387,14 @@ func (s *ModelSerializationSuite) TestOperation(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestVolumeValidation(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	model.AddVolume(testVolumeArgs())
 	err := model.Validate()
 	c.Assert(err, gc.ErrorMatches, `volume\[0\]: volume "1234" missing status not valid`)
 }
 
 func (s *ModelSerializationSuite) TestVolumes(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	volume := initial.AddVolume(testVolumeArgs())
 	volume.SetStatus(minimalStatusArgs())
 	volumes := initial.Volumes()
@@ -1410,14 +1410,14 @@ func (s *ModelSerializationSuite) TestVolumes(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestFilesystemValidation(c *gc.C) {
-	model := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model := NewModel(ModelArgs{Owner: "owner"})
 	model.AddFilesystem(testFilesystemArgs())
 	err := model.Validate()
 	c.Assert(err, gc.ErrorMatches, `filesystem\[0\]: filesystem "1234" missing status not valid`)
 }
 
 func (s *ModelSerializationSuite) TestFilesystems(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	filesystem := initial.AddFilesystem(testFilesystemArgs())
 	filesystem.SetStatus(minimalStatusArgs())
 	filesystem.AddAttachment(testFilesystemAttachmentArgs())
@@ -1434,7 +1434,7 @@ func (s *ModelSerializationSuite) TestFilesystems(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestFirewallRule(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	firewallRule := initial.AddFirewallRule(MinimalFireWallArgs())
 	firewallRules := initial.FirewallRules()
 	c.Assert(firewallRules, gc.HasLen, 1)
@@ -1449,7 +1449,7 @@ func (s *ModelSerializationSuite) TestFirewallRule(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestStorage(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	storage := initial.AddStorage(testStorageArgs())
 	storages := initial.Storages()
 	c.Assert(storages, gc.HasLen, 1)
@@ -1464,20 +1464,20 @@ func (s *ModelSerializationSuite) TestStorage(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestStorageValidate(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	storageArgs := testStorageArgs()
-	storageArgs.Owner = nil
+	storageArgs.UnitOwner = ""
 	storage := initial.AddStorage(storageArgs)
 	storages := initial.Storages()
 	c.Assert(storages, gc.HasLen, 1)
 	c.Assert(storages[0], jc.DeepEquals, storage)
 
 	err := initial.Validate()
-	c.Assert(err, gc.ErrorMatches, `storage\[0\] attachment referencing unknown unit "unit-postgresql-0" not valid`)
+	c.Assert(err, gc.ErrorMatches, `storage\[0\] attachment referencing unknown unit "postgresql/0" not valid`)
 }
 
 func (s *ModelSerializationSuite) TestStoragePools(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	poolOne := map[string]interface{}{
 		"foo":   42,
 		"value": true,
@@ -1519,7 +1519,7 @@ func (s *ModelSerializationSuite) TestStoragePools(c *gc.C) {
 
 func (s *ModelSerializationSuite) TestSecretBackend(c *gc.C) {
 	initial := NewModel(ModelArgs{
-		Owner:           names.NewUserTag("owner"),
+		Owner:           "owner",
 		SecretBackendID: "backend-id",
 	})
 	c.Assert(initial.SecretBackendID(), gc.Equals, "backend-id")
@@ -1533,7 +1533,7 @@ func (s *ModelSerializationSuite) TestSecretBackend(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSecrets(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	secretArgs := testSecretArgs()
 	secret := initial.AddSecret(secretArgs)
 	c.Assert(secret.Id(), gc.Equals, secretArgs.ID)
@@ -1562,7 +1562,7 @@ func (s *ModelSerializationSuite) TestSecrets(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSecretValidate(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	secretArgs := testSecretArgs()
 	secretArgs.Owner = names.NewUnitTag("foo/0")
 	secret := initial.AddSecret(secretArgs)
@@ -1575,10 +1575,10 @@ func (s *ModelSerializationSuite) TestSecretValidate(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestSecretValidateRemoteConsumer(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	addMinimalApplication(initial)
 	initial.AddRemoteApplication(RemoteApplicationArgs{
-		Tag: names.NewApplicationTag("foo"),
+		Name: "foo",
 	})
 	secretArgs := testSecretArgs()
 	secretArgs.Owner = names.NewApplicationTag("ubuntu")
@@ -1596,7 +1596,7 @@ func (s *ModelSerializationSuite) TestSecretValidateRemoteConsumer(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestRemoteSecrets(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	remoteSecretArgs := testRemoteSecretArgs()
 	remoteSecret := initial.AddRemoteSecret(remoteSecretArgs)
 	c.Assert(remoteSecret.ID(), gc.Equals, remoteSecretArgs.ID)
@@ -1619,7 +1619,7 @@ func (s *ModelSerializationSuite) TestRemoteSecrets(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestRemoteSecretsValidate(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	remoteSecretArgs := testRemoteSecretArgs()
 	remoteSecretArgs.Consumer = names.NewApplicationTag("foo")
 	remoteSecret := initial.AddRemoteSecret(remoteSecretArgs)
@@ -1663,7 +1663,7 @@ func (s *ModelSerializationSuite) TestSetEnvironVersion(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestVirtualHostKeys(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	virtualHostKeyArgs := testVirtualHostKeyArgs()
 	virtualHostKey := initial.AddVirtualHostKey(virtualHostKeyArgs)
 	c.Assert(virtualHostKey.ID(), gc.Equals, virtualHostKeyArgs.ID)
@@ -1682,7 +1682,7 @@ func (s *ModelSerializationSuite) TestVirtualHostKeys(c *gc.C) {
 }
 
 func (s *ModelSerializationSuite) TestVirtualHostKeysValidate(c *gc.C) {
-	initial := NewModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	initial := NewModel(ModelArgs{Owner: "owner"})
 	virtualHostKeyArgs := testVirtualHostKeyArgs()
 	virtualHostKeyArgs.ID = ""
 	virtualHostKey := initial.AddVirtualHostKey(virtualHostKeyArgs)

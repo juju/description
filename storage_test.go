@@ -5,7 +5,6 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -36,13 +35,13 @@ func testStorage() *storage {
 
 func testStorageArgs() StorageArgs {
 	return StorageArgs{
-		Tag:   names.NewStorageTag("db/0"),
-		Kind:  "magic",
-		Owner: names.NewApplicationTag("postgresql"),
-		Name:  "db",
-		Attachments: []names.UnitTag{
-			names.NewUnitTag("postgresql/0"),
-			names.NewUnitTag("postgresql/1"),
+		ID:        "db/0",
+		Kind:      "magic",
+		UnitOwner: "postgresql/0",
+		Name:      "db",
+		Attachments: []string{
+			"postgresql/0",
+			"postgresql/1",
 		},
 		Constraints: &StorageInstanceConstraints{
 			Pool: "radiance",
@@ -54,15 +53,13 @@ func testStorageArgs() StorageArgs {
 func (s *StorageSerializationSuite) TestNewStorage(c *gc.C) {
 	storage := testStorage()
 
-	c.Check(storage.Tag(), gc.Equals, names.NewStorageTag("db/0"))
+	c.Check(storage.ID(), gc.Equals, "db/0")
 	c.Check(storage.Kind(), gc.Equals, "magic")
-	owner, err := storage.Owner()
-	c.Check(err, jc.ErrorIsNil)
-	c.Check(owner, gc.Equals, names.NewApplicationTag("postgresql"))
+	c.Check(storage.UnitOwner(), gc.Equals, "postgresql/0")
 	c.Check(storage.Name(), gc.Equals, "db")
-	c.Check(storage.Attachments(), jc.DeepEquals, []names.UnitTag{
-		names.NewUnitTag("postgresql/0"),
-		names.NewUnitTag("postgresql/1"),
+	c.Check(storage.Attachments(), jc.DeepEquals, []string{
+		"postgresql/0",
+		"postgresql/1",
 	})
 }
 
@@ -86,7 +83,7 @@ func (s *StorageSerializationSuite) TestStorageMatches(c *gc.C) {
 
 func (s *StorageSerializationSuite) TestStorageMatchesV2(c *gc.C) {
 	testStorage := testStorage()
-	testStorage.Owner_ = ""
+	testStorage.UnitOwner_ = ""
 	testStorage.Attachments_ = nil
 
 	out, err := yaml.Marshal(testStorage)
@@ -113,16 +110,9 @@ func (s *StorageSerializationSuite) exportImport(c *gc.C, storage_ *storage, ver
 	return storages[0]
 }
 
-func (s *StorageSerializationSuite) TestParsingSerializedDataV1(c *gc.C) {
-	original := testStorage()
-	original.Constraints_ = nil
-	storage := s.exportImport(c, original, 1)
-	c.Assert(storage, jc.DeepEquals, original)
-}
-
 func (s *StorageSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 	original := testStorage()
-	original.Owner_ = ""
+	original.UnitOwner_ = ""
 	original.Attachments_ = nil
 	original.Constraints_ = nil
 	storage := s.exportImport(c, original, 2)
@@ -131,8 +121,15 @@ func (s *StorageSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 
 func (s *StorageSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
 	original := testStorage()
-	original.Owner_ = ""
+	original.UnitOwner_ = ""
 	original.Attachments_ = nil
 	storage := s.exportImport(c, original, 3)
+	c.Assert(storage, jc.DeepEquals, original)
+}
+
+func (s *StorageSerializationSuite) TestParsingSerializedDataV4(c *gc.C) {
+	original := testStorage()
+	original.Attachments_ = nil
+	storage := s.exportImport(c, original, 4)
 	c.Assert(storage, jc.DeepEquals, original)
 }

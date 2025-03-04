@@ -8,7 +8,6 @@ import (
 
 	"github.com/juju/collections/set"
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
@@ -20,7 +19,6 @@ type Application interface {
 	HasStatus
 	HasStatusHistory
 
-	Tag() names.ApplicationTag
 	Name() string
 	Type() string
 	Subordinate() bool
@@ -177,7 +175,7 @@ type application struct {
 
 // ApplicationArgs is an argument struct used to add an application to the Model.
 type ApplicationArgs struct {
-	Tag  names.ApplicationTag
+	Name string
 	Type string
 	// Series obsolete from v9. Retained for tests.
 	Series               string
@@ -208,7 +206,7 @@ type ApplicationArgs struct {
 func newApplication(args ApplicationArgs) *application {
 	creds := base64.StdEncoding.EncodeToString(args.MetricsCredentials)
 	app := &application{
-		Name_:                 args.Tag.Id(),
+		Name_:                 args.Name,
 		Type_:                 args.Type,
 		Series_:               args.Series,
 		Subordinate_:          args.Subordinate,
@@ -248,11 +246,6 @@ func newApplication(args ApplicationArgs) *application {
 		}
 	}
 	return app
-}
-
-// Tag implements Application.
-func (a *application) Tag() names.ApplicationTag {
-	return names.NewApplicationTag(a.Name_)
 }
 
 // Name implements Application.

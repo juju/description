@@ -38,8 +38,8 @@ type Model interface {
 	CloudRegion() string
 	CloudCredential() CloudCredential
 	SetCloudCredential(CloudCredentialArgs)
-	Tag() names.ModelTag
-	Owner() names.UserTag
+	UUID() string
+	Owner() string
 	Config() map[string]interface{}
 	LatestToolsVersion() version.Number
 	EnvironVersion() int
@@ -172,7 +172,7 @@ type ModelArgs struct {
 	AgentVersion string
 
 	Type               string
-	Owner              names.UserTag
+	Owner              string
 	Config             map[string]interface{}
 	LatestToolsVersion version.Number
 	EnvironVersion     int
@@ -189,7 +189,7 @@ func NewModel(args ModelArgs) Model {
 		Version:             14,
 		AgentVersion_:       args.AgentVersion,
 		Type_:               args.Type,
-		Owner_:              args.Owner.Id(),
+		Owner_:              args.Owner,
 		Config_:             args.Config,
 		LatestToolsVersion_: args.LatestToolsVersion,
 		EnvironVersion_:     args.EnvironVersion,
@@ -355,7 +355,7 @@ func (m *model) Type() string {
 	return m.Type_
 }
 
-func (m *model) Tag() names.ModelTag {
+func (m *model) UUID() string {
 	// Here we make the assumption that the model UUID is set
 	// correctly in the Config.
 	value := m.Config_["uuid"]
@@ -363,12 +363,12 @@ func (m *model) Tag() names.ModelTag {
 	// and it is wrong, we panic. Here we fully expect it to exist, but
 	// paranoia says 'never panic', so worst case is we have an empty string.
 	uuid, _ := value.(string)
-	return names.NewModelTag(uuid)
+	return uuid
 }
 
 // Owner implements Model.
-func (m *model) Owner() names.UserTag {
-	return names.NewUserTag(m.Owner_)
+func (m *model) Owner() string {
+	return m.Owner_
 }
 
 // Config implements Model.
@@ -417,21 +417,15 @@ func (m *model) SetBlocks(blocks map[string]string) {
 	m.Blocks_ = blocks
 }
 
-// ByName is a sorting implementation over the UserTag lexicographically, which
-// aligns to  sort.Interface
-type ByName []User
-
-func (a ByName) Len() int           { return len(a) }
-func (a ByName) Less(i, j int) bool { return a[i].Name().Id() < a[j].Name().Id() }
-func (a ByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
 // Users implements Model.
 func (m *model) Users() []User {
 	var result []User
 	for _, user := range m.Users_.Users_ {
 		result = append(result, user)
 	}
-	sort.Sort(ByName(result))
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name() < result[j].Name()
+	})
 	return result
 }
 
@@ -977,7 +971,7 @@ func (m *model) AddStorage(args StorageArgs) Storage {
 
 func (m *model) setStorages(storageList []*storage) {
 	m.Storages_ = storages{
-		Version:   3,
+		Version:   4,
 		Storages_: storageList,
 	}
 }
@@ -1265,25 +1259,20 @@ func (m *model) validateMachine(validationCtx *validationContext, machine Machin
 }
 
 func (m *model) validateStorage(validationCtx *validationContext) error {
-	appsAndUnits := validationCtx.allApplications.Union(validationCtx.allUnits)
 	allStorage := set.NewStrings()
 	for i, storage := range m.Storages_.Storages_ {
 		if err := storage.Validate(); err != nil {
 			return errors.Annotatef(err, "storage[%d]", i)
 		}
-		allStorage.Add(storage.Tag().Id())
-		owner, err := storage.Owner()
-		if err != nil {
-			return errors.Wrap(err, errors.NotValidf("storage[%d] owner (%s)", i, owner))
-		}
-		if owner != nil {
-			ownerID := owner.Id()
-			if !appsAndUnits.Contains(ownerID) {
-				return errors.NotValidf("storage[%d] owner (%s)", i, ownerID)
+		allStorage.Add(storage.ID())
+		owner := storage.UnitOwner()
+		if owner != "" {
+			if !validationCtx.allUnits.Contains(owner) {
+				return errors.NotValidf("storage[%d] owner (%s)", i, owner)
 			}
 		}
 		for _, unit := range storage.Attachments() {
-			if !validationCtx.allUnits.Contains(unit.Id()) {
+			if !validationCtx.allUnits.Contains(unit) {
 				return errors.NotValidf("storage[%d] attachment referencing unknown unit %q", i, unit)
 			}
 		}
@@ -1293,15 +1282,20 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 		if err := volume.Validate(); err != nil {
 			return errors.Annotatef(err, "volume[%d]", i)
 		}
-		allVolumes.Add(volume.Tag().Id())
-		if storeID := volume.Storage().Id(); storeID != "" && !allStorage.Contains(storeID) {
+		allVolumes.Add(volume.ID())
+		if storeID := volume.Storage(); storeID != "" && !allStorage.Contains(storeID) {
 			return errors.NotValidf("volume[%d] referencing unknown storage %q", i, storeID)
 		}
 		for j, attachment := range volume.Attachments() {
-			hostID := attachment.Host().Id()
-			knownMachine := validationCtx.allMachines.Contains(hostID)
-			knownUnit := validationCtx.allUnits.Contains(hostID)
-			if !knownMachine && !knownUnit {
+			var knownHost bool
+			hostID, ok := attachment.HostMachine()
+			if ok {
+				knownHost = validationCtx.allMachines.Contains(hostID)
+			} else {
+				hostID, _ = attachment.HostUnit()
+				knownHost = validationCtx.allUnits.Contains(hostID)
+			}
+			if !knownHost {
 				return errors.NotValidf("volume[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
 			}
 		}
@@ -1310,18 +1304,23 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 		if err := filesystem.Validate(); err != nil {
 			return errors.Annotatef(err, "filesystem[%d]", i)
 		}
-		if storeID := filesystem.Storage().Id(); storeID != "" && !allStorage.Contains(storeID) {
+		if storeID := filesystem.Storage(); storeID != "" && !allStorage.Contains(storeID) {
 			return errors.NotValidf("filesystem[%d] referencing unknown storage %q", i, storeID)
 		}
-		if volID := filesystem.Volume().Id(); volID != "" && !allVolumes.Contains(volID) {
+		if volID := filesystem.Volume(); volID != "" && !allVolumes.Contains(volID) {
 			return errors.NotValidf("filesystem[%d] referencing unknown volume %q", i, volID)
 		}
 		for j, attachment := range filesystem.Attachments() {
-			hostID := attachment.Host().Id()
-			knownMachine := validationCtx.allMachines.Contains(hostID)
-			knownUnit := validationCtx.allUnits.Contains(hostID)
-			if !knownMachine && !knownUnit {
-				return errors.NotValidf("filesystem[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
+			var knownHost bool
+			hostID, ok := attachment.HostMachine()
+			if ok {
+				knownHost = validationCtx.allMachines.Contains(hostID)
+			} else {
+				hostID, _ = attachment.HostUnit()
+				knownHost = validationCtx.allUnits.Contains(hostID)
+			}
+			if !knownHost {
+				return errors.NotValidf("volume[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
 			}
 		}
 	}

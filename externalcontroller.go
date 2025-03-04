@@ -5,14 +5,13 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
 // ExternalController represents the state of a controller hosting
 // other models.
 type ExternalController interface {
-	ID() names.ControllerTag
+	ID() string
 	Alias() string
 	Addrs() []string
 	CACert() string
@@ -35,7 +34,7 @@ type externalController struct {
 // ExternalControllerArgs is an argument struct used to add a external
 // controller to a model.
 type ExternalControllerArgs struct {
-	Tag    names.ControllerTag
+	ID     string
 	Alias  string
 	Addrs  []string
 	CACert string
@@ -44,7 +43,7 @@ type ExternalControllerArgs struct {
 
 func newExternalController(args ExternalControllerArgs) *externalController {
 	return &externalController{
-		ID_:     args.Tag.Id(),
+		ID_:     args.ID,
 		Alias_:  args.Alias,
 		Addrs_:  args.Addrs,
 		CACert_: args.CACert,
@@ -53,8 +52,8 @@ func newExternalController(args ExternalControllerArgs) *externalController {
 }
 
 // ID returns the controller tag for the external controller.
-func (e *externalController) ID() names.ControllerTag {
-	return names.NewControllerTag(e.ID_)
+func (e *externalController) ID() string {
+	return e.ID_
 }
 
 // Alias returns the controller name for the external controller.

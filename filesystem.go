@@ -4,8 +4,9 @@
 package description
 
 import (
+	"regexp"
+
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
@@ -36,7 +37,8 @@ type filesystemAttachments struct {
 }
 
 type filesystemAttachment struct {
-	HostID_      string `yaml:"host-id"`
+	MachineID_   string `yaml:"host-machine-id,omitempty"`
+	UnitID_      string `yaml:"host-unit-id,omitempty"`
 	Provisioned_ bool   `yaml:"provisioned"`
 	MountPoint_  string `yaml:"mount-point,omitempty"`
 	ReadOnly_    bool   `yaml:"read-only"`
@@ -44,9 +46,9 @@ type filesystemAttachment struct {
 
 // FilesystemArgs is an argument struct used to add a filesystem to the Model.
 type FilesystemArgs struct {
-	Tag          names.FilesystemTag
-	Storage      names.StorageTag
-	Volume       names.VolumeTag
+	ID           string
+	Storage      string
+	Volume       string
 	Provisioned  bool
 	Size         uint64
 	Pool         string
@@ -55,9 +57,9 @@ type FilesystemArgs struct {
 
 func newFilesystem(args FilesystemArgs) *filesystem {
 	f := &filesystem{
-		ID_:            args.Tag.Id(),
-		StorageID_:     args.Storage.Id(),
-		VolumeID_:      args.Volume.Id(),
+		ID_:            args.ID,
+		StorageID_:     args.Storage,
+		VolumeID_:      args.Volume,
 		Provisioned_:   args.Provisioned,
 		Size_:          args.Size,
 		Pool_:          args.Pool,
@@ -68,25 +70,19 @@ func newFilesystem(args FilesystemArgs) *filesystem {
 	return f
 }
 
-// Tag implements Filesystem.
-func (f *filesystem) Tag() names.FilesystemTag {
-	return names.NewFilesystemTag(f.ID_)
+// ID implements Filesystem.
+func (f *filesystem) ID() string {
+	return f.ID_
 }
 
 // Volume implements Filesystem.
-func (f *filesystem) Volume() names.VolumeTag {
-	if f.VolumeID_ == "" {
-		return names.VolumeTag{}
-	}
-	return names.NewVolumeTag(f.VolumeID_)
+func (f *filesystem) Volume() string {
+	return f.VolumeID_
 }
 
 // Storage implements Filesystem.
-func (f *filesystem) Storage() names.StorageTag {
-	if f.StorageID_ == "" {
-		return names.StorageTag{}
-	}
-	return names.NewStorageTag(f.StorageID_)
+func (f *filesystem) Storage() string {
+	return f.StorageID_
 }
 
 // Provisioned implements Filesystem.
@@ -125,7 +121,7 @@ func (f *filesystem) SetStatus(args StatusArgs) {
 
 func (f *filesystem) setAttachments(attachments []*filesystemAttachment) {
 	f.Attachments_ = filesystemAttachments{
-		Version:      2,
+		Version:      3,
 		Attachments_: attachments,
 	}
 }
@@ -261,7 +257,8 @@ func importFilesystemV1(source map[string]interface{}) (*filesystem, error) {
 // FilesystemAttachmentArgs is an argument struct used to add information about the
 // cloud instance to a Filesystem.
 type FilesystemAttachmentArgs struct {
-	Host        names.Tag
+	HostUnit    string
+	HostMachine string
 	Provisioned bool
 	ReadOnly    bool
 	MountPoint  string
@@ -269,16 +266,22 @@ type FilesystemAttachmentArgs struct {
 
 func newFilesystemAttachment(args FilesystemAttachmentArgs) *filesystemAttachment {
 	return &filesystemAttachment{
-		HostID_:      args.Host.Id(),
+		UnitID_:      args.HostUnit,
+		MachineID_:   args.HostMachine,
 		Provisioned_: args.Provisioned,
 		ReadOnly_:    args.ReadOnly,
 		MountPoint_:  args.MountPoint,
 	}
 }
 
-// Host implements FilesystemAttachment
-func (a *filesystemAttachment) Host() names.Tag {
-	return storageAttachmentHost(a.HostID_)
+// HostUnit implements FilesystemAttachment
+func (a *filesystemAttachment) HostUnit() (string, bool) {
+	return a.UnitID_, a.UnitID_ != ""
+}
+
+// HostMachine implements FilesystemAttachment
+func (a *filesystemAttachment) HostMachine() (string, bool) {
+	return a.MachineID_, a.MachineID_ != ""
 }
 
 // Provisioned implements FilesystemAttachment
@@ -334,6 +337,7 @@ type filesystemAttachmentDeserializationFunc func(map[string]interface{}) (*file
 var filesystemAttachmentDeserializationFuncs = map[int]filesystemAttachmentDeserializationFunc{
 	1: importFilesystemAttachmentV1,
 	2: importFilesystemAttachmentV2,
+	3: importFilesystemAttachmentV3,
 }
 
 func importFilesystemAttachmentV1(source map[string]interface{}) (*filesystemAttachment, error) {
@@ -344,6 +348,11 @@ func importFilesystemAttachmentV1(source map[string]interface{}) (*filesystemAtt
 func importFilesystemAttachmentV2(source map[string]interface{}) (*filesystemAttachment, error) {
 	fields, defaults := filesystemAttachmentV2Fields()
 	return importFilesystemAttachment(fields, defaults, 2, source)
+}
+
+func importFilesystemAttachmentV3(source map[string]interface{}) (*filesystemAttachment, error) {
+	fields, defaults := filesystemAttachmentV3Fields()
+	return importFilesystemAttachment(fields, defaults, 3, source)
 }
 
 func filesystemAttachmentV1Fields() (schema.Fields, schema.Defaults) {
@@ -366,6 +375,25 @@ func filesystemAttachmentV2Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func filesystemAttachmentV3Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := filesystemAttachmentV2Fields()
+	fields["host-unit-id"] = schema.String()
+	defaults["host-unit-id"] = schema.Omit
+	fields["host-machine-id"] = schema.String()
+	defaults["host-machine-id"] = schema.Omit
+	delete(fields, "host-id")
+	delete(defaults, "host-id")
+	return fields, defaults
+}
+
+const (
+	numberSnippet      = "(?:0|[1-9][0-9]*)"
+	applicationSnippet = "(?:[a-z][a-z0-9]*(?:-[a-z0-9]*[a-z][a-z0-9]*)*)"
+	unitSnippet        = "(" + applicationSnippet + ")/(" + numberSnippet + ")"
+)
+
+var validUnit = regexp.MustCompile("^" + unitSnippet + "$")
+
 func importFilesystemAttachment(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*filesystemAttachment, error) {
 	checker := schema.FieldMap(fields, defaults)
 
@@ -383,10 +411,23 @@ func importFilesystemAttachment(fields schema.Fields, defaults schema.Defaults, 
 		MountPoint_:  valid["mount-point"].(string),
 	}
 
-	if importVersion >= 2 {
-		result.HostID_ = valid["host-id"].(string)
-	} else {
-		result.HostID_ = valid["machine-id"].(string)
+	switch importVersion {
+	case 1:
+		result.MachineID_ = valid["machine-id"].(string)
+	case 2:
+		host := valid["host-id"].(string)
+		if validUnit.MatchString(host) {
+			result.UnitID_ = host
+		} else {
+			result.MachineID_ = host
+		}
+	default:
+		if m, ok := valid["host-machine-id"].(string); ok {
+			result.MachineID_ = m
+		}
+		if u, ok := valid["host-unit-id"].(string); ok {
+			result.UnitID_ = u
+		}
 	}
 
 	return result, nil

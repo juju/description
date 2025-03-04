@@ -5,7 +5,6 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -50,7 +49,7 @@ func testVolumeMap() map[interface{}]interface{} {
 		"status":         minimalStatusMap(),
 		"status-history": emptyStatusHistoryMap(),
 		"attachments": map[interface{}]interface{}{
-			"version":     2,
+			"version":     3,
 			"attachments": []interface{}{},
 		},
 		"attachmentplans": map[interface{}]interface{}{
@@ -68,8 +67,8 @@ func testVolume() *volume {
 
 func testVolumeArgs() VolumeArgs {
 	return VolumeArgs{
-		Tag:         names.NewVolumeTag("1234"),
-		Storage:     names.NewStorageTag("test/1"),
+		ID:          "1234",
+		Storage:     "test/1",
 		Provisioned: true,
 		Size:        20 * gig,
 		Pool:        "swimming",
@@ -83,8 +82,8 @@ func testVolumeArgs() VolumeArgs {
 func (s *VolumeSerializationSuite) TestNewVolume(c *gc.C) {
 	volume := testVolume()
 
-	c.Check(volume.Tag(), gc.Equals, names.NewVolumeTag("1234"))
-	c.Check(volume.Storage(), gc.Equals, names.NewStorageTag("test/1"))
+	c.Check(volume.ID(), gc.Equals, "1234")
+	c.Check(volume.Storage(), gc.Equals, "test/1")
 	c.Check(volume.Provisioned(), jc.IsTrue)
 	c.Check(volume.Size(), gc.Equals, 20*gig)
 	c.Check(volume.Pool(), gc.Equals, "swimming")
@@ -110,7 +109,7 @@ func (s *VolumeSerializationSuite) TestVolumeValidMissingID(c *gc.C) {
 
 func (s *VolumeSerializationSuite) TestVolumeValidMissingSize(c *gc.C) {
 	v := newVolume(VolumeArgs{
-		Tag: names.NewVolumeTag("123"),
+		ID: "123",
 	})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `volume "123" missing size not valid`)
@@ -119,7 +118,7 @@ func (s *VolumeSerializationSuite) TestVolumeValidMissingSize(c *gc.C) {
 
 func (s *VolumeSerializationSuite) TestVolumeValidMissingStatus(c *gc.C) {
 	v := newVolume(VolumeArgs{
-		Tag:  names.NewVolumeTag("123"),
+		ID:   "123",
 		Size: 5,
 	})
 	err := v.Validate()
@@ -129,7 +128,7 @@ func (s *VolumeSerializationSuite) TestVolumeValidMissingStatus(c *gc.C) {
 
 func (s *VolumeSerializationSuite) TestVolumeValidMinimal(c *gc.C) {
 	v := newVolume(VolumeArgs{
-		Tag:  names.NewVolumeTag("123"),
+		ID:   "123",
 		Size: 5,
 	})
 	v.SetStatus(minimalStatusArgs())
@@ -188,7 +187,7 @@ func testAttachmentPlanArgs(id string) VolumeAttachmentPlanArgs {
 	}
 
 	return VolumeAttachmentPlanArgs{
-		Machine:    names.NewMachineTag(machineId),
+		Machine:    machineId,
 		HardwareId: "amazing-device",
 		WWN:        "for-a-second-there-i-thought-you-said-www",
 
@@ -243,12 +242,12 @@ func (s *VolumeAttachmentSerializationSuite) SetUpTest(c *gc.C) {
 
 func testVolumeAttachmentMap() map[string]interface{} {
 	return map[string]interface{}{
-		"host-id":     "42",
-		"provisioned": true,
-		"read-only":   true,
-		"device-name": "sdd",
-		"device-link": "link?",
-		"bus-address": "nfi",
+		"host-machine-id": "42",
+		"provisioned":     true,
+		"read-only":       true,
+		"device-name":     "sdd",
+		"device-link":     "link?",
+		"bus-address":     "nfi",
 	}
 }
 
@@ -262,7 +261,7 @@ func testVolumeAttachmentArgs(id ...string) VolumeAttachmentArgs {
 		machineID = id[0]
 	}
 	return VolumeAttachmentArgs{
-		Host:        names.NewMachineTag(machineID),
+		HostMachine: machineID,
 		Provisioned: true,
 		ReadOnly:    true,
 		DeviceName:  "sdd",
@@ -274,7 +273,9 @@ func testVolumeAttachmentArgs(id ...string) VolumeAttachmentArgs {
 func (s *VolumeAttachmentSerializationSuite) TestNewVolumeAttachment(c *gc.C) {
 	attachment := testVolumeAttachment()
 
-	c.Check(attachment.Host(), gc.Equals, names.NewMachineTag("42"))
+	m, ok := attachment.HostMachine()
+	c.Check(ok, jc.IsTrue)
+	c.Check(m, gc.Equals, "42")
 	c.Check(attachment.Provisioned(), jc.IsTrue)
 	c.Check(attachment.ReadOnly(), jc.IsTrue)
 	c.Check(attachment.DeviceName(), gc.Equals, "sdd")
@@ -293,12 +294,12 @@ func (s *VolumeAttachmentSerializationSuite) TestVolumeAttachmentMatches(c *gc.C
 }
 
 func (s *VolumeAttachmentSerializationSuite) exportImportLatest(c *gc.C, attachment *volumeAttachment) *volumeAttachment {
-	return s.exportImportVersion(c, attachment, 2)
+	return s.exportImportVersion(c, attachment, 3)
 }
 
 func (s *VolumeAttachmentSerializationSuite) exportImportVersion(c *gc.C, attachment *volumeAttachment, version int) *volumeAttachment {
 	initial := volumeAttachments{
-		Version:      2,
+		Version:      3,
 		Attachments_: []*volumeAttachment{attachment},
 	}
 
@@ -323,13 +324,47 @@ func (s *VolumeAttachmentSerializationSuite) TestParsingSerializedData(c *gc.C) 
 
 func (s *VolumeAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	attachmentMapV1 := testVolumeAttachmentMap()
-	attachmentMapV1["machine-id"] = attachmentMapV1["host-id"]
-	delete(attachmentMapV1, "host-id")
+	attachmentMapV1["machine-id"] = attachmentMapV1["host-machine-id"]
+	delete(attachmentMapV1, "host-machine-id")
 
 	attachment, err := importVolumeAttachmentV1(attachmentMapV1)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(attachment, jc.DeepEquals, &volumeAttachment{
-		HostID_:      "42",
+		MachineID_:   "42",
+		ReadOnly_:    true,
+		Provisioned_: true,
+		DeviceName_:  "sdd",
+		DeviceLink_:  "link?",
+		BusAddress_:  "nfi",
+	})
+}
+
+func (s *VolumeAttachmentSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
+	attachmentMapV2 := testVolumeAttachmentMap()
+	attachmentMapV2["host-id"] = attachmentMapV2["host-machine-id"]
+	delete(attachmentMapV2, "host-machine-id")
+
+	attachment, err := importVolumeAttachmentV2(attachmentMapV2)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &volumeAttachment{
+		MachineID_:   "42",
+		ReadOnly_:    true,
+		Provisioned_: true,
+		DeviceName_:  "sdd",
+		DeviceLink_:  "link?",
+		BusAddress_:  "nfi",
+	})
+}
+
+func (s *VolumeAttachmentSerializationSuite) TestV2UnitParsingReturnsLatest(c *gc.C) {
+	attachmentMapV2 := testVolumeAttachmentMap()
+	attachmentMapV2["host-id"] = "gitlab/0"
+	delete(attachmentMapV2, "host-machine-id")
+
+	attachment, err := importVolumeAttachmentV2(attachmentMapV2)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &volumeAttachment{
+		UnitID_:      "gitlab/0",
 		ReadOnly_:    true,
 		Provisioned_: true,
 		DeviceName_:  "sdd",
@@ -340,12 +375,13 @@ func (s *VolumeAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C)
 
 func (s *VolumeAttachmentSerializationSuite) TestUnitAttachmentParsing(c *gc.C) {
 	attachmentMap := testVolumeAttachmentMap()
-	attachmentMap["host-id"] = "gitlab/0"
+	attachmentMap["host-unit-id"] = "gitlab/0"
+	delete(attachmentMap, "host-machine-id")
 
-	attachment, err := importVolumeAttachmentV2(attachmentMap)
+	attachment, err := importVolumeAttachmentV3(attachmentMap)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(attachment, jc.DeepEquals, &volumeAttachment{
-		HostID_:      "gitlab/0",
+		UnitID_:      "gitlab/0",
 		ReadOnly_:    true,
 		Provisioned_: true,
 		DeviceName_:  "sdd",

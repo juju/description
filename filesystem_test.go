@@ -5,7 +5,6 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
@@ -48,7 +47,7 @@ func testFilesystemMap() map[interface{}]interface{} {
 		"status":         minimalStatusMap(),
 		"status-history": emptyStatusHistoryMap(),
 		"attachments": map[interface{}]interface{}{
-			"version":     2,
+			"version":     3,
 			"attachments": []interface{}{},
 		},
 	}
@@ -62,9 +61,9 @@ func testFilesystem() *filesystem {
 
 func testFilesystemArgs() FilesystemArgs {
 	return FilesystemArgs{
-		Tag:          names.NewFilesystemTag("1234"),
-		Storage:      names.NewStorageTag("test/1"),
-		Volume:       names.NewVolumeTag("4321"),
+		ID:           "1234",
+		Storage:      "test/1",
+		Volume:       "4321",
 		Provisioned:  true,
 		Size:         20 * gig,
 		Pool:         "swimming",
@@ -75,9 +74,9 @@ func testFilesystemArgs() FilesystemArgs {
 func (s *FilesystemSerializationSuite) TestNewFilesystem(c *gc.C) {
 	filesystem := testFilesystem()
 
-	c.Check(filesystem.Tag(), gc.Equals, names.NewFilesystemTag("1234"))
-	c.Check(filesystem.Storage(), gc.Equals, names.NewStorageTag("test/1"))
-	c.Check(filesystem.Volume(), gc.Equals, names.NewVolumeTag("4321"))
+	c.Check(filesystem.ID(), gc.Equals, "1234")
+	c.Check(filesystem.Storage(), gc.Equals, "test/1")
+	c.Check(filesystem.Volume(), gc.Equals, "4321")
 	c.Check(filesystem.Provisioned(), jc.IsTrue)
 	c.Check(filesystem.Size(), gc.Equals, 20*gig)
 	c.Check(filesystem.Pool(), gc.Equals, "swimming")
@@ -100,7 +99,7 @@ func (s *FilesystemSerializationSuite) TestFilesystemValidMissingID(c *gc.C) {
 
 func (s *FilesystemSerializationSuite) TestFilesystemValidMissingSize(c *gc.C) {
 	v := newFilesystem(FilesystemArgs{
-		Tag: names.NewFilesystemTag("123"),
+		ID: "123",
 	})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `filesystem "123" missing size not valid`)
@@ -109,7 +108,7 @@ func (s *FilesystemSerializationSuite) TestFilesystemValidMissingSize(c *gc.C) {
 
 func (s *FilesystemSerializationSuite) TestFilesystemValidMissingStatus(c *gc.C) {
 	v := newFilesystem(FilesystemArgs{
-		Tag:  names.NewFilesystemTag("123"),
+		ID:   "123",
 		Size: 5,
 	})
 	err := v.Validate()
@@ -119,7 +118,7 @@ func (s *FilesystemSerializationSuite) TestFilesystemValidMissingStatus(c *gc.C)
 
 func (s *FilesystemSerializationSuite) TestFilesystemValidMinimal(c *gc.C) {
 	v := newFilesystem(FilesystemArgs{
-		Tag:  names.NewFilesystemTag("123"),
+		ID:   "123",
 		Size: 5,
 	})
 	v.SetStatus(minimalStatusArgs())
@@ -197,10 +196,10 @@ func (s *FilesystemAttachmentSerializationSuite) SetUpTest(c *gc.C) {
 
 func testFilesystemAttachmentMap() map[string]interface{} {
 	return map[string]interface{}{
-		"host-id":     "42",
-		"provisioned": true,
-		"read-only":   true,
-		"mount-point": "/some/dir",
+		"host-machine-id": "42",
+		"provisioned":     true,
+		"read-only":       true,
+		"mount-point":     "/some/dir",
 	}
 }
 
@@ -214,7 +213,7 @@ func testFilesystemAttachmentArgs(id ...string) FilesystemAttachmentArgs {
 		machineID = id[0]
 	}
 	return FilesystemAttachmentArgs{
-		Host:        names.NewMachineTag(machineID),
+		HostMachine: machineID,
 		Provisioned: true,
 		ReadOnly:    true,
 		MountPoint:  "/some/dir",
@@ -224,7 +223,9 @@ func testFilesystemAttachmentArgs(id ...string) FilesystemAttachmentArgs {
 func (s *FilesystemAttachmentSerializationSuite) TestNewFilesystemAttachment(c *gc.C) {
 	attachment := testFilesystemAttachment()
 
-	c.Check(attachment.Host(), gc.Equals, names.NewMachineTag("42"))
+	m, ok := attachment.HostMachine()
+	c.Check(ok, jc.IsTrue)
+	c.Check(m, gc.Equals, "42")
 	c.Check(attachment.Provisioned(), jc.IsTrue)
 	c.Check(attachment.ReadOnly(), jc.IsTrue)
 	c.Check(attachment.MountPoint(), gc.Equals, "/some/dir")
@@ -241,7 +242,7 @@ func (s *FilesystemAttachmentSerializationSuite) TestFilesystemAttachmentMatches
 }
 
 func (s *FilesystemAttachmentSerializationSuite) exportImportLatest(c *gc.C, attachment *filesystemAttachment) *filesystemAttachment {
-	return s.exportImportVersion(c, attachment, 2)
+	return s.exportImportVersion(c, attachment, 3)
 }
 
 func (s *FilesystemAttachmentSerializationSuite) exportImportVersion(c *gc.C, attachment *filesystemAttachment, version int) *filesystemAttachment {
@@ -271,13 +272,43 @@ func (s *FilesystemAttachmentSerializationSuite) TestParsingSerializedData(c *gc
 
 func (s *FilesystemAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	attachmentMapV1 := testFilesystemAttachmentMap()
-	attachmentMapV1["machine-id"] = attachmentMapV1["host-id"]
+	attachmentMapV1["machine-id"] = attachmentMapV1["host-machine-id"]
 	delete(attachmentMapV1, "host-id")
 
 	attachment, err := importFilesystemAttachmentV1(attachmentMapV1)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(attachment, jc.DeepEquals, &filesystemAttachment{
-		HostID_:      "42",
+		MachineID_:   "42",
+		MountPoint_:  "/some/dir",
+		ReadOnly_:    true,
+		Provisioned_: true,
+	})
+}
+
+func (s *FilesystemAttachmentSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
+	attachmentMapV2 := testFilesystemAttachmentMap()
+	attachmentMapV2["host-id"] = attachmentMapV2["host-machine-id"]
+	delete(attachmentMapV2, "host-machine-id")
+
+	attachment, err := importFilesystemAttachmentV2(attachmentMapV2)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &filesystemAttachment{
+		MachineID_:   "42",
+		MountPoint_:  "/some/dir",
+		ReadOnly_:    true,
+		Provisioned_: true,
+	})
+}
+
+func (s *FilesystemAttachmentSerializationSuite) TestV2UnitParsingReturnsLatest(c *gc.C) {
+	attachmentMapV2 := testFilesystemAttachmentMap()
+	attachmentMapV2["host-id"] = "gitlab/0"
+	delete(attachmentMapV2, "host-machine-id")
+
+	attachment, err := importFilesystemAttachmentV2(attachmentMapV2)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(attachment, jc.DeepEquals, &filesystemAttachment{
+		UnitID_:      "gitlab/0",
 		MountPoint_:  "/some/dir",
 		ReadOnly_:    true,
 		Provisioned_: true,
@@ -286,12 +317,13 @@ func (s *FilesystemAttachmentSerializationSuite) TestV1ParsingReturnsLatest(c *g
 
 func (s *FilesystemAttachmentSerializationSuite) TestUnitAttachmentParsing(c *gc.C) {
 	attachmentMap := testFilesystemAttachmentMap()
-	attachmentMap["host-id"] = "gitlab/0"
+	attachmentMap["host-unit-id"] = "gitlab/0"
+	delete(attachmentMap, "host-machine-id")
 
-	attachment, err := importFilesystemAttachmentV2(attachmentMap)
+	attachment, err := importFilesystemAttachmentV3(attachmentMap)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(attachment, jc.DeepEquals, &filesystemAttachment{
-		HostID_:      "gitlab/0",
+		UnitID_:      "gitlab/0",
 		MountPoint_:  "/some/dir",
 		ReadOnly_:    true,
 		Provisioned_: true,

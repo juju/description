@@ -5,7 +5,6 @@ package description
 
 import (
 	"github.com/juju/errors"
-	"github.com/juju/names/v6"
 	"github.com/juju/schema"
 )
 
@@ -21,8 +20,8 @@ type CloudCredential interface {
 // CloudCredentialArgs is an argument struct used to create a new internal
 // cloudCredential type that supports the CloudCredential interface.
 type CloudCredentialArgs struct {
-	Owner      names.UserTag
-	Cloud      names.CloudTag
+	Owner      string
+	Cloud      string
 	Name       string
 	AuthType   string
 	Attributes map[string]string
@@ -31,8 +30,8 @@ type CloudCredentialArgs struct {
 func newCloudCredential(args CloudCredentialArgs) *cloudCredential {
 	return &cloudCredential{
 		Version:     2,
-		Owner_:      args.Owner.Id(),
-		Cloud_:      args.Cloud.Id(),
+		Owner_:      args.Owner,
+		Cloud_:      args.Cloud,
 		Name_:       args.Name,
 		AuthType_:   args.AuthType,
 		Attributes_: args.Attributes,
