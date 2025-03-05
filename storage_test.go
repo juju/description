@@ -4,6 +4,8 @@
 package description
 
 import (
+	"strings"
+
 	"github.com/juju/errors"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
@@ -123,10 +125,23 @@ func (s *StorageSerializationSuite) TestParsingSerializedDataV2(c *gc.C) {
 
 func (s *StorageSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
 	original := testStorage()
-	original.UnitOwner_ = ""
-	original.Attachments_ = nil
-	storage := s.exportImport(c, original, 3)
-	c.Assert(storage, jc.DeepEquals, original)
+	initial := storages{
+		Version:   3,
+		Storages_: []*storage{original},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+	legacy := strings.ReplaceAll(string(bytes), "unit-owner: postgresql/0", "owner: unit-postgresql-0")
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal([]byte(legacy), &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	storages, err := importStorages(source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(storages, gc.HasLen, 1)
+	c.Assert(storages[0], jc.DeepEquals, original)
 }
 
 func (s *StorageSerializationSuite) TestParsingSerializedDataV4(c *gc.C) {
