@@ -60,8 +60,8 @@ func (s *storage) Kind() string {
 }
 
 // UnitOwner implements Storage.
-func (s *storage) UnitOwner() string {
-	return s.UnitOwner_
+func (s *storage) UnitOwner() (string, bool) {
+	return s.UnitOwner_, s.UnitOwner_ != ""
 }
 
 // Name implements Storage.
