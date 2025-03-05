@@ -193,7 +193,7 @@ func newStorageFromValid(valid map[string]interface{}, version int) (*storage, e
 	if version <= 3 {
 		if owner, ok := valid["owner"].(string); ok {
 			unitOwner, _ := strings.CutPrefix(owner, "unit-")
-			result.UnitOwner_ = unitOwner
+			result.UnitOwner_ = strings.ReplaceAll(unitOwner, "-", "/")
 		}
 	}
 	if owner, ok := valid["unit-owner"].(string); ok {
