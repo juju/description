@@ -55,7 +55,9 @@ func (s *StorageSerializationSuite) TestNewStorage(c *gc.C) {
 
 	c.Check(storage.ID(), gc.Equals, "db/0")
 	c.Check(storage.Kind(), gc.Equals, "magic")
-	c.Check(storage.UnitOwner(), gc.Equals, "postgresql/0")
+	owner, ok := storage.UnitOwner()
+	c.Check(ok, jc.IsTrue)
+	c.Check(owner, gc.Equals, "postgresql/0")
 	c.Check(storage.Name(), gc.Equals, "db")
 	c.Check(storage.Attachments(), jc.DeepEquals, []string{
 		"postgresql/0",

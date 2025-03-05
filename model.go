@@ -1265,8 +1265,8 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 			return errors.Annotatef(err, "storage[%d]", i)
 		}
 		allStorage.Add(storage.ID())
-		owner := storage.UnitOwner()
-		if owner != "" {
+		owner, ok := storage.UnitOwner()
+		if ok {
 			if !validationCtx.allUnits.Contains(owner) {
 				return errors.NotValidf("storage[%d] owner (%s)", i, owner)
 			}

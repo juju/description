@@ -175,7 +175,7 @@ type FilesystemAttachment interface {
 type Storage interface {
 	ID() string
 	Kind() string
-	UnitOwner() string
+	UnitOwner() (string, bool)
 	Name() string
 
 	Attachments() []string
