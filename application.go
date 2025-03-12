@@ -34,6 +34,7 @@ type Application interface {
 	PasswordHash() string
 	PodSpec() string
 	DesiredScale() int
+	SetDesiredScale(int)
 	Placement() string
 	HasResources() bool
 	CloudService() CloudService
@@ -325,6 +326,11 @@ func (a *application) HasResources() bool {
 // DesiredScale implements Application.
 func (a *application) DesiredScale() int {
 	return a.DesiredScale_
+}
+
+// DesiredScale implements Application.
+func (a *application) SetDesiredScale(scale int) {
+	a.DesiredScale_ = scale
 }
 
 // MinUnits implements Application.
