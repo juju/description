@@ -390,6 +390,21 @@ func (s *ApplicationSerializationSuite) TestAddOpenedPortRange(c *gc.C) {
 	c.Assert(application.OpenedPortRanges().ByUnit(), gc.HasLen, 2)
 }
 
+func (s *ApplicationSerializationSuite) TestSetProvisioningState(c *gc.C) {
+	app := minimalApplication()
+	c.Assert(app.ProvisioningState(), gc.IsNil)
+
+	app.SetProvisioningState(&ProvisioningStateArgs{
+		Scaling:     true,
+		ScaleTarget: 42,
+	})
+
+	application := s.exportImportLatest(c, app)
+	c.Assert(application.ProvisioningState(), gc.NotNil)
+	c.Assert(application.ProvisioningState().Scaling(), gc.Equals, true)
+	c.Assert(application.ProvisioningState().ScaleTarget(), gc.Equals, 42)
+}
+
 func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application_ *application, version int) *application {
 	initial := applications{
 		Version:       version,
