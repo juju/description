@@ -86,6 +86,7 @@ type Application interface {
 	AddOpenedPortRange(OpenedPortRangeArgs)
 
 	ProvisioningState() ProvisioningState
+	SetProvisioningState(*ProvisioningStateArgs)
 }
 
 // ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
@@ -674,6 +675,11 @@ func (a *application) ProvisioningState() ProvisioningState {
 		return nil
 	}
 	return a.ProvisioningState_
+}
+
+// SetProvisioningState implements Application.
+func (a *application) SetProvisioningState(args *ProvisioningStateArgs) {
+	a.ProvisioningState_ = newProvisioningState(args)
 }
 
 func importApplications(source map[string]interface{}) ([]*application, error) {
