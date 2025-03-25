@@ -129,14 +129,14 @@ func (s *CloudInstanceSerializationSuite) TestParsingSerializedData(c *gc.C) {
 func (s *CloudInstanceSerializationSuite) TestValidateMissingID(c *gc.C) {
 	initial := newCloudInstance(CloudInstanceArgs{})
 	err := initial.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 	c.Check(err, gc.ErrorMatches, "instance missing id not valid")
 }
 
 func (s *CloudInstanceSerializationSuite) TestValidateMissingStatus(c *gc.C) {
 	initial := newCloudInstance(CloudInstanceArgs{InstanceId: "magic"})
 	err := initial.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 	c.Check(err, gc.ErrorMatches, `instance "magic" missing status not valid`)
 }
 

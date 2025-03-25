@@ -6,7 +6,6 @@ package description
 import (
 	"encoding/base64"
 
-	"github.com/juju/collections/set"
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 )
@@ -31,8 +30,6 @@ type Application interface {
 	Exposed() bool
 	ExposedEndpoints() map[string]ExposedEndpoint
 
-	PasswordHash() string
-	PodSpec() string
 	DesiredScale() int
 	SetDesiredScale(int)
 	Placement() string
@@ -148,8 +145,6 @@ type application struct {
 	StorageDirectives_ map[string]*storageDirective `yaml:"storage-directives,omitempty"`
 
 	// CAAS application fields.
-	PasswordHash_      string             `yaml:"password-hash,omitempty"`
-	PodSpec_           string             `yaml:"pod-spec,omitempty"`
 	Placement_         string             `yaml:"placement,omitempty"`
 	HasResources_      bool               `yaml:"has-resources,omitempty"`
 	DesiredScale_      int                `yaml:"desired-scale,omitempty"`
@@ -186,8 +181,6 @@ type ApplicationArgs struct {
 	Channel              string
 	CharmModifiedVersion int
 	ForceCharm           bool
-	PasswordHash         string
-	PodSpec              string
 	Placement            string
 	HasResources         bool
 	DesiredScale         int
@@ -217,8 +210,6 @@ func newApplication(args ApplicationArgs) *application {
 		CharmModifiedVersion_: args.CharmModifiedVersion,
 		ForceCharm_:           args.ForceCharm,
 		Exposed_:              args.Exposed,
-		PasswordHash_:         args.PasswordHash,
-		PodSpec_:              args.PodSpec,
 		CloudService_:         newCloudService(args.CloudService),
 		Placement_:            args.Placement,
 		HasResources_:         args.HasResources,
@@ -301,16 +292,6 @@ func (a *application) ExposedEndpoints() map[string]ExposedEndpoint {
 		result[key] = value
 	}
 	return result
-}
-
-// PasswordHash implements Application.
-func (a *application) PasswordHash() string {
-	return a.PasswordHash_
-}
-
-// PodSpec implements Application.
-func (a *application) PodSpec() string {
-	return a.PodSpec_
 }
 
 // Placement implements Application.
@@ -453,10 +434,10 @@ func (a *application) Units() []Unit {
 	return result
 }
 
-func (a *application) unitNames() set.Strings {
-	result := set.NewStrings()
+func (a *application) unitNames() stringsSet {
+	result := make(stringsSet)
 	for _, u := range a.Units_.Units_ {
-		result.Add(u.Name())
+		result.add(u.Name())
 	}
 	return result
 }
@@ -724,16 +705,6 @@ func importApplicationList(sourceList []interface{}, importFunc applicationDeser
 type applicationDeserializationFunc func(map[string]interface{}) (*application, error)
 
 var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
-	1:  importApplicationV1,
-	2:  importApplicationV2,
-	3:  importApplicationV3,
-	4:  importApplicationV4,
-	5:  importApplicationV5,
-	6:  importApplicationV6,
-	7:  importApplicationV7,
-	8:  importApplicationV8,
-	9:  importApplicationV9,
-	10: importApplicationV10,
 	11: importApplicationV11,
 	12: importApplicationV12,
 	13: importApplicationV13,
@@ -880,56 +851,6 @@ func applicationV13Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
-func importApplicationV1(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV1Fields()
-	return importApplication(fields, defaults, 1, source)
-}
-
-func importApplicationV2(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV2Fields()
-	return importApplication(fields, defaults, 2, source)
-}
-
-func importApplicationV3(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV3Fields()
-	return importApplication(fields, defaults, 3, source)
-}
-
-func importApplicationV4(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV4Fields()
-	return importApplication(fields, defaults, 4, source)
-}
-
-func importApplicationV5(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV5Fields()
-	return importApplication(fields, defaults, 5, source)
-}
-
-func importApplicationV6(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV6Fields()
-	return importApplication(fields, defaults, 6, source)
-}
-
-func importApplicationV7(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV7Fields()
-	return importApplication(fields, defaults, 7, source)
-}
-
-func importApplicationV8(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV8Fields()
-	return importApplication(fields, defaults, 8, source)
-}
-
-func importApplicationV9(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV9Fields()
-	return importApplication(fields, defaults, 9, source)
-}
-
-func importApplicationV10(source map[string]interface{}) (*application, error) {
-	fields, defaults := applicationV10Fields()
-	return importApplication(fields, defaults, 10, source)
-}
-
 func importApplicationV11(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV11Fields()
 	return importApplication(fields, defaults, 11, source)
@@ -957,7 +878,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 	// contains fields of the right type.
 	result := &application{
 		Name_:                 valid["name"].(string),
-		Type_:                 IAAS,
+		Type_:                 valid["type"].(string),
 		Subordinate_:          valid["subordinate"].(bool),
 		CharmURL_:             valid["charm-url"].(string),
 		Channel_:              valid["cs-channel"].(string),
@@ -969,56 +890,37 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		CharmConfig_:          valid["settings"].(map[string]interface{}),
 		Leader_:               valid["leader"].(string),
 		LeadershipSettings_:   valid["leadership-settings"].(map[string]interface{}),
+		HasResources_:         valid["has-resources"].(bool),
+		Placement_:            valid["placement"].(string),
+		DesiredScale_:         int(valid["desired-scale"].(int64)),
 		StatusHistory_:        newStatusHistory(),
 	}
 
-	if importVersion >= 2 {
-		result.Type_ = valid["type"].(string)
-	}
-	if importVersion >= 3 {
-		result.PasswordHash_ = valid["password-hash"].(string)
-		result.PodSpec_ = valid["pod-spec"].(string)
-	}
-	if importVersion >= 4 {
-		result.Placement_ = valid["placement"].(string)
-		result.DesiredScale_ = int(valid["desired-scale"].(int64))
-
-		if operatorStatus, ok := valid["operator-status"].(map[string]interface{}); ok {
-			status, err := importStatus(operatorStatus)
-			if err != nil {
-				return nil, errors.Trace(err)
-			}
-			result.OperatorStatus_ = status
+	if operatorStatus, ok := valid["operator-status"].(map[string]interface{}); ok {
+		status, err := importStatus(operatorStatus)
+		if err != nil {
+			return nil, errors.Trace(err)
 		}
+		result.OperatorStatus_ = status
 	}
-	if importVersion >= 5 {
-		if offerMap, ok := valid["offers"]; ok {
-			offers, err := importApplicationOffers(offerMap.(map[string]interface{}))
-			if err != nil {
-				return nil, errors.Trace(err)
-			}
-			result.setOffers(offers)
+	if offerMap, ok := valid["offers"]; ok {
+		offers, err := importApplicationOffers(offerMap.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
 		}
+		result.setOffers(offers)
 	}
-	if importVersion >= 6 {
-		result.HasResources_ = valid["has-resources"].(bool)
+	if charmOriginMap, ok := valid["charm-origin"]; ok {
+		charmOrigin, err := importCharmOrigin(charmOriginMap.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		result.CharmOrigin_ = charmOrigin
 	}
 
-	if importVersion >= 7 {
-		if charmOriginMap, ok := valid["charm-origin"]; ok {
-			charmOrigin, err := importCharmOrigin(charmOriginMap.(map[string]interface{}))
-			if err != nil {
-				return nil, errors.Trace(err)
-			}
-			result.CharmOrigin_ = charmOrigin
-		}
-	}
-
-	if importVersion >= 8 {
-		if exposedEndpoints, ok := valid["exposed-endpoints"].(map[string]interface{}); ok {
-			if result.ExposedEndpoints_, err = importExposedEndpointsMap(exposedEndpoints); err != nil {
-				return nil, errors.Trace(err)
-			}
+	if exposedEndpoints, ok := valid["exposed-endpoints"].(map[string]interface{}); ok {
+		if result.ExposedEndpoints_, err = importExposedEndpointsMap(exposedEndpoints); err != nil {
+			return nil, errors.Trace(err)
 		}
 	}
 
@@ -1027,18 +929,6 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 			if result.ProvisioningState_, err = importProvisioningState(provisioningState); err != nil {
 				return nil, errors.Trace(err)
 			}
-		}
-	}
-
-	series, hasSeries := valid["series"].(string)
-	if importVersion <= 9 && importVersion >= 7 && hasSeries {
-		// If we have a series but no platform defined lets make a platform from the series
-		if result.CharmOrigin_ != nil && result.CharmOrigin_.Platform_ == "" {
-			platform, err := platformFromSeries(series)
-			if err != nil {
-				return nil, errors.Trace(err)
-			}
-			result.CharmOrigin_.Platform_ = platform
 		}
 	}
 

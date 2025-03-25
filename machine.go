@@ -4,13 +4,10 @@
 package description
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/juju/errors"
-	"github.com/juju/os/v2/series"
 	"github.com/juju/schema"
-	"github.com/juju/version/v2"
 )
 
 // Machine represents an existing live machine or container running in the
@@ -430,19 +427,7 @@ func importMachineList(sourceList []interface{}, importFunc machineDeserializati
 type machineDeserializationFunc func(map[string]interface{}) (*machine, error)
 
 var machineDeserializationFuncs = map[int]machineDeserializationFunc{
-	1: importMachineV1,
-	2: importMachineV2,
 	3: importMachineV3,
-}
-
-func importMachineV1(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV1()
-	return importMachine(fields, defaults, 1, source, importMachineV1)
-}
-
-func importMachineV2(source map[string]interface{}) (*machine, error) {
-	fields, defaults := machineSchemaV2()
-	return importMachine(fields, defaults, 2, source, importMachineV2)
 }
 
 func importMachineV3(source map[string]interface{}) (*machine, error) {
@@ -473,20 +458,7 @@ func importMachine(
 		StatusHistory_: newStatusHistory(),
 		Jobs_:          convertToStringSlice(valid["jobs"]),
 	}
-	if importVersion < 3 {
-		mSeries := valid["series"].(string)
-		os, err := series.GetOSFromSeries(mSeries)
-		if err != nil {
-			return nil, errors.NotValidf("base series %q", mSeries)
-		}
-		vers, err := series.SeriesVersion(mSeries)
-		if err != nil {
-			return nil, errors.NotValidf("base series %q", mSeries)
-		}
-		result.Base_ = fmt.Sprintf("%s@%s", strings.ToLower(os.String()), vers)
-	} else {
-		result.Base_ = valid["base"].(string)
-	}
+	result.Base_ = valid["base"].(string)
 
 	result.importAnnotations(valid)
 	if err := result.importStatusHistory(valid); err != nil {
@@ -689,7 +661,7 @@ func machineSchemaV3() (schema.Fields, schema.Defaults) {
 // AgentToolsArgs is an argument struct used to add information about the
 // tools the agent is using to a Machine.
 type AgentToolsArgs struct {
-	Version version.Binary
+	Version string
 	URL     string
 	SHA256  string
 	Size    int64
@@ -709,15 +681,15 @@ func newAgentTools(args AgentToolsArgs) *agentTools {
 // that one day we will succeed in merging the unit agents with the
 // machine agents.
 type agentTools struct {
-	Version_      int            `yaml:"version"`
-	ToolsVersion_ version.Binary `yaml:"tools-version"`
-	URL_          string         `yaml:"url"`
-	SHA256_       string         `yaml:"sha256"`
-	Size_         int64          `yaml:"size"`
+	Version_      int    `yaml:"version"`
+	ToolsVersion_ string `yaml:"tools-version"`
+	URL_          string `yaml:"url"`
+	SHA256_       string `yaml:"sha256"`
+	Size_         int64  `yaml:"size"`
 }
 
 // Version implements AgentTools.
-func (a *agentTools) Version() version.Binary {
+func (a *agentTools) Version() string {
 	return a.ToolsVersion_
 }
 
@@ -785,14 +757,10 @@ func importAgentToolsVersion(source map[string]interface{}, formatVersion int) (
 	// contains fields of the right type.
 
 	verString := valid["tools-version"].(string)
-	toolsVersion, err := version.ParseBinary(verString)
-	if err != nil {
-		return nil, errors.Annotatef(err, "agentTools tools-version")
-	}
 
 	return &agentTools{
 		Version_:      formatVersion,
-		ToolsVersion_: toolsVersion,
+		ToolsVersion_: verString,
 		URL_:          valid["url"].(string),
 		SHA256_:       valid["sha256"].(string),
 		Size_:         valid["size"].(int64),

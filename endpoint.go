@@ -4,7 +4,6 @@
 package description
 
 import (
-	"github.com/juju/collections/set"
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 )
@@ -78,10 +77,10 @@ func newEndpoint(args EndpointArgs) *endpoint {
 	}
 }
 
-func (e *endpoint) unitNames() set.Strings {
-	result := set.NewStrings()
+func (e *endpoint) unitNames() stringsSet {
+	result := make(stringsSet)
 	for key := range e.UnitSettings_ {
-		result.Add(key)
+		result.add(key)
 	}
 	return result
 }

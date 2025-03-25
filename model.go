@@ -6,14 +6,13 @@ package description
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"sort"
 	"strings"
 
-	"github.com/juju/collections/set"
 	"github.com/juju/errors"
 	"github.com/juju/names/v6"
 	"github.com/juju/schema"
-	"github.com/juju/version/v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -41,7 +40,7 @@ type Model interface {
 	UUID() string
 	Owner() string
 	Config() map[string]interface{}
-	LatestToolsVersion() version.Number
+	LatestToolsVersion() string
 	EnvironVersion() int
 
 	// UpdateConfig overwrites existing config values with those specified.
@@ -174,7 +173,7 @@ type ModelArgs struct {
 	Type               string
 	Owner              string
 	Config             map[string]interface{}
-	LatestToolsVersion version.Number
+	LatestToolsVersion string
 	EnvironVersion     int
 	Blocks             map[string]string
 	Cloud              string
@@ -291,8 +290,8 @@ type model struct {
 	Config_ map[string]interface{} `yaml:"config"`
 	Blocks_ map[string]string      `yaml:"blocks,omitempty"`
 
-	LatestToolsVersion_ version.Number `yaml:"latest-tools,omitempty"`
-	EnvironVersion_     int            `yaml:"environ-version"`
+	LatestToolsVersion_ string `yaml:"latest-tools,omitempty"`
+	EnvironVersion_     int    `yaml:"environ-version"`
 
 	Users_               users               `yaml:"users"`
 	Machines_            machines            `yaml:"machines"`
@@ -390,7 +389,7 @@ func (m *model) PasswordHash() string {
 }
 
 // LatestToolsVersion implements Model.
-func (m *model) LatestToolsVersion() version.Number {
+func (m *model) LatestToolsVersion() string {
 	return m.LatestToolsVersion_
 }
 
@@ -1143,24 +1142,33 @@ func (m *model) setMeterStatus(ms meterStatus) {
 }
 
 type validationContext struct {
-	allMachines           set.Strings
-	allApplications       set.Strings
-	allRemoteApplications set.Strings
-	allUnits              set.Strings
-	unitsWithOpenPorts    set.Strings
-	unknownUnitsWithPorts set.Strings
+	allMachines           stringsSet
+	allApplications       stringsSet
+	allRemoteApplications stringsSet
+	allUnits              stringsSet
+	unitsWithOpenPorts    stringsSet
+	unknownUnitsWithPorts stringsSet
 }
 
 func newValidationContext() *validationContext {
 	return &validationContext{
-		allMachines:           set.NewStrings(),
-		allApplications:       set.NewStrings(),
-		allRemoteApplications: set.NewStrings(),
-		allUnits:              set.NewStrings(),
-		unitsWithOpenPorts:    set.NewStrings(),
-		unknownUnitsWithPorts: set.NewStrings(),
+		allMachines:           make(stringsSet),
+		allApplications:       make(stringsSet),
+		allRemoteApplications: make(stringsSet),
+		allUnits:              make(stringsSet),
+		unitsWithOpenPorts:    make(stringsSet),
+		unknownUnitsWithPorts: make(stringsSet),
 	}
 }
+
+const (
+	// numberRegex for matching agent version strings.
+	numberRegex = `^(?P<major>\d{1,9})(\.((?P<minor>\d{1,9})((?:(-((?P<tag>[a-z]+)(?P<patchInTag>\d{1,9})?))|(\.(?P<patch>\d{1,9})))?)(\.(?P<build>\d{1,9}))?))?$`
+)
+
+var (
+	numberPat = regexp.MustCompile(`^` + numberRegex + `$`)
+)
 
 // Validate implements Model.
 func (m *model) Validate() error {
@@ -1170,10 +1178,9 @@ func (m *model) Validate() error {
 	}
 
 	if m.AgentVersion_ != "" {
-		agentVersion, err := version.Parse(m.AgentVersion_)
-		if err != nil {
-			return errors.Annotate(err, "agent version not parsable")
-		} else if agentVersion == version.Zero {
+		if !numberPat.MatchString(m.AgentVersion_) {
+			return errors.Errorf("agent version %q not valid", m.AgentVersion_)
+		} else if m.AgentVersion_ == "0.0.0" {
 			return errors.NotValidf("agent version cannot be zero")
 		}
 	}
@@ -1189,19 +1196,19 @@ func (m *model) Validate() error {
 			return errors.Trace(err)
 		}
 		for unitName := range application.OpenedPortRanges().ByUnit() {
-			validationCtx.unitsWithOpenPorts.Add(unitName)
+			validationCtx.unitsWithOpenPorts.add(unitName)
 		}
-		validationCtx.allApplications.Add(application.Name())
-		validationCtx.allUnits = validationCtx.allUnits.Union(application.unitNames())
+		validationCtx.allApplications.add(application.Name())
+		validationCtx.allUnits = validationCtx.allUnits.union(application.unitNames())
 	}
 	// Make sure that all the unit names specified in machine opened ports
 	// exist as units of applications.
-	unknownUnitsWithPorts := validationCtx.unitsWithOpenPorts.Difference(validationCtx.allUnits)
+	unknownUnitsWithPorts := validationCtx.unitsWithOpenPorts.difference(validationCtx.allUnits)
 	if len(unknownUnitsWithPorts) > 0 {
-		return errors.Errorf("unknown unit names in open ports: %s", unknownUnitsWithPorts.SortedValues())
+		return errors.Errorf("unknown unit names in open ports: %s", unknownUnitsWithPorts.values())
 	}
 	for _, application := range m.RemoteApplications_.RemoteApplications {
-		validationCtx.allRemoteApplications.Add(application.Name())
+		validationCtx.allRemoteApplications.add(application.Name())
 	}
 
 	err := m.validateRelations()
@@ -1245,9 +1252,9 @@ func (m *model) validateMachine(validationCtx *validationContext, machine Machin
 	if err := machine.Validate(); err != nil {
 		return errors.Trace(err)
 	}
-	validationCtx.allMachines.Add(machine.Id())
+	validationCtx.allMachines.add(machine.Id())
 	for unitName := range machine.OpenedPortRanges().ByUnit() {
-		validationCtx.unitsWithOpenPorts.Add(unitName)
+		validationCtx.unitsWithOpenPorts.add(unitName)
 	}
 	for _, container := range machine.Containers() {
 		err := m.validateMachine(validationCtx, container)
@@ -1259,41 +1266,41 @@ func (m *model) validateMachine(validationCtx *validationContext, machine Machin
 }
 
 func (m *model) validateStorage(validationCtx *validationContext) error {
-	allStorage := set.NewStrings()
+	allStorage := make(stringsSet)
 	for i, storage := range m.Storages_.Storages_ {
 		if err := storage.Validate(); err != nil {
 			return errors.Annotatef(err, "storage[%d]", i)
 		}
-		allStorage.Add(storage.ID())
+		allStorage.add(storage.ID())
 		owner, ok := storage.UnitOwner()
 		if ok {
-			if !validationCtx.allUnits.Contains(owner) {
+			if !validationCtx.allUnits.contains(owner) {
 				return errors.NotValidf("storage[%d] owner (%s)", i, owner)
 			}
 		}
 		for _, unit := range storage.Attachments() {
-			if !validationCtx.allUnits.Contains(unit) {
+			if !validationCtx.allUnits.contains(unit) {
 				return errors.NotValidf("storage[%d] attachment referencing unknown unit %q", i, unit)
 			}
 		}
 	}
-	allVolumes := set.NewStrings()
+	allVolumes := make(stringsSet)
 	for i, volume := range m.Volumes_.Volumes_ {
 		if err := volume.Validate(); err != nil {
 			return errors.Annotatef(err, "volume[%d]", i)
 		}
-		allVolumes.Add(volume.ID())
-		if storeID := volume.Storage(); storeID != "" && !allStorage.Contains(storeID) {
+		allVolumes.add(volume.ID())
+		if storeID := volume.Storage(); storeID != "" && !allStorage.contains(storeID) {
 			return errors.NotValidf("volume[%d] referencing unknown storage %q", i, storeID)
 		}
 		for j, attachment := range volume.Attachments() {
 			var knownHost bool
 			hostID, ok := attachment.HostMachine()
 			if ok {
-				knownHost = validationCtx.allMachines.Contains(hostID)
+				knownHost = validationCtx.allMachines.contains(hostID)
 			} else {
 				hostID, _ = attachment.HostUnit()
-				knownHost = validationCtx.allUnits.Contains(hostID)
+				knownHost = validationCtx.allUnits.contains(hostID)
 			}
 			if !knownHost {
 				return errors.NotValidf("volume[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
@@ -1304,20 +1311,20 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 		if err := filesystem.Validate(); err != nil {
 			return errors.Annotatef(err, "filesystem[%d]", i)
 		}
-		if storeID := filesystem.Storage(); storeID != "" && !allStorage.Contains(storeID) {
+		if storeID := filesystem.Storage(); storeID != "" && !allStorage.contains(storeID) {
 			return errors.NotValidf("filesystem[%d] referencing unknown storage %q", i, storeID)
 		}
-		if volID := filesystem.Volume(); volID != "" && !allVolumes.Contains(volID) {
+		if volID := filesystem.Volume(); volID != "" && !allVolumes.contains(volID) {
 			return errors.NotValidf("filesystem[%d] referencing unknown volume %q", i, volID)
 		}
 		for j, attachment := range filesystem.Attachments() {
 			var knownHost bool
 			hostID, ok := attachment.HostMachine()
 			if ok {
-				knownHost = validationCtx.allMachines.Contains(hostID)
+				knownHost = validationCtx.allMachines.contains(hostID)
 			} else {
 				hostID, _ = attachment.HostUnit()
-				knownHost = validationCtx.allUnits.Contains(hostID)
+				knownHost = validationCtx.allUnits.contains(hostID)
 			}
 			if !knownHost {
 				return errors.NotValidf("volume[%d].attachment[%d] referencing unknown machine or unit %q", i, j, hostID)
@@ -1330,9 +1337,9 @@ func (m *model) validateStorage(validationCtx *validationContext) error {
 
 // validateSubnets makes sure that any spaces referenced by subnets exist.
 func (m *model) validateSubnets() error {
-	spaceUUIDs := set.NewStrings()
+	spaceUUIDs := make(stringsSet)
 	for _, space := range m.Spaces_.Spaces_ {
-		spaceUUIDs.Add(space.UUID())
+		spaceUUIDs.add(space.UUID())
 	}
 	for _, subnet := range m.Subnets_.Subnets_ {
 		// space "0" is the new, in juju 2.7, default space,
@@ -1340,7 +1347,7 @@ func (m *model) validateSubnets() error {
 		if subnet.SpaceUUID() == "" || subnet.SpaceUUID() == "0" {
 			continue
 		}
-		if !spaceUUIDs.Contains(subnet.SpaceUUID()) {
+		if !spaceUUIDs.contains(subnet.SpaceUUID()) {
 			return errors.Errorf("subnet %q references non-existent space %q", subnet.CIDR(), subnet.SpaceUUID())
 		}
 	}
@@ -1349,12 +1356,12 @@ func (m *model) validateSubnets() error {
 }
 
 func (m *model) validateSecrets(validationCtx *validationContext) error {
-	appsAndUnits := validationCtx.allApplications.Union(validationCtx.allUnits)
+	appsAndUnits := validationCtx.allApplications.union(validationCtx.allUnits)
 
 	checkValidAppOrUnit := func(i int, entityName string, label string, entity names.Tag) error {
 		if entity.Kind() == names.ApplicationTagKind || entity.Kind() == names.UnitTagKind {
 			entityID := entity.Id()
-			if !appsAndUnits.Contains(entityID) {
+			if !appsAndUnits.contains(entityID) {
 				return errors.NotValidf("%s[%d] %s (%s)", entityName, i, label, entityID)
 			}
 		}
@@ -1362,7 +1369,7 @@ func (m *model) validateSecrets(validationCtx *validationContext) error {
 	}
 	checkValidRemoteEntity := func(i int, label string, entity names.Tag) error {
 		valid := false
-		for _, app := range validationCtx.allRemoteApplications.Values() {
+		for _, app := range validationCtx.allRemoteApplications.values() {
 			valid = entity.Kind() == names.ApplicationTagKind && app == entity.Id()
 			if !valid && entity.Kind() == names.UnitTagKind {
 				consumerApp, _ := names.UnitApplication(entity.Id())
@@ -1584,12 +1591,12 @@ func (m *model) validateRelations() error {
 				// principals, there are only settings for the units of the application
 				// that are related to units of each particular principal, so you can't
 				// expect settings for every unit.
-				if missingSettings := applicationUnits.Difference(epUnits); len(missingSettings) > 0 && !isRemote {
-					return errors.Errorf("missing relation settings for units %s in relation %d", missingSettings.SortedValues(), relation.Id())
+				if missingSettings := applicationUnits.difference(epUnits); len(missingSettings) > 0 && !isRemote {
+					return errors.Errorf("missing relation settings for units %s in relation %d", missingSettings.values(), relation.Id())
 				}
 			}
-			if extraSettings := epUnits.Difference(applicationUnits); len(extraSettings) > 0 {
-				return errors.Errorf("settings for unknown units %s in relation %d", extraSettings.SortedValues(), relation.Id())
+			if extraSettings := epUnits.difference(applicationUnits); len(extraSettings) > 0 {
+				return errors.Errorf("settings for unknown units %s in relation %d", extraSettings.values(), relation.Id())
 			}
 		}
 	}
@@ -1617,7 +1624,6 @@ func importModel(source map[string]interface{}) (*model, error) {
 type modelDeserializationFunc func(map[string]interface{}) (*model, error)
 
 var modelDeserializationFuncs = map[int]modelDeserializationFunc{
-	1:  newModelImporter(1, schema.FieldMap(modelV1Fields())),
 	2:  newModelImporter(2, schema.FieldMap(modelV2Fields())),
 	3:  newModelImporter(3, schema.FieldMap(modelV3Fields())),
 	4:  newModelImporter(4, schema.FieldMap(modelV4Fields())),
@@ -1814,11 +1820,7 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 	}
 
 	if availableTools, ok := valid["latest-tools"]; ok {
-		num, err := version.Parse(availableTools.(string))
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-		result.LatestToolsVersion_ = num
+		result.LatestToolsVersion_ = availableTools.(string)
 	}
 
 	userMap := valid["users"].(map[string]interface{})

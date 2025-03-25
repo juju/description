@@ -104,7 +104,7 @@ func (s *VolumeSerializationSuite) TestVolumeValidMissingID(c *gc.C) {
 	v := newVolume(VolumeArgs{})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `volume missing id not valid`)
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 }
 
 func (s *VolumeSerializationSuite) TestVolumeValidMissingSize(c *gc.C) {
@@ -113,7 +113,7 @@ func (s *VolumeSerializationSuite) TestVolumeValidMissingSize(c *gc.C) {
 	})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `volume "123" missing size not valid`)
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 }
 
 func (s *VolumeSerializationSuite) TestVolumeValidMissingStatus(c *gc.C) {
@@ -123,7 +123,7 @@ func (s *VolumeSerializationSuite) TestVolumeValidMissingStatus(c *gc.C) {
 	})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `volume "123" missing status not valid`)
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 }
 
 func (s *VolumeSerializationSuite) TestVolumeValidMinimal(c *gc.C) {

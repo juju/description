@@ -5,14 +5,12 @@ package description
 
 import (
 	"time"
-
-	"github.com/juju/version/v2"
 )
 
 // AgentTools represent the version and related binary file
 // that the machine and unit agents are using.
 type AgentTools interface {
-	Version() version.Binary
+	Version() string
 	URL() string
 	SHA256() string
 	Size() int64

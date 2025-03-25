@@ -94,7 +94,7 @@ func (s *FilesystemSerializationSuite) TestFilesystemValidMissingID(c *gc.C) {
 	v := newFilesystem(FilesystemArgs{})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `filesystem missing id not valid`)
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 }
 
 func (s *FilesystemSerializationSuite) TestFilesystemValidMissingSize(c *gc.C) {
@@ -103,7 +103,7 @@ func (s *FilesystemSerializationSuite) TestFilesystemValidMissingSize(c *gc.C) {
 	})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `filesystem "123" missing size not valid`)
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 }
 
 func (s *FilesystemSerializationSuite) TestFilesystemValidMissingStatus(c *gc.C) {
@@ -113,7 +113,7 @@ func (s *FilesystemSerializationSuite) TestFilesystemValidMissingStatus(c *gc.C)
 	})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `filesystem "123" missing status not valid`)
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 }
 
 func (s *FilesystemSerializationSuite) TestFilesystemValidMinimal(c *gc.C) {
