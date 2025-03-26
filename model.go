@@ -1163,7 +1163,7 @@ func newValidationContext() *validationContext {
 
 const (
 	// numberRegex for matching agent version strings.
-	numberRegex = `^(?P<major>\d{1,9})(\.((?P<minor>\d{1,9})((?:(-((?P<tag>[a-z]+)(?P<patchInTag>\d{1,9})?))|(\.(?P<patch>\d{1,9})))?)(\.(?P<build>\d{1,9}))?))?$`
+	numberRegex = `^(?P<major>\d{1,9})(\.((?P<minor>\d{1,9})((?:(-((?P<tag>[a-z]+)(?P<patchInTag>\d{1,9})))|(\.(?P<patch>\d{1,9})))?)(\.(?P<build>\d{1,9}))?))?$`
 )
 
 var (
