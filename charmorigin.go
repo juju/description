@@ -4,11 +4,7 @@
 package description
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/juju/errors"
-	"github.com/juju/os/v2/series"
 	"github.com/juju/schema"
 )
 
@@ -44,23 +40,6 @@ type charmOrigin struct {
 	Revision_ int    `yaml:"revision"`
 	Channel_  string `yaml:"channel"`
 	Platform_ string `yaml:"platform"`
-}
-
-func platformFromSeries(s string) (string, error) {
-	if s == "" {
-		return "", errors.New("cannot convert empty series to a platform")
-	}
-
-	os, err := series.GetOSFromSeries(s)
-	if err != nil {
-		return "", fmt.Errorf("extracting os from series %q: %w", s, err)
-	}
-	version, err := series.SeriesVersion(s)
-	if err != nil {
-		return "", fmt.Errorf("extracting os version from series %q: %w", s, err)
-	}
-
-	return fmt.Sprintf("unknown/%s/%s", strings.ToLower(os.String()), version), nil
 }
 
 // Source implements CharmOrigin.
@@ -110,12 +89,7 @@ func importCharmOrigin(source map[string]interface{}) (*charmOrigin, error) {
 type charmOriginDeserializationFunc func(map[string]interface{}) (*charmOrigin, error)
 
 var charmOriginDeserializationFuncs = map[int]charmOriginDeserializationFunc{
-	1: importCharmOriginV1,
 	2: importCharmOriginV2,
-}
-
-func importCharmOriginV1(source map[string]interface{}) (*charmOrigin, error) {
-	return importCharmOriginVersion(source, 1)
 }
 
 func importCharmOriginV2(source map[string]interface{}) (*charmOrigin, error) {
@@ -159,22 +133,6 @@ func importCharmOriginVersion(source map[string]interface{}, importVersion int) 
 		return nil, errors.Errorf("unexpected revision type %T", valid["revision"])
 	}
 
-	platform := valid["platform"].(string)
-	if importVersion < 2 {
-		parts := strings.Split(platform, "/")
-		if len(parts) < 3 {
-			return nil, errors.NotValidf("platform %q", platform)
-		}
-		pSeries := parts[2]
-		vers, err := series.SeriesVersion(pSeries)
-		if err != nil {
-			return nil, errors.NotValidf("platform series %q", pSeries)
-		}
-		parts[2] = vers
-		parts = append(parts, "stable")
-		platform = strings.Join(parts, "/")
-	}
-
 	return &charmOrigin{
 		Version_:  2,
 		Source_:   valid["source"].(string),
@@ -182,6 +140,6 @@ func importCharmOriginVersion(source map[string]interface{}, importVersion int) 
 		Hash_:     valid["hash"].(string),
 		Revision_: revision,
 		Channel_:  valid["channel"].(string),
-		Platform_: platform,
+		Platform_: valid["platform"].(string),
 	}, nil
 }

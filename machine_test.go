@@ -4,11 +4,8 @@
 package description
 
 import (
-	"bytes"
-
 	"github.com/juju/errors"
 	jc "github.com/juju/testing/checkers"
-	"github.com/juju/version/v2"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
 )
@@ -46,29 +43,6 @@ func minimalMachineMap(id string, containers ...interface{}) map[interface{}]int
 		"password-hash":  "some-hash",
 		"instance":       minimalCloudInstanceMap(),
 		"base":           "ubuntu@22.04",
-		"tools":          minimalAgentToolsMap(),
-		"jobs":           []interface{}{"host-units"},
-		"containers":     containers,
-		"status":         minimalStatusMap(),
-		"status-history": emptyStatusHistoryMap(),
-		"block-devices":  emptyBlockDeviceMap(),
-	}
-}
-
-func minimalMachineV1Map(id string, containers ...interface{}) map[interface{}]interface{} {
-	result := minimalMachineMap(id, containers...)
-	delete(result, "base")
-	result["series"] = "jammy"
-	return result
-}
-
-func minimalMachineMapWithPriorInstanceMap(id string, containers ...interface{}) map[interface{}]interface{} {
-	return map[interface{}]interface{}{
-		"id":             id,
-		"nonce":          "a-nonce",
-		"password-hash":  "some-hash",
-		"instance":       minimalCloudInstanceMapV3(),
-		"series":         "zesty",
 		"tools":          minimalAgentToolsMap(),
 		"jobs":           []interface{}{"host-units"},
 		"containers":     containers,
@@ -178,14 +152,14 @@ func (s *MachineSerializationSuite) TestMinimalMachineValid(c *gc.C) {
 func (s *MachineSerializationSuite) TestValidateMissingID(c *gc.C) {
 	m := newMachine(MachineArgs{})
 	err := m.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 	c.Check(err, gc.ErrorMatches, "machine missing id not valid")
 }
 
 func (s *MachineSerializationSuite) TestValidateMissingStatus(c *gc.C) {
 	m := newMachine(s.machineArgs("42"))
 	err := m.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 	c.Check(err, gc.ErrorMatches, `machine "42" missing status not valid`)
 }
 
@@ -193,7 +167,7 @@ func (s *MachineSerializationSuite) TestValidateMissingTools(c *gc.C) {
 	m := newMachine(s.machineArgs("42"))
 	m.SetStatus(minimalStatusArgs())
 	err := m.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 	c.Check(err, gc.ErrorMatches, `machine "42" missing tools not valid`)
 }
 
@@ -202,7 +176,7 @@ func (s *MachineSerializationSuite) TestValidateMissingInstance(c *gc.C) {
 	m.SetStatus(minimalStatusArgs())
 	m.SetTools(minimalAgentToolsArgs())
 	err := m.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 	c.Check(err, gc.ErrorMatches, `machine "42" missing instance not valid`)
 }
 
@@ -212,7 +186,7 @@ func (s *MachineSerializationSuite) TestValidateChecksInstance(c *gc.C) {
 	m.SetTools(minimalAgentToolsArgs())
 	m.SetInstance(minimalCloudInstanceArgs())
 	err := m.Validate()
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 	c.Check(err, gc.ErrorMatches, `machine "42" instance: instance "instance id" missing status not valid`)
 }
 
@@ -283,43 +257,6 @@ func (*MachineSerializationSuite) TestNestedParsing(c *gc.C) {
 			minimalMachine("2/kvm/0",
 				minimalMachine("2/kvm/0/lxd/0"),
 				minimalMachine("2/kvm/0/lxd/1"),
-			),
-		),
-	}
-	c.Assert(machines, jc.DeepEquals, expected)
-}
-
-// TestNestedParsingWithPriorVersion tests the scenario of a using a version of
-// a machine with a older version of a cloud instance. We want to ensure that
-// we can mix and match type versions without inducing a panic that was found
-// whilst developing.
-func (*MachineSerializationSuite) TestNestedParsingWithPriorVersion(c *gc.C) {
-	machines, err := importMachines(map[string]interface{}{
-		"version": 1,
-		"machines": []interface{}{
-			minimalMachineMapWithPriorInstanceMap("0"),
-			minimalMachineMapWithPriorInstanceMap("1",
-				minimalMachineMapWithPriorInstanceMap("1/lxd/0"),
-				minimalMachineMapWithPriorInstanceMap("1/lxd/1"),
-			),
-			minimalMachineMapWithPriorInstanceMap("2",
-				minimalMachineMapWithPriorInstanceMap("2/kvm/0",
-					minimalMachineMapWithPriorInstanceMap("2/kvm/0/lxd/0"),
-					minimalMachineMapWithPriorInstanceMap("2/kvm/0/lxd/1"),
-				),
-			),
-		}})
-	c.Assert(err, jc.ErrorIsNil)
-	expected := []*machine{
-		minimalMachineWithPriorInstanceMap("0"),
-		minimalMachineWithPriorInstanceMap("1",
-			minimalMachineWithPriorInstanceMap("1/lxd/0"),
-			minimalMachineWithPriorInstanceMap("1/lxd/1"),
-		),
-		minimalMachineWithPriorInstanceMap("2",
-			minimalMachineWithPriorInstanceMap("2/kvm/0",
-				minimalMachineWithPriorInstanceMap("2/kvm/0/lxd/0"),
-				minimalMachineWithPriorInstanceMap("2/kvm/0/lxd/1"),
 			),
 		),
 	}
@@ -422,82 +359,6 @@ func (s *MachineSerializationSuite) exportImportVersion(c *gc.C, machine_ *machi
 	return machines[0]
 }
 
-func (s *MachineSerializationSuite) TestConvertPortToPortRangesForV1Payloads(c *gc.C) {
-	v1Ports := versionedOpenedPorts{
-		Version: 1,
-		OpenedPorts_: []*openedPorts{
-			{
-				// Pre 2.9 juju opens ports across all subnets so the
-				// ports documents always have an empty subnet ID
-				SubnetID_: "",
-				OpenedPorts_: &portRanges{
-					Version: 1,
-					OpenedPorts_: []*portRange{
-						{
-							UnitName_: "magic/0",
-							FromPort_: 80,
-							ToPort_:   90,
-							Protocol_: "tcp",
-						},
-						{
-							UnitName_: "magic/0",
-							FromPort_: 1337,
-							ToPort_:   1337,
-							Protocol_: "udp",
-						},
-						{
-							UnitName_: "unicorn/0",
-							FromPort_: 8080,
-							ToPort_:   8080,
-							Protocol_: "tcp",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	var (
-		buf           bytes.Buffer
-		v1PortPayload map[string]interface{}
-	)
-	c.Assert(yaml.NewEncoder(&buf).Encode(v1Ports), jc.ErrorIsNil)
-	c.Assert(yaml.NewDecoder(&buf).Decode(&v1PortPayload), jc.ErrorIsNil)
-
-	// Get a minimal machine map and inject the generated port payload
-	machPayload := minimalMachineV1Map("1")
-	machPayload["opened-ports"] = v1PortPayload
-	machineListPayload := map[string]interface{}{
-		"version": 1,
-		"machines": []interface{}{
-			machPayload,
-		},
-	}
-
-	// Import the machine and ensure that the V1 ports get correctly
-	// converted into port ranges.
-	machines, err := importMachines(machineListPayload)
-	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(machines, gc.HasLen, 1)
-	mach := machines[0]
-
-	machineRangesByUnit := mach.OpenedPortRanges().ByUnit()
-	c.Assert(machineRangesByUnit, gc.HasLen, 2)
-
-	magicUnitRangesByEndpoint := machineRangesByUnit["magic/0"].ByEndpoint()
-	c.Assert(magicUnitRangesByEndpoint, gc.HasLen, 1)
-	magicUnitRanges := magicUnitRangesByEndpoint[""]
-	c.Assert(magicUnitRanges, gc.HasLen, 2)
-	assertUnitPortRangeMatches(c, magicUnitRanges[0], newUnitPortRange(80, 90, "tcp"))
-	assertUnitPortRangeMatches(c, magicUnitRanges[1], newUnitPortRange(1337, 1337, "udp"))
-
-	unicornUnitRangesByEndpoint := machineRangesByUnit["unicorn/0"].ByEndpoint()
-	c.Assert(unicornUnitRangesByEndpoint, gc.HasLen, 1)
-	unicornUnitRanges := unicornUnitRangesByEndpoint[""]
-	c.Assert(unicornUnitRanges, gc.HasLen, 1)
-	assertUnitPortRangeMatches(c, unicornUnitRanges[0], newUnitPortRange(8080, 8080, "tcp"))
-}
-
 func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	// TODO: need to fully specify a machine.
 	args := s.machineArgs("0")
@@ -532,19 +393,6 @@ func (s *MachineSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	c.Assert(machine, jc.DeepEquals, m)
 }
 
-func (s *MachineSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
-	mV1 := minimalMachine("0")
-	mV1.Base_ = ""
-	mV1.Series_ = "focal"
-
-	mLatest := mV1
-	mResult := s.exportImportVersion(c, mV1, 1)
-
-	mLatest.Base_ = "ubuntu@20.04"
-	mLatest.Series_ = ""
-	c.Assert(mResult, jc.DeepEquals, mLatest)
-}
-
 type AgentToolsSerializationSuite struct {
 	SerializationSuite
 }
@@ -560,7 +408,7 @@ func (s *AgentToolsSerializationSuite) SetUpTest(c *gc.C) {
 
 func (s *AgentToolsSerializationSuite) TestNewAgentTools(c *gc.C) {
 	args := AgentToolsArgs{
-		Version: version.MustParseBinary("3.4.5-ubuntu-amd64"),
+		Version: "3.4.5-ubuntu-amd64",
 		URL:     "some-url",
 		SHA256:  "long-hash",
 		Size:    123456789,
@@ -585,7 +433,7 @@ func minimalAgentToolsMap() map[interface{}]interface{} {
 
 func minimalAgentToolsArgs() AgentToolsArgs {
 	return AgentToolsArgs{
-		Version: version.MustParseBinary("3.4.5-ubuntu-amd64"),
+		Version: "3.4.5-ubuntu-amd64",
 		URL:     "some-url",
 		SHA256:  "long-hash",
 		Size:    123456789,
@@ -608,7 +456,7 @@ func (s *AgentToolsSerializationSuite) TestMinimalMatches(c *gc.C) {
 
 func (s *AgentToolsSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	initial := newAgentTools(AgentToolsArgs{
-		Version: version.MustParseBinary("2.0.4-ubuntu-amd64"),
+		Version: "2.0.4-ubuntu-amd64",
 		URL:     "some-url",
 		SHA256:  "long-hash",
 		Size:    123456789,

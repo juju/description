@@ -85,8 +85,6 @@ func minimalApplicationWithOfferMap() map[interface{}]interface{} {
 func minimalApplicationMapCAAS() map[interface{}]interface{} {
 	result := minimalApplicationMap()
 	result["type"] = CAAS
-	result["password-hash"] = "some-hash"
-	result["pod-spec"] = "some-spec"
 	result["placement"] = "foo=bar"
 	result["has-resources"] = true
 	result["desired-scale"] = 2
@@ -188,8 +186,6 @@ func minimalApplicationArgs(modelType string) ApplicationArgs {
 		MetricsCredentials: []byte("sekrit"),
 	}
 	if modelType == CAAS {
-		result.PasswordHash = "some-hash"
-		result.PodSpec = "some-spec"
 		result.Placement = "foo=bar"
 		result.HasResources = true
 		result.DesiredScale = 2
@@ -236,8 +232,6 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 			"leader": true,
 		},
 		MetricsCredentials: []byte("sekrit"),
-		PasswordHash:       "passwordhash",
-		PodSpec:            "podspec",
 		Placement:          "foo=bar",
 		HasResources:       true,
 		DesiredScale:       2,
@@ -263,8 +257,6 @@ func (s *ApplicationSerializationSuite) TestNewApplication(c *gc.C) {
 	c.Assert(ep1.ExposeToSpaceIDs(), gc.IsNil)
 	c.Assert(ep1.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
 
-	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
-	c.Assert(application.PodSpec(), gc.Equals, "podspec")
 	c.Assert(application.Placement(), gc.Equals, "foo=bar")
 	c.Assert(application.HasResources(), jc.IsTrue)
 	c.Assert(application.DesiredScale(), gc.Equals, 2)
@@ -428,121 +420,6 @@ func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_
 	return s.exportImportVersion(c, application_, 13)
 }
 
-func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
-	args := minimalApplicationArgs(CAAS)
-	args.Type = ""
-	args.Series = "focal"
-	appV1 := minimalApplication(args)
-
-	// Make an app with fields not in v1 removed.
-	appLatest := minimalApplication()
-	appLatest.PasswordHash_ = ""
-	appLatest.PodSpec_ = ""
-	appLatest.Placement_ = ""
-	appLatest.HasResources_ = false
-	appLatest.DesiredScale_ = 0
-	appLatest.CloudService_ = nil
-	appLatest.Tools_ = nil
-	appLatest.OperatorStatus_ = nil
-	appLatest.Offers_ = nil
-	appLatest.CharmOrigin_ = nil
-	appLatest.CharmMetadata_ = nil
-	appLatest.CharmManifest_ = nil
-	appLatest.CharmActions_ = nil
-	appLatest.CharmConfigs_ = nil
-
-	appResult := s.exportImportVersion(c, appV1, 1)
-	appLatest.Series_ = ""
-	c.Assert(appResult, jc.DeepEquals, appLatest)
-}
-
-func (s *ApplicationSerializationSuite) TestV2ParsingReturnsLatest(c *gc.C) {
-	args := minimalApplicationArgs(CAAS)
-	args.Series = "focal"
-	appV1 := minimalApplication(args)
-
-	// Make an app with fields not in v2 removed.
-	appLatest := appV1
-	appLatest.PasswordHash_ = ""
-	appLatest.PodSpec_ = ""
-	appLatest.Placement_ = ""
-	appLatest.HasResources_ = false
-	appLatest.DesiredScale_ = 0
-	appLatest.CloudService_ = nil
-	appLatest.Tools_ = nil
-	appLatest.OperatorStatus_ = nil
-	appLatest.Offers_ = nil
-	appLatest.CharmOrigin_ = nil
-	appLatest.CharmMetadata_ = nil
-	appLatest.CharmManifest_ = nil
-	appLatest.CharmActions_ = nil
-	appLatest.CharmConfigs_ = nil
-
-	appResult := s.exportImportVersion(c, appV1, 2)
-	appLatest.Series_ = ""
-	c.Assert(appResult, jc.DeepEquals, appLatest)
-}
-
-func (s *ApplicationSerializationSuite) TestV3ParsingReturnsLatest(c *gc.C) {
-	args := minimalApplicationArgs(CAAS)
-	args.Series = "focal"
-	appV2 := minimalApplication(args)
-
-	// Make an app with fields not in v3 removed.
-	appLatest := appV2
-	appLatest.Placement_ = ""
-	appLatest.HasResources_ = false
-	appLatest.DesiredScale_ = 0
-	appLatest.OperatorStatus_ = nil
-	appLatest.Offers_ = nil
-	appLatest.CharmOrigin_ = nil
-	appLatest.CharmMetadata_ = nil
-	appLatest.CharmManifest_ = nil
-	appLatest.CharmActions_ = nil
-	appLatest.CharmConfigs_ = nil
-
-	appResult := s.exportImportVersion(c, appV2, 3)
-	appLatest.Series_ = ""
-	c.Assert(appResult, jc.DeepEquals, appLatest)
-}
-
-func (s *ApplicationSerializationSuite) TestV5ParsingReturnsLatest(c *gc.C) {
-	args := minimalApplicationArgs(CAAS)
-	args.Series = "focal"
-	appV5 := minimalApplication(args)
-
-	// Make an app with fields not in v5 removed.
-	appLatest := appV5
-	appLatest.HasResources_ = false
-	appLatest.CharmOrigin_ = nil
-	appLatest.CharmMetadata_ = nil
-	appLatest.CharmManifest_ = nil
-	appLatest.CharmActions_ = nil
-	appLatest.CharmConfigs_ = nil
-
-	appResult := s.exportImportVersion(c, appV5, 5)
-	appLatest.Series_ = ""
-	c.Assert(appResult, jc.DeepEquals, appLatest)
-}
-
-func (s *ApplicationSerializationSuite) TestV6ParsingReturnsLatest(c *gc.C) {
-	args := minimalApplicationArgs(CAAS)
-	args.Series = "focal"
-	appV6 := minimalApplication(args)
-
-	// Make an app with fields not in v6 removed.
-	appLatest := appV6
-	appLatest.CharmOrigin_ = nil
-	appLatest.CharmMetadata_ = nil
-	appLatest.CharmManifest_ = nil
-	appLatest.CharmActions_ = nil
-	appLatest.CharmConfigs_ = nil
-
-	appResult := s.exportImportVersion(c, appV6, 6)
-	appLatest.Series_ = ""
-	c.Assert(appResult, jc.DeepEquals, appLatest)
-}
-
 func (s *ApplicationSerializationSuite) TestParsingSerializedData(c *gc.C) {
 	app := minimalApplication()
 	application := s.exportImportLatest(c, app)
@@ -623,24 +500,6 @@ func (s *ApplicationSerializationSuite) TestApplicationConfig(c *gc.C) {
 		"first":  "value 1",
 		"second": 42,
 	})
-}
-
-func (s *ApplicationSerializationSuite) TestPasswordHash(c *gc.C) {
-	args := minimalApplicationArgs(CAAS)
-	args.PasswordHash = "passwordhash"
-	initial := minimalApplication(args)
-
-	application := s.exportImportLatest(c, initial)
-	c.Assert(application.PasswordHash(), gc.Equals, "passwordhash")
-}
-
-func (s *ApplicationSerializationSuite) TestPodSpec(c *gc.C) {
-	args := minimalApplicationArgs(CAAS)
-	args.PodSpec = "podspec"
-	initial := minimalApplication(args)
-
-	application := s.exportImportLatest(c, initial)
-	c.Assert(application.PodSpec(), gc.Equals, "podspec")
 }
 
 func (s *ApplicationSerializationSuite) TestPlacement(c *gc.C) {
@@ -729,7 +588,7 @@ func (s *ApplicationSerializationSuite) TestIAASUnitMissingTools(c *gc.C) {
 	app := minimalApplication()
 	app.Units_.Units_[0].Tools_ = nil
 	initial := applications{
-		Version:       9,
+		Version:       13,
 		Applications_: []*application{app},
 	}
 
@@ -773,65 +632,9 @@ func (s *ApplicationSerializationSuite) TestExposeMetadata(c *gc.C) {
 	c.Assert(ep1.ExposeToCIDRs(), gc.DeepEquals, []string{"192.168.42.0/24"})
 }
 
-func (s *ApplicationSerializationSuite) TestApplicationSeriesToPlatform(c *gc.C) {
-	appInput := map[string]interface{}{
-		"version": 8,
-		"applications": []map[string]interface{}{{
-			"version":           8,
-			"name":              "ubuntu",
-			"type":              IAAS,
-			"charm-url":         "cs:trusty/ubuntu",
-			"cs-channel":        "stable",
-			"charm-mod-version": 1,
-			"status":            minimalStatusMap(),
-			"status-history":    emptyStatusHistoryMap(),
-			"settings": map[interface{}]interface{}{
-				"key": "value",
-			},
-			"leader":              "ubuntu/0",
-			"leadership-settings": map[interface{}]interface{}{},
-			"metrics-creds":       "c2Vrcml0", // base64 encoded
-			"resources": map[interface{}]interface{}{
-				"version": 2,
-				"resources": []interface{}{
-					minimalResourceMap(),
-				},
-			},
-			"units": map[interface{}]interface{}{
-				"version": 3,
-				"units": []interface{}{
-					minimalUnitMap(),
-				},
-			},
-			"series": "focal",
-			"charm-origin": map[interface{}]interface{}{
-				"version":  2,
-				"source":   "local",
-				"id":       "",
-				"hash":     "",
-				"revision": 0,
-				"channel":  "",
-				"platform": "",
-			},
-		}},
-	}
-
-	bytes, err := yaml.Marshal(appInput)
-	c.Assert(err, jc.ErrorIsNil)
-
-	var source map[string]interface{}
-	err = yaml.Unmarshal(bytes, &source)
-	c.Assert(err, jc.ErrorIsNil)
-
-	app, err := importApplications(source)
-	c.Assert(err, jc.ErrorIsNil)
-
-	c.Assert(app[0].CharmOrigin().Platform(), gc.Equals, "unknown/ubuntu/20.04")
-}
-
 func (s *ApplicationSerializationSuite) TestApplicationWithoutStatusHistory(c *gc.C) {
 	appInput := map[string]interface{}{
-		"version": 8,
+		"version": 13,
 		"applications": []map[string]interface{}{{
 			"version":           8,
 			"name":              "ubuntu",

@@ -76,7 +76,7 @@ func (s *StorageSerializationSuite) TestStorageValidMissingID(c *gc.C) {
 	v := newStorage(StorageArgs{})
 	err := v.Validate()
 	c.Check(err, gc.ErrorMatches, `storage missing id not valid`)
-	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err, jc.ErrorIs, errors.NotValid)
 }
 
 func (s *StorageSerializationSuite) TestStorageMatches(c *gc.C) {

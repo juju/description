@@ -195,7 +195,7 @@ func (s *StatusHistorySerializationSuite) SetUpTest(c *gc.C) {
 }
 
 func (s *StatusHistorySerializationSuite) TestSetStatusHistory(c *gc.C) {
-	// Make sure all the arg values are set.
+	// Make sure all the arg values are jc.ErrorIs
 	args := []StatusArgs{{
 		Value:   "running",
 		Message: "all good",
