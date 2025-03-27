@@ -46,6 +46,7 @@ type Application interface {
 	SetApplicationConfig(map[string]interface{})
 
 	Leader() string
+	SetLeader(string)
 	LeadershipSettings() map[string]interface{}
 
 	MetricsCredentials() []byte
@@ -347,6 +348,11 @@ func (a *application) SetCharmConfig(args map[string]interface{}) {
 // Leader implements Application.
 func (a *application) Leader() string {
 	return a.Leader_
+}
+
+// SetLeader implements Application.
+func (a *application) SetLeader(leader string) {
+	a.Leader_ = leader
 }
 
 // LeadershipSettings implements Application.

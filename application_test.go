@@ -577,6 +577,19 @@ func (s *ApplicationSerializationSuite) TestLeaderValid(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, `missing unit for leader "ubuntu/1" not valid`)
 }
 
+func (s *ApplicationSerializationSuite) TestSetLeader(c *gc.C) {
+	args := minimalApplicationArgs(IAAS)
+	application := newApplication(args)
+
+	leader := application.Leader()
+	c.Check(leader, gc.Equals, "ubuntu/0")
+
+	application.SetLeader("ubuntu/1")
+
+	leader = application.Leader()
+	c.Check(leader, gc.Equals, "ubuntu/1")
+}
+
 func (s *ApplicationSerializationSuite) TestResourcesAreValidated(c *gc.C) {
 	application := minimalApplication()
 	application.AddResource(ResourceArgs{Name: "foo"})
