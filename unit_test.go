@@ -426,3 +426,11 @@ func (s *UnitSerializationSuite) TestIAASMissingToolsValidated(c *gc.C) {
 	err := u.Validate()
 	c.Assert(err, gc.ErrorMatches, `unit "ubuntu/0" missing tools not valid`)
 }
+
+func (s *UnitSerializationSuite) TestUnitSetPassword(c *gc.C) {
+	initial := minimalUnit()
+	c.Assert(initial.PasswordHash(), gc.Equals, "secure-hash")
+
+	initial.SetPasswordHash("new-password")
+	c.Assert(initial.PasswordHash(), gc.Equals, "new-password")
+}

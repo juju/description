@@ -38,6 +38,7 @@ type Unit interface {
 	Machine() string
 
 	PasswordHash() string
+	SetPasswordHash(string)
 
 	Principal() string
 	Subordinates() []string
@@ -196,6 +197,11 @@ func (u *unit) Machine() string {
 // PasswordHash implements Unit.
 func (u *unit) PasswordHash() string {
 	return u.PasswordHash_
+}
+
+// SetPasswordHash implements Unit.
+func (u *unit) SetPasswordHash(hash string) {
+	u.PasswordHash_ = hash
 }
 
 // Principal implements Unit.
