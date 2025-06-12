@@ -1653,3 +1653,18 @@ func (s *ModelSerializationSuite) TestVirtualHostKeysValidate(c *gc.C) {
 	err := initial.Validate()
 	c.Assert(err, gc.ErrorMatches, `virtual host key\[0\]: empty id not valid`)
 }
+
+func (s *ModelSerializationSuite) TestSetOwner(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: "owner"})
+	model.SetOwner("bob")
+	c.Assert(model.Owner(), gc.Equals, "bob")
+}
+
+func (s *ModelSerializationSuite) TestSetUsers(c *gc.C) {
+	model := NewModel(ModelArgs{Owner: "owner"})
+	model.AddUser(UserArgs{Name: "alice", DisplayName: "Alice", Access: "foo"})
+	c.Assert(model.Users(), gc.HasLen, 1)
+	c.Assert(model.Users()[0].Name(), gc.Equals, "alice")
+	model.SetUsers(nil)
+	c.Assert(model.Users(), gc.HasLen, 0)
+}

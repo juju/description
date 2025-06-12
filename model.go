@@ -39,6 +39,7 @@ type Model interface {
 	SetCloudCredential(CloudCredentialArgs)
 	UUID() string
 	Owner() string
+	SetOwner(string)
 	Config() map[string]interface{}
 	LatestToolsVersion() string
 	EnvironVersion() int
@@ -59,6 +60,7 @@ type Model interface {
 
 	Users() []User
 	AddUser(UserArgs)
+	SetUsers([]UserArgs)
 
 	Machines() []Machine
 	AddMachine(MachineArgs) Machine
@@ -370,6 +372,13 @@ func (m *model) Owner() string {
 	return m.Owner_
 }
 
+// SetOwner implements Model.
+// This method is useful for JAAS to modify a model
+// description in flight to set a new owner.
+func (m *model) SetOwner(owner string) {
+	m.Owner_ = owner
+}
+
 // Config implements Model.
 func (m *model) Config() map[string]interface{} {
 	// TODO: consider returning a deep copy.
@@ -431,6 +440,17 @@ func (m *model) Users() []User {
 // AddUser implements Model.
 func (m *model) AddUser(args UserArgs) {
 	m.Users_.Users_ = append(m.Users_.Users_, newUser(args))
+}
+
+// SetUsers implements Model.
+// This method is useful for JAAS to modify the model description
+// in flight and replace the users list (since JAAS gates access).
+func (m *model) SetUsers(userList []UserArgs) {
+	users := make([]*user, len(userList))
+	for i, userArgs := range userList {
+		users[i] = newUser(userArgs)
+	}
+	m.setUsers(users)
 }
 
 func (m *model) setUsers(userList []*user) {
