@@ -1,4 +1,4 @@
-module github.com/juju/description/v8
+module github.com/juju/description/v9
 
 go 1.23
 
