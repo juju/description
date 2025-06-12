@@ -1686,6 +1686,21 @@ func (s *ModelSerializationSuite) TestVirtualHostKeysValidate(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, `virtual host key\[0\]: empty id not valid`)
 }
 
+func (s *ModelSerializationSuite) TestSetOwner(c *gc.C) {
+	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model.SetOwner(names.NewUserTag("bob"))
+	c.Assert(model.Owner().String(), gc.Equals, "user-bob")
+}
+
+func (s *ModelSerializationSuite) TestSetUsers(c *gc.C) {
+	model := s.newModel(ModelArgs{Owner: names.NewUserTag("owner")})
+	model.AddUser(UserArgs{Name: names.NewUserTag("alice"), DisplayName: "Alice", Access: "foo"})
+	c.Assert(model.Users(), gc.HasLen, 1)
+	c.Assert(model.Users()[0].Name().String(), gc.Equals, "user-alice")
+	model.SetUsers(nil)
+	c.Assert(model.Users(), gc.HasLen, 0)
+}
+
 // modelV1example was taken from a Juju 2.1 model dump, which is version
 // 1, and among other things is missing model status, which version 2 makes
 // manditory.
