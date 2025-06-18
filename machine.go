@@ -19,13 +19,17 @@ type Machine interface {
 	HasStatusHistory
 
 	Id() string
-	Nonce() string
-	PasswordHash() string
 	Placement() string
 	Base() string
 	ContainerType() string
 	Jobs() []string
 	SupportedContainers() ([]string, bool)
+
+	Nonce() string
+	SetNonce(string)
+
+	PasswordHash() string
+	SetPasswordHash(string)
 
 	Instance() CloudInstance
 	SetInstance(CloudInstanceArgs)
@@ -144,6 +148,16 @@ func (m *machine) Id() string {
 // Nonce implements Machine.
 func (m *machine) Nonce() string {
 	return m.Nonce_
+}
+
+// SetNonce implements Machine.
+func (m *machine) SetNonce(nonce string) {
+	m.Nonce_ = nonce
+}
+
+// SetPasswordHash implements Machine.
+func (m *machine) SetPasswordHash(passwordHash string) {
+	m.PasswordHash_ = passwordHash
 }
 
 // PasswordHash implements Machine.
