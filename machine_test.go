@@ -69,26 +69,6 @@ func minimalMachine(id string, containers ...*machine) *machine {
 	return m
 }
 
-func minimalMachineWithPriorInstanceMap(id string, containers ...*machine) *machine {
-	m := newMachine(MachineArgs{
-		Id:           id,
-		Nonce:        "a-nonce",
-		PasswordHash: "some-hash",
-		Base:         "ubuntu@17.04",
-		Jobs:         []string{"host-units"},
-	})
-	m.Containers_ = containers
-	m.SetInstance(minimalCloudInstanceArgs())
-	// The new instance constructed by SetInstance will be the current
-	// version, change it to 3 to match the version returned by
-	// minimalMachineMapWithPriorInstanceMap.
-	m.Instance_.Version = 3
-	m.Instance().SetStatus(minimalStatusArgs())
-	m.SetTools(minimalAgentToolsArgs())
-	m.SetStatus(minimalStatusArgs())
-	return m
-}
-
 func addMinimalMachine(model Model, id string) {
 	m := model.AddMachine(MachineArgs{
 		Id:           id,
@@ -142,6 +122,20 @@ func (s *MachineSerializationSuite) TestNewMachine(c *gc.C) {
 	supportedContainers, ok := m.SupportedContainers()
 	c.Assert(ok, jc.IsFalse)
 	c.Assert(supportedContainers, gc.IsNil)
+}
+
+func (s *MachineSerializationSuite) TestNewMachineSetNonce(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	c.Assert(m.Nonce(), gc.Equals, "a nonce")
+	m.SetNonce("new nonce")
+	c.Assert(m.Nonce(), gc.Equals, "new nonce")
+}
+
+func (s *MachineSerializationSuite) TestNewMachineSetPasswordHash(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	c.Assert(m.PasswordHash(), gc.Equals, "some-hash")
+	m.SetPasswordHash("new-hash")
+	c.Assert(m.PasswordHash(), gc.Equals, "new-hash")
 }
 
 func (s *MachineSerializationSuite) TestMinimalMachineValid(c *gc.C) {
