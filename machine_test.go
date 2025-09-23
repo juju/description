@@ -53,6 +53,7 @@ func minimalMachineMap(id string, containers ...interface{}) map[interface{}]int
 		"status":         minimalStatusMap(),
 		"status-history": emptyStatusHistoryMap(),
 		"block-devices":  emptyBlockDeviceMap(),
+		"hostname":       "",
 	}
 }
 
@@ -545,6 +546,23 @@ func (s *MachineSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	mLatest.Base_ = "ubuntu@20.04"
 	mLatest.Series_ = ""
 	c.Assert(mResult, jc.DeepEquals, mLatest)
+}
+
+func (s *MachineSerializationSuite) TestSetHostname(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	m.SetHostname("juju-host-42")
+	c.Assert(m.Hostname(), gc.Equals, "juju-host-42")
+}
+
+func (s *MachineSerializationSuite) TestParsingHostname(c *gc.C) {
+	initial := minimalMachine("0")
+	initial.SetHostname("juju-host-0")
+
+	machine := initial
+	mResult := s.exportImportVersion(c, initial, 4)
+
+	c.Assert(mResult, jc.DeepEquals, machine)
+	c.Assert(mResult.Hostname(), gc.Equals, "juju-host-0")
 }
 
 type AgentToolsSerializationSuite struct {

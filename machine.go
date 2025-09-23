@@ -57,6 +57,9 @@ type Machine interface {
 	AddOpenedPortRange(OpenedPortRangeArgs)
 
 	Validate() error
+
+	Hostname() string
+	SetHostname(hostname string)
 }
 
 type machines struct {
@@ -98,6 +101,8 @@ type machine struct {
 	Constraints_ *constraints `yaml:"constraints,omitempty"`
 
 	BlockDevices_ blockdevices `yaml:"block-devices,omitempty"`
+
+	Hostname_ string `yaml:"hostname"`
 }
 
 // MachineArgs is an argument struct used to add a machine to the Model.
@@ -401,6 +406,16 @@ func (m *machine) Validate() error {
 	return nil
 }
 
+// SetHostname implements Machine.
+func (m *machine) SetHostname(hostname string) {
+	m.Hostname_ = hostname
+}
+
+// Hostname implements Machine.
+func (m *machine) Hostname() string {
+	return m.Hostname_
+}
+
 func importMachines(source map[string]interface{}) ([]*machine, error) {
 	checker := versionedChecker("machines")
 	coerced, err := checker.Coerce(source, nil)
@@ -440,6 +455,7 @@ var machineDeserializationFuncs = map[int]machineDeserializationFunc{
 	1: importMachineV1,
 	2: importMachineV2,
 	3: importMachineV3,
+	4: importMachineV4,
 }
 
 func importMachineV1(source map[string]interface{}) (*machine, error) {
@@ -455,6 +471,11 @@ func importMachineV2(source map[string]interface{}) (*machine, error) {
 func importMachineV3(source map[string]interface{}) (*machine, error) {
 	fields, defaults := machineSchemaV3()
 	return importMachine(fields, defaults, 3, source, importMachineV3)
+}
+
+func importMachineV4(source map[string]interface{}) (*machine, error) {
+	fields, defaults := machineSchemaV4()
+	return importMachine(fields, defaults, 4, source, importMachineV4)
 }
 
 func importMachine(
@@ -625,6 +646,13 @@ func importMachine(
 		}
 	}
 
+	if importVersion >= 4 {
+		hostname, ok := valid["hostname"].(string)
+		if ok {
+			result.Hostname_ = hostname
+		}
+	}
+
 	return result, nil
 }
 
@@ -690,6 +718,12 @@ func machineSchemaV3() (schema.Fields, schema.Defaults) {
 	delete(fields, "series")
 	delete(defaults, "schema")
 
+	return fields, defaults
+}
+
+func machineSchemaV4() (schema.Fields, schema.Defaults) {
+	fields, defaults := machineSchemaV3()
+	fields["hostname"] = schema.String()
 	return fields, defaults
 }
 
