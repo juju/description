@@ -85,6 +85,8 @@ type Application interface {
 	AddOpenedPortRange(OpenedPortRangeArgs)
 
 	ProvisioningState() ProvisioningState
+
+	StorageUniqueID() string
 }
 
 // ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
@@ -154,6 +156,7 @@ type application struct {
 	Tools_             *agentTools        `yaml:"tools,omitempty"`
 	OperatorStatus_    *status            `yaml:"operator-status,omitempty"`
 	ProvisioningState_ *provisioningState `yaml:"provisioning-state,omitempty"`
+	StorageUniqueID_   string             `yaml:"storage-unique-id,omitempty"`
 
 	OpenedPortRanges_ *deployedPortRanges `yaml:"opened-port-ranges,omitempty"`
 
@@ -200,6 +203,7 @@ type ApplicationArgs struct {
 	StorageDirectives    map[string]StorageDirectiveArgs
 	MetricsCredentials   []byte
 	ProvisioningState    *ProvisioningStateArgs
+	StorageUniqueID      string
 }
 
 func newApplication(args ApplicationArgs) *application {
@@ -229,6 +233,7 @@ func newApplication(args ApplicationArgs) *application {
 		MetricsCredentials_:   creds,
 		StatusHistory_:        newStatusHistory(),
 		ProvisioningState_:    newProvisioningState(args.ProvisioningState),
+		StorageUniqueID_:      args.StorageUniqueID,
 	}
 	app.setUnits(nil)
 	app.setResources(nil)
@@ -670,6 +675,11 @@ func (a *application) ProvisioningState() ProvisioningState {
 	return a.ProvisioningState_
 }
 
+// StorageUniqueID implements Application.
+func (a *application) StorageUniqueID() string {
+	return a.StorageUniqueID_
+}
+
 func importApplications(source map[string]interface{}) ([]*application, error) {
 	checker := versionedChecker("applications")
 	coerced, err := checker.Coerce(source, nil)
@@ -719,6 +729,7 @@ var applicationDeserializationFuncs = map[int]applicationDeserializationFunc{
 	11: importApplicationV11,
 	12: importApplicationV12,
 	13: importApplicationV13,
+	14: importApplicationV14,
 }
 
 func applicationV1Fields() (schema.Fields, schema.Defaults) {
@@ -862,6 +873,13 @@ func applicationV13Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+func applicationV14Fields() (schema.Fields, schema.Defaults) {
+	fields, defaults := applicationV13Fields()
+	fields["storage-unique-id"] = schema.String()
+	defaults["storage-unique-id"] = ""
+	return fields, defaults
+}
+
 func importApplicationV1(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV1Fields()
 	return importApplication(fields, defaults, 1, source)
@@ -925,6 +943,11 @@ func importApplicationV12(source map[string]interface{}) (*application, error) {
 func importApplicationV13(source map[string]interface{}) (*application, error) {
 	fields, defaults := applicationV13Fields()
 	return importApplication(fields, defaults, 13, source)
+}
+
+func importApplicationV14(source map[string]interface{}) (*application, error) {
+	fields, defaults := applicationV14Fields()
+	return importApplication(fields, defaults, 14, source)
 }
 
 func importApplication(fields schema.Fields, defaults schema.Defaults, importVersion int, source map[string]interface{}) (*application, error) {
@@ -1072,6 +1095,10 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 			}
 			result.CharmConfigs_ = charmConfig
 		}
+	}
+
+	if importVersion >= 14 {
+		result.StorageUniqueID_ = valid["storage-unique-id"].(string)
 	}
 
 	result.importAnnotations(valid)
