@@ -771,8 +771,8 @@ func (s *ApplicationSerializationSuite) TestApplicationSeriesToPlatform(c *gc.C)
 
 func (s *ApplicationSerializationSuite) TestStorageUniqueIDCAAS(c *gc.C) {
 	args := minimalApplicationArgs(CAAS)
-	args.StorageUniqueID = "uniqid"
 	initial := minimalApplication(args)
+	initial.SetStorageUniqueID("uniqid")
 
 	application := s.exportImportLatest(c, initial)
 	c.Assert(application.StorageUniqueID(), gc.Equals, "uniqid")

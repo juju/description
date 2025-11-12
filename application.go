@@ -87,6 +87,7 @@ type Application interface {
 	ProvisioningState() ProvisioningState
 
 	StorageUniqueID() string
+	SetStorageUniqueID(string)
 }
 
 // ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
@@ -673,6 +674,10 @@ func (a *application) ProvisioningState() ProvisioningState {
 		return nil
 	}
 	return a.ProvisioningState_
+}
+
+func (a *application) SetStorageUniqueID(id string) {
+	a.StorageUniqueID_ = id
 }
 
 // StorageUniqueID implements Application.
