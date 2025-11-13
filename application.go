@@ -676,6 +676,7 @@ func (a *application) ProvisioningState() ProvisioningState {
 	return a.ProvisioningState_
 }
 
+// SetStorageUniqueID implements Application.
 func (a *application) SetStorageUniqueID(id string) {
 	a.StorageUniqueID_ = id
 }
@@ -881,7 +882,7 @@ func applicationV13Fields() (schema.Fields, schema.Defaults) {
 func applicationV14Fields() (schema.Fields, schema.Defaults) {
 	fields, defaults := applicationV13Fields()
 	fields["storage-unique-id"] = schema.String()
-	defaults["storage-unique-id"] = ""
+	defaults["storage-unique-id"] = schema.Omit
 	return fields, defaults
 }
 
@@ -1102,8 +1103,8 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		}
 	}
 
-	if importVersion >= 14 {
-		result.StorageUniqueID_ = valid["storage-unique-id"].(string)
+	if storageID, ok := valid["storage-unique-id"].(string); ok {
+		result.StorageUniqueID_ = storageID
 	}
 
 	result.importAnnotations(valid)
