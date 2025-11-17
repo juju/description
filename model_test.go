@@ -118,7 +118,7 @@ func (s *ModelSerializationSuite) TestVersions(c *gc.C) {
 		CloudRegion: "east-west",
 	}
 	initial := NewModel(args).(*model)
-	c.Assert(initial.Applications_.Version, gc.Equals, 13)
+	c.Assert(initial.Applications_.Version, gc.Equals, 14)
 	c.Assert(initial.Actions_.Version, gc.Equals, 4)
 	c.Assert(initial.Operations_.Version, gc.Equals, 2)
 	c.Assert(initial.Secrets_.Version, gc.Equals, 2)
