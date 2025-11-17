@@ -374,7 +374,7 @@ func (s *ApplicationSerializationSuite) exportImportVersion(c *gc.C, application
 }
 
 func (s *ApplicationSerializationSuite) exportImportLatest(c *gc.C, application_ *application) *application {
-	return s.exportImportVersion(c, application_, 13)
+	return s.exportImportVersion(c, application_, 14)
 }
 
 func (s *ApplicationSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
@@ -767,4 +767,21 @@ func (s *ApplicationSerializationSuite) TestApplicationSeriesToPlatform(c *gc.C)
 	c.Assert(err, jc.ErrorIsNil)
 
 	c.Assert(app[0].CharmOrigin().Platform(), gc.Equals, "unknown/ubuntu/20.04")
+}
+
+func (s *ApplicationSerializationSuite) TestStorageUniqueIDCAAS(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	initial := minimalApplication(args)
+	initial.SetStorageUniqueID("uniqid")
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.StorageUniqueID(), gc.Equals, "uniqid")
+}
+
+func (s *ApplicationSerializationSuite) TestStorageUniqueIDIAAS(c *gc.C) {
+	args := minimalApplicationArgs(IAAS)
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.StorageUniqueID(), gc.Equals, "")
 }
