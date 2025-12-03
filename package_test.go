@@ -25,7 +25,7 @@ var _ = gc.Suite(&ImportTest{})
 
 func (*ImportTest) TestImports(c *gc.C) {
 	imps, err := jtesting.FindImports(
-		"github.com/juju/description/v10",
+		"github.com/juju/description/v11",
 		"github.com/juju/juju/")
 	c.Assert(err, jc.ErrorIsNil)
 	// This package brings in nothing else from juju/juju
