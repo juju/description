@@ -193,7 +193,7 @@ func newStorageFromValid(valid map[string]interface{}, version int) (*storage, e
 	if version <= 3 {
 		if owner, ok := valid["owner"].(string); ok {
 			unitOwner, _ := strings.CutPrefix(owner, "unit-")
-			result.UnitOwner_ = strings.ReplaceAll(unitOwner, "-", "/")
+			result.UnitOwner_ = replaceLast(unitOwner, "-", "/")
 		}
 	}
 	if owner, ok := valid["unit-owner"].(string); ok {
@@ -251,4 +251,13 @@ func storageV1Fields() (schema.Fields, schema.Defaults) {
 		"name":        schema.String(),
 		"attachments": schema.List(schema.String()),
 	}, defaults
+}
+
+func replaceLast(x, y, z string) string {
+	i := strings.LastIndex(x, y)
+	if i == -1 {
+		return x // Substring not found
+	}
+	// Combine the part before the last occurrence, the replacement, and the part after
+	return x[:i] + z + x[i+len(y):]
 }

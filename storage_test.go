@@ -144,6 +144,60 @@ func (s *StorageSerializationSuite) TestParsingSerializedDataV3(c *gc.C) {
 	c.Assert(storages[0], jc.DeepEquals, original)
 }
 
+func (s *StorageSerializationSuite) TestParsingSerializedDataV3UnitNameWithDash(c *gc.C) {
+	// Arrange a storage using the version 4 args but a unit tag for the
+	// owner. Then convert to the version 3 by replacing 'owner' with
+	// 'unit-owner'.
+	original := newStorage(StorageArgs{
+		ID:        "db/0",
+		Kind:      "magic",
+		UnitOwner: "unit-post-gresql-0",
+		Name:      "db",
+		Attachments: []string{
+			"post-gresql/0",
+			"postgresql/1",
+		},
+		Constraints: &StorageInstanceConstraints{
+			Pool: "radiance",
+			Size: 1234,
+		},
+	})
+	initial := storages{
+		Version:   3,
+		Storages_: []*storage{original},
+	}
+
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+	legacy := strings.ReplaceAll(string(bytes), "unit-owner", "owner")
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal([]byte(legacy), &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	// Act
+	storages, err := importStorages(source)
+
+	// Assert: UnitOwner_ is now the unit name rather than the unit tag.
+	// Ensure that a dash in the application name is not replaced.
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(storages, gc.HasLen, 1)
+	c.Assert(storages[0], jc.DeepEquals, &storage{
+		ID_:        "db/0",
+		Kind_:      "magic",
+		UnitOwner_: "post-gresql/0",
+		Name_:      "db",
+		Attachments_: []string{
+			"post-gresql/0",
+			"postgresql/1",
+		},
+		Constraints_: &StorageInstanceConstraints{
+			Pool: "radiance",
+			Size: 1234,
+		},
+	})
+}
+
 func (s *StorageSerializationSuite) TestParsingSerializedDataV4(c *gc.C) {
 	original := testStorage()
 	original.Attachments_ = nil
