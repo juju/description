@@ -27,6 +27,8 @@ type Machine interface {
 	Nonce() string
 	PasswordHash() string
 	Placement() string
+	Hostname() string
+	SetHostname(string)
 	Base() string
 	ContainerType() string
 	Jobs() []string
@@ -69,6 +71,7 @@ type machine struct {
 	Nonce_        string         `yaml:"nonce"`
 	PasswordHash_ string         `yaml:"password-hash"`
 	Placement_    string         `yaml:"placement,omitempty"`
+	Hostname_     string         `yaml:"hostname,omitempty"`
 	Instance_     *cloudInstance `yaml:"instance,omitempty"`
 	// Series obsolete from v3. Retained for tests.
 	Series_        string `yaml:"series,omitempty"`
@@ -106,6 +109,7 @@ type MachineArgs struct {
 	Nonce         string
 	PasswordHash  string
 	Placement     string
+	Hostname      string
 	Series        string
 	Base          string
 	ContainerType string
@@ -126,6 +130,7 @@ func newMachine(args MachineArgs) *machine {
 		Nonce_:         args.Nonce,
 		PasswordHash_:  args.PasswordHash,
 		Placement_:     args.Placement,
+		Hostname_:      args.Hostname,
 		Series_:        args.Series,
 		Base_:          args.Base,
 		ContainerType_: args.ContainerType,
@@ -164,6 +169,16 @@ func (m *machine) PasswordHash() string {
 // Placement implements Machine.
 func (m *machine) Placement() string {
 	return m.Placement_
+}
+
+// Hostname implements Machine.
+func (m *machine) Hostname() string {
+	return m.Hostname_
+}
+
+// SetHostname implements Machine.
+func (m *machine) SetHostname(hostname string) {
+	m.Hostname_ = hostname
 }
 
 // Instance implements Machine.
@@ -440,6 +455,7 @@ var machineDeserializationFuncs = map[int]machineDeserializationFunc{
 	1: importMachineV1,
 	2: importMachineV2,
 	3: importMachineV3,
+	4: importMachineV4,
 }
 
 func importMachineV1(source map[string]interface{}) (*machine, error) {
@@ -455,6 +471,11 @@ func importMachineV2(source map[string]interface{}) (*machine, error) {
 func importMachineV3(source map[string]interface{}) (*machine, error) {
 	fields, defaults := machineSchemaV3()
 	return importMachine(fields, defaults, 3, source, importMachineV3)
+}
+
+func importMachineV4(source map[string]interface{}) (*machine, error) {
+	fields, defaults := machineSchemaV4()
+	return importMachine(fields, defaults, 4, source, importMachineV4)
 }
 
 func importMachine(
@@ -493,6 +514,9 @@ func importMachine(
 		result.Base_ = fmt.Sprintf("%s@%s", strings.ToLower(os.String()), vers)
 	} else {
 		result.Base_ = valid["base"].(string)
+	}
+	if hostname, ok := valid["hostname"]; ok {
+		result.Hostname_ = hostname.(string)
 	}
 
 	result.importAnnotations(valid)
@@ -689,6 +713,15 @@ func machineSchemaV3() (schema.Fields, schema.Defaults) {
 	fields["base"] = schema.String()
 	delete(fields, "series")
 	delete(defaults, "schema")
+
+	return fields, defaults
+}
+
+func machineSchemaV4() (schema.Fields, schema.Defaults) {
+	fields, defaults := machineSchemaV3()
+
+	fields["hostname"] = schema.String()
+	defaults["hostname"] = schema.Omit
 
 	return fields, defaults
 }

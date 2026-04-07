@@ -470,7 +470,7 @@ func (m *model) AddMachine(args MachineArgs) Machine {
 
 func (m *model) setMachines(machineList []*machine) {
 	m.Machines_ = machines{
-		Version:   3,
+		Version:   4,
 		Machines_: machineList,
 	}
 }

@@ -151,6 +151,7 @@ func (s *MachineSerializationSuite) machineArgs(id string) MachineArgs {
 		Nonce:         "a nonce",
 		PasswordHash:  "some-hash",
 		Placement:     "placement",
+		Hostname:      "machine-42",
 		Base:          "ubuntu@22.04",
 		ContainerType: "magic",
 		Jobs:          []string{"this", "that"},
@@ -164,12 +165,19 @@ func (s *MachineSerializationSuite) TestNewMachine(c *gc.C) {
 	c.Assert(m.Nonce(), gc.Equals, "a nonce")
 	c.Assert(m.PasswordHash(), gc.Equals, "some-hash")
 	c.Assert(m.Placement(), gc.Equals, "placement")
+	c.Assert(m.Hostname(), gc.Equals, "machine-42")
 	c.Assert(m.Base(), gc.Equals, "ubuntu@22.04")
 	c.Assert(m.ContainerType(), gc.Equals, "magic")
 	c.Assert(m.Jobs(), jc.DeepEquals, []string{"this", "that"})
 	supportedContainers, ok := m.SupportedContainers()
 	c.Assert(ok, jc.IsFalse)
 	c.Assert(supportedContainers, gc.IsNil)
+}
+
+func (s *MachineSerializationSuite) TestSetHostname(c *gc.C) {
+	m := newMachine(s.machineArgs("42"))
+	m.SetHostname("updated-42")
+	c.Assert(m.Hostname(), gc.Equals, "updated-42")
 }
 
 func (s *MachineSerializationSuite) TestMinimalMachineValid(c *gc.C) {
@@ -260,7 +268,7 @@ func (s *MachineSerializationSuite) TestMinimalMatches(c *gc.C) {
 
 func (*MachineSerializationSuite) TestNestedParsing(c *gc.C) {
 	machines, err := importMachines(map[string]interface{}{
-		"version": 3,
+		"version": 4,
 		"machines": []interface{}{
 			minimalMachineMap("0"),
 			minimalMachineMap("1",
@@ -402,7 +410,7 @@ func (s *MachineSerializationSuite) TestConstraints(c *gc.C) {
 }
 
 func (s *MachineSerializationSuite) exportImport(c *gc.C, machine_ *machine) *machine {
-	return s.exportImportVersion(c, machine_, 3)
+	return s.exportImportVersion(c, machine_, 4)
 }
 
 func (s *MachineSerializationSuite) exportImportVersion(c *gc.C, machine_ *machine, version int) *machine {
@@ -545,6 +553,14 @@ func (s *MachineSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	mLatest.Base_ = "ubuntu@20.04"
 	mLatest.Series_ = ""
 	c.Assert(mResult, jc.DeepEquals, mLatest)
+}
+
+func (s *MachineSerializationSuite) TestV3ParsingDropsHostname(c *gc.C) {
+	mV3 := minimalMachine("0")
+	mV3.SetHostname("machine-0")
+
+	mResult := s.exportImportVersion(c, mV3, 3)
+	c.Assert(mResult.Hostname(), gc.Equals, "")
 }
 
 type AgentToolsSerializationSuite struct {
