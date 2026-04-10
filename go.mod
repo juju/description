@@ -1,4 +1,4 @@
-module github.com/juju/description/v11
+module github.com/juju/description/v12
 
 go 1.24
 
