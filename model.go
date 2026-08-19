@@ -144,9 +144,6 @@ type Model interface {
 	PasswordHash() string
 
 	AddBlockDevice(string, BlockDeviceArgs) error
-
-	VirtualHostKeys() []VirtualHostKey
-	AddVirtualHostKey(args VirtualHostKeyArgs) VirtualHostKey
 }
 
 // ModelArgs represent the bare minimum information that is needed
@@ -209,7 +206,6 @@ func NewModel(args ModelArgs) Model {
 	m.setFirewallRules(nil)
 	m.setOfferConnections(nil)
 	m.setExternalControllers(nil)
-	m.setVirtualHostKeys(nil)
 
 	return m
 }
@@ -328,8 +324,6 @@ type model struct {
 	MeterStatus_ meterStatus `yaml:"meter-status"`
 
 	PasswordHash_ string `yaml:"password-hash,omitempty"`
-
-	VirtualHostKeys_ virtualHostKeys `yaml:"virtual-host-keys"`
 }
 
 // AgentVersion returns the current agent version in use the by the model.
@@ -485,29 +479,6 @@ func (m *model) AddBlockDevice(machineId string, bdArgs BlockDeviceArgs) error {
 		return nil
 	}
 	return fmt.Errorf("machine %q %w", machineId, errors.NotFound)
-}
-
-// VirtualHostKey implements Model.
-func (m *model) VirtualHostKeys() []VirtualHostKey {
-	var result []VirtualHostKey
-	for _, hostKey := range m.VirtualHostKeys_.VirtualHostKeys {
-		result = append(result, hostKey)
-	}
-	return result
-}
-
-// AddVirtualHostKey implements Model.
-func (m *model) AddVirtualHostKey(args VirtualHostKeyArgs) VirtualHostKey {
-	hk := newVirtualHostKey(args)
-	m.VirtualHostKeys_.VirtualHostKeys = append(m.VirtualHostKeys_.VirtualHostKeys, hk)
-	return hk
-}
-
-func (m *model) setVirtualHostKeys(virtualHostKeyList []*virtualHostKey) {
-	m.VirtualHostKeys_ = virtualHostKeys{
-		Version:         1,
-		VirtualHostKeys: virtualHostKeyList,
-	}
 }
 
 // Applications implements Model.
@@ -1220,11 +1191,6 @@ func (m *model) Validate() error {
 		return errors.Trace(err)
 	}
 
-	err = m.validateVirtualHostKeys(validationCtx)
-	if err != nil {
-		return errors.Trace(err)
-	}
-
 	return nil
 }
 
@@ -1416,15 +1382,6 @@ func (m *model) validateSecrets(validationCtx *validationContext) error {
 		}
 	}
 
-	return nil
-}
-
-func (m *model) validateVirtualHostKeys(_ *validationContext) error {
-	for i, hostKey := range m.VirtualHostKeys_.VirtualHostKeys {
-		if err := hostKey.Validate(); err != nil {
-			return errors.Annotatef(err, "virtual host key[%d]", i)
-		}
-	}
 	return nil
 }
 
@@ -1730,10 +1687,11 @@ func modelV11Fields() (schema.Fields, schema.Defaults) {
 	return fields, defaults
 }
 
+// modelV12Fields is retained for deserialization of already- serialized
+// version 12 models. Version 12 originally added "virtual-host-keys", but
+// that field has since been removed, so it now matches v11.
 func modelV12Fields() (schema.Fields, schema.Defaults) {
-	fields, defaults := modelV11Fields()
-	fields["virtual-host-keys"] = schema.StringMap(schema.Any())
-	return fields, defaults
+	return modelV11Fields()
 }
 
 func newModelFromValid(valid map[string]interface{}, importVersion int) (*model, error) {
@@ -2012,15 +1970,6 @@ func newModelFromValid(valid map[string]interface{}, importVersion int) (*model,
 		result.AgentVersion_ = valid["agent-version"].(string)
 	} else if result.Config_ != nil && result.Config_["agent-version"] != nil {
 		result.AgentVersion_ = result.Config_["agent-version"].(string)
-	}
-
-	if importVersion >= 12 {
-		virtualHostKeysMap := valid["virtual-host-keys"].(map[string]interface{})
-		virtualHostKeys, err := importVirtualHostKeys(virtualHostKeysMap)
-		if err != nil {
-			return nil, errors.Annotate(err, "virtual host keys")
-		}
-		result.setVirtualHostKeys(virtualHostKeys)
 	}
 
 	return result, nil
