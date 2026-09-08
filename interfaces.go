@@ -357,9 +357,3 @@ type CharmConfig interface {
 	Default() interface{}
 	Description() string
 }
-
-// VirtualHostKey represents a virtual host key of a unit/machine.
-type VirtualHostKey interface {
-	ID() string
-	HostKey() []byte
-}
