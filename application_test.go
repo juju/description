@@ -716,3 +716,24 @@ func (s *ApplicationSerializationSuite) TestStorageUniqueIDIAAS(c *gc.C) {
 	application := s.exportImportLatest(c, initial)
 	c.Assert(application.StorageUniqueID(), gc.Equals, "")
 }
+
+func (s *ApplicationSerializationSuite) TestPasswordHash(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	args.PasswordHash = "some-hash"
+	initial := minimalApplication(args)
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.PasswordHash(), gc.Equals, "some-hash")
+}
+
+func (s *ApplicationSerializationSuite) TestSetPasswordHash(c *gc.C) {
+	args := minimalApplicationArgs(CAAS)
+	initial := minimalApplication(args)
+	c.Assert(initial.PasswordHash(), gc.Equals, "")
+
+	initial.SetPasswordHash("new-hash")
+	c.Assert(initial.PasswordHash(), gc.Equals, "new-hash")
+
+	application := s.exportImportLatest(c, initial)
+	c.Assert(application.PasswordHash(), gc.Equals, "new-hash")
+}

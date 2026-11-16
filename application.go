@@ -89,6 +89,13 @@ type Application interface {
 
 	StorageUniqueID() string
 	SetStorageUniqueID(string)
+
+	// PasswordHash is the hash of the password used by an agent
+	// authenticating with this application's tag, used by the
+	// CAASApplication facade for unit introduction and by agents using
+	// the legacy operator/podspec runtime.
+	PasswordHash() string
+	SetPasswordHash(string)
 }
 
 // ExposedEndpoint encapsulates the details about the CIDRs and/or spaces that
@@ -157,6 +164,7 @@ type application struct {
 	OperatorStatus_    *status            `yaml:"operator-status,omitempty"`
 	ProvisioningState_ *provisioningState `yaml:"provisioning-state,omitempty"`
 	StorageUniqueID_   string             `yaml:"storage-unique-id,omitempty"`
+	PasswordHash_      string             `yaml:"password-hash,omitempty"`
 
 	OpenedPortRanges_ *deployedPortRanges `yaml:"opened-port-ranges,omitempty"`
 
@@ -202,6 +210,7 @@ type ApplicationArgs struct {
 	MetricsCredentials   []byte
 	ProvisioningState    *ProvisioningStateArgs
 	StorageUniqueID      string
+	PasswordHash         string
 }
 
 func newApplication(args ApplicationArgs) *application {
@@ -230,6 +239,7 @@ func newApplication(args ApplicationArgs) *application {
 		StatusHistory_:        newStatusHistory(),
 		ProvisioningState_:    newProvisioningState(args.ProvisioningState),
 		StorageUniqueID_:      args.StorageUniqueID,
+		PasswordHash_:         args.PasswordHash,
 	}
 	app.setUnits(nil)
 	app.setResources(nil)
@@ -691,6 +701,16 @@ func (a *application) StorageUniqueID() string {
 	return a.StorageUniqueID_
 }
 
+// SetPasswordHash implements Application.
+func (a *application) SetPasswordHash(hash string) {
+	a.PasswordHash_ = hash
+}
+
+// PasswordHash implements Application.
+func (a *application) PasswordHash() string {
+	return a.PasswordHash_
+}
+
 func importApplications(source map[string]interface{}) ([]*application, error) {
 	checker := versionedChecker("applications")
 	coerced, err := checker.Coerce(source, nil)
@@ -928,6 +948,7 @@ func importApplication(fields schema.Fields, defaults schema.Defaults, importVer
 		HasResources_:         valid["has-resources"].(bool),
 		Placement_:            valid["placement"].(string),
 		DesiredScale_:         int(valid["desired-scale"].(int64)),
+		PasswordHash_:         valid["password-hash"].(string),
 		StatusHistory_:        newStatusHistory(),
 	}
 
