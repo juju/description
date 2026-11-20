@@ -777,13 +777,14 @@ func importCharmMetadataContainer(source interface{}, importVersion int) (charmM
 		mounts = append(mounts, mount)
 	}
 
+	// schema.Int coerces to an int64 value, not a pointer.
 	var uid *int
-	if valid["uid"] != nil {
-		uid = int64ToIntPtr(valid["uid"].(*int64))
+	if v, ok := valid["uid"].(int64); ok {
+		uid = int64ToIntPtr(&v)
 	}
 	var gid *int
-	if valid["gid"] != nil {
-		uid = int64ToIntPtr(valid["gid"].(*int64))
+	if v, ok := valid["gid"].(int64); ok {
+		gid = int64ToIntPtr(&v)
 	}
 
 	return charmMetadataContainer{

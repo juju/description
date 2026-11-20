@@ -414,3 +414,30 @@ func (s *CharmMetadataSerializationSuite) TestV1ParsingReturnsLatest(c *gc.C) {
 	originResult := s.exportImportVersion(c, originV1, 1)
 	c.Assert(*originResult, jc.DeepEquals, originLatest)
 }
+
+func (s *CharmMetadataSerializationSuite) TestContainerUidGidRoundTrip(c *gc.C) {
+	uid, gid := 584792, 584793
+	initial := minimalCharmMetadata()
+	initial.Containers_ = map[string]charmMetadataContainer{
+		"mysql": {
+			Resource_: "mysql-image",
+			Mounts_:   []charmMetadataContainerMount{},
+			Uid_:      &uid,
+			Gid_:      &gid,
+		},
+	}
+	bytes, err := yaml.Marshal(initial)
+	c.Assert(err, jc.ErrorIsNil)
+
+	var source map[string]interface{}
+	err = yaml.Unmarshal(bytes, &source)
+	c.Assert(err, jc.ErrorIsNil)
+
+	instance, err := importCharmMetadata(source)
+	c.Assert(err, jc.ErrorIsNil)
+	container := instance.Containers()["mysql"]
+	c.Assert(container.Uid(), gc.NotNil)
+	c.Check(*container.Uid(), gc.Equals, uid)
+	c.Assert(container.Gid(), gc.NotNil)
+	c.Check(*container.Gid(), gc.Equals, gid)
+}
